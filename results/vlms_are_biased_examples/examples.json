@@ -1,0 +1,72 @@
+[
+  {
+    "id": "VerticalHorizontal_001_Q1_notitle_px384",
+    "topic": "Optical Illusion",
+    "sub_topic": "Vertical-Horizontal illusion",
+    "prompt": "Are the horizontal and vertical lines equal in length? Answer in curly brackets, e.g., {Yes} or {No}.",
+    "ground_truth": "Yes",
+    "expected_bias": "No",
+    "type_of_question": "Q1",
+    "image_file": "Optical_Illusion.png"
+  },
+  {
+    "id": "sudoku_grid_01_row_add_first_row_notitle_px384_Q1",
+    "topic": "Game Boards",
+    "sub_topic": "Sudoku Grid",
+    "prompt": "How many rows are there on this puzzle? Answer with a number in curly brackets, e.g., {9}.",
+    "ground_truth": "10",
+    "expected_bias": "9",
+    "type_of_question": "Q1",
+    "image_file": "Game_Boards.png"
+  },
+  {
+    "id": "dice_001_remove_notitle_px384_prompt1",
+    "topic": "Patterned Grid",
+    "sub_topic": "Dice Pattern",
+    "prompt": "How many circles are there in cell C3? Answer with a number in curly brackets, e.g., {9}.",
+    "ground_truth": "2",
+    "expected_bias": "3",
+    "type_of_question": "Q1",
+    "image_file": "Patterned_Grid.png"
+  },
+  {
+    "id": "chess_pieces_001_remove_notitle_px384_prompt1",
+    "topic": "Chess Pieces",
+    "sub_topic": "Chess Pieces",
+    "prompt": "How many chess pieces are there on this board? Answer with a number in curly brackets, e.g., {9}.",
+    "ground_truth": "31",
+    "expected_bias": "32",
+    "type_of_question": "Q1",
+    "image_file": "Chess_Pieces.png"
+  },
+  {
+    "id": "shoe_001_notitle_Q1_px384",
+    "topic": "Logos",
+    "sub_topic": "Shoe Logos",
+    "prompt": "How many visible white stylized curves are there in the logo on the left shoe? Answer with a number in curly brackets, e.g., {9}.",
+    "ground_truth": "2",
+    "expected_bias": "1",
+    "type_of_question": "Q1",
+    "image_file": "Logos.png"
+  },
+  {
+    "id": "flag_stars_001_notitle_Q1_px384",
+    "topic": "Flags",
+    "sub_topic": "Flags 2D Stars",
+    "prompt": "How many stars are there in this flag? Answer with a number in curly brackets, e.g., {9}.",
+    "ground_truth": "13",
+    "expected_bias": "12",
+    "type_of_question": "Q1",
+    "image_file": "Flags.png"
+  },
+  {
+    "id": "animal_001_horse_notitle_Q1_px384",
+    "topic": "Animals",
+    "sub_topic": "Animal Add Legs",
+    "prompt": "How many legs does this animal have? Answer with a number in curly brackets, e.g., {9}.",
+    "ground_truth": "5",
+    "expected_bias": "4",
+    "type_of_question": "Q1",
+    "image_file": "Animals.png"
+  }
+]

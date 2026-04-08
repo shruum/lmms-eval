@@ -1,0 +1,75 @@
+- sample_id: 0
+  image: mmbench_sample_0.png
+  category: identity_reasoning
+  source: scienceqa
+  hint: 'The passage below describes an experiment. Read the passage and then follow
+    the instructions below.
+
+
+    Madelyn applied a thin layer of wax to the underside of her snowboard and rode
+    the board straight d'
+  question: Identify the question that Madelyn and Tucker's experiment can best answer.
+  options:
+    A: Does Madelyn's snowboard slide down a hill in less time when it has a thin
+      layer of wax or a thick layer of wax?
+    B: Does Madelyn's snowboard slide down a hill in less time when it has a layer
+      of wax or when it does not have a layer of wax?
+  ground_truth: B
+- sample_id: 1
+  image: mmbench_sample_1.png
+  category: physical_property_reasoning
+  source: scienceqa
+  hint: 'People can use the engineering-design process to develop solutions to problems.
+    One step in the process is testing if a potential solution meets the requirements
+    of the design.
+
+    The passage below descr'
+  question: Which of the following could Laura and Isabella's test show?
+  options:
+    A: if the concrete from each batch took the same amount of time to dry
+    B: if a new batch of concrete was firm enough to use
+  ground_truth: B
+- sample_id: 2
+  image: mmbench_sample_2.png
+  category: physical_property_reasoning
+  source: scienceqa
+  hint: 'The passage below describes an experiment. Read the passage and think about
+    the variables that are described.
+
+
+    Arianna''s brother thought that crushed ice would keep his soda cooler than whole
+    ice cube'
+  question: Which of the following was a dependent variable in this experiment?
+  options:
+    A: the temperature of the soda
+    B: the size of the ice pieces
+  ground_truth: A
+- sample_id: 3
+  image: mmbench_sample_3.png
+  category: physical_property_reasoning
+  source: scienceqa
+  hint: 'The passage below describes an experiment. Read the passage and think about
+    the variables that are described.
+
+
+    Bryce noticed that some of the footballs his team used during practice were not
+    fully inf'
+  question: Which of the following was an independent variable in this experiment?
+  options:
+    A: the distance the footballs traveled
+    B: the air pressure in the footballs
+  ground_truth: B
+- sample_id: 4
+  image: mmbench_sample_4.png
+  category: physical_property_reasoning
+  source: scienceqa
+  hint: 'People can use the engineering-design process to develop solutions to problems.
+    One step in the process is testing if a potential solution meets the requirements
+    of the design.
+
+    The passage below descr'
+  question: Which of the following could Devin's test show?
+  options:
+    A: if the weather station would work when the temperature was 50¬∞C
+    B: how well the weather station would work when it was windy
+  ground_truth: A

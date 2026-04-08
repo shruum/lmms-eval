@@ -1,0 +1,65 @@
+{
+  "model_name": "Qwen/Qwen2.5-VL-3B-Instruct",
+  "dataset": "anvo25/vlms-are-biased",
+  "split": "main",
+  "attn_implementation": "eager",
+  "conditions_run": [
+    "baseline_real",
+    "low_res_x8",
+    "blur_r5",
+    "patch_shuffle16",
+    "high_res"
+  ],
+  "dry_run": false,
+  "n_samples": 200,
+  "n_records_total": 871,
+  "baseline_accuracy": 0.185,
+  "baseline_bias_rate": 0.505,
+  "per_condition": {
+    "baseline_real": {
+      "n_samples": 200,
+      "mean_n_image_tokens": 503.13,
+      "std_n_image_tokens": 278.3195162039486,
+      "mean_n_text_tokens": 44.585,
+      "mean_image_token_ratio": 0.8836615005048375,
+      "mean_vtar": 0.07823314440203225,
+      "std_vtar": 0.01439516881486181
+    },
+    "low_res_x8": {
+      "n_samples": 200,
+      "mean_n_image_tokens": 503.13,
+      "std_n_image_tokens": 278.3195162039486,
+      "mean_n_text_tokens": 44.585,
+      "mean_image_token_ratio": 0.8836615005048375,
+      "mean_vtar": 0.0730759408657773,
+      "std_vtar": 0.012656741074278024
+    },
+    "blur_r5": {
+      "n_samples": 200,
+      "mean_n_image_tokens": 503.13,
+      "std_n_image_tokens": 278.3195162039486,
+      "mean_n_text_tokens": 44.585,
+      "mean_image_token_ratio": 0.8836615005048375,
+      "mean_vtar": 0.07371840852584569,
+      "std_vtar": 0.012741720658143307
+    },
+    "patch_shuffle16": {
+      "n_samples": 200,
+      "mean_n_image_tokens": 503.13,
+      "std_n_image_tokens": 278.3195162039486,
+      "mean_n_text_tokens": 44.585,
+      "mean_image_token_ratio": 0.8836615005048375,
+      "mean_vtar": 0.0766388994661893,
+      "std_vtar": 0.012938557784978584
+    },
+    "high_res": {
+      "n_samples": 71,
+      "mean_n_image_tokens": 656.3661971830986,
+      "std_n_image_tokens": 121.98213208298344,
+      "mean_n_text_tokens": 44.394366197183096,
+      "mean_image_token_ratio": 0.934537567461477,
+      "mean_vtar": 0.08234491858042042,
+      "std_vtar": 0.010750888264214959
+    }
+  }
+}

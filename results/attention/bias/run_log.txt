@@ -1,0 +1,284 @@
+Logging all output to: /volumes2/mllm/lmms-eval/my_analysis/results/attention/bias/run_log.txt
+Args: {'dataset': 'anvo25/vlms-are-biased', 'split': 'main', 'limit': 200, 'seed': 42, 'model_name': 'Qwen/Qwen2.5-VL-3B-Instruct', 'device_map': 'cuda:0', 'torch_dtype': 'bfloat16', 'attn_implementation': 'eager', 'max_new_tokens': 16, 'image_token': '<|image_pad|>', 'max_image_size': 840, 'conditions': 'baseline_real,low_res_x8,blur_r5,patch_shuffle16,high_res', 'no_object_crop': False, 'object_crop_model': 'facebook/detr-resnet-50', 'object_crop_threshold': 0.5, 'output_dir': '/volumes2/mllm/lmms-eval/my_analysis/results/attention/bias', 'max_topics_plot': 20, 'dry_run': False}
+
+Running conditions: ['baseline_real', 'low_res_x8', 'blur_r5', 'patch_shuffle16', 'high_res']
+Dataset: anvo25/vlms-are-biased | split=main | samples=200
+
+OOM: sample=0 cond=high_res — skipping this condition.
+
+OOM: sample=3 cond=high_res — skipping this condition.
+
+OOM: sample=4 cond=high_res — skipping this condition.
+
+OOM: sample=7 cond=high_res — skipping this condition.
+
+OOM: sample=9 cond=high_res — skipping this condition.
+
+OOM: sample=11 cond=high_res — skipping this condition.
+
+OOM: sample=12 cond=high_res — skipping this condition.
+
+OOM: sample=13 cond=high_res — skipping this condition.
+
+OOM: sample=16 cond=high_res — skipping this condition.
+
+OOM: sample=17 cond=high_res — skipping this condition.
+
+OOM: sample=19 cond=high_res — skipping this condition.
+
+OOM: sample=21 cond=high_res — skipping this condition.
+
+OOM: sample=23 cond=high_res — skipping this condition.
+
+OOM: sample=25 cond=high_res — skipping this condition.
+
+OOM: sample=27 cond=high_res — skipping this condition.
+
+OOM: sample=28 cond=high_res — skipping this condition.
+
+OOM: sample=29 cond=high_res — skipping this condition.
+
+OOM: sample=30 cond=high_res — skipping this condition.
+
+OOM: sample=31 cond=high_res — skipping this condition.
+
+OOM: sample=32 cond=high_res — skipping this condition.
+
+OOM: sample=33 cond=high_res — skipping this condition.
+
+OOM: sample=34 cond=high_res — skipping this condition.
+
+OOM: sample=35 cond=high_res — skipping this condition.
+
+OOM: sample=36 cond=high_res — skipping this condition.
+
+OOM: sample=37 cond=high_res — skipping this condition.
+
+OOM: sample=39 cond=high_res — skipping this condition.
+
+OOM: sample=40 cond=high_res — skipping this condition.
+
+OOM: sample=42 cond=high_res — skipping this condition.
+
+OOM: sample=45 cond=high_res — skipping this condition.
+
+OOM: sample=48 cond=high_res — skipping this condition.
+
+OOM: sample=49 cond=high_res — skipping this condition.
+
+OOM: sample=51 cond=high_res — skipping this condition.
+
+OOM: sample=52 cond=high_res — skipping this condition.
+
+OOM: sample=54 cond=high_res — skipping this condition.
+
+OOM: sample=55 cond=high_res — skipping this condition.
+
+OOM: sample=56 cond=high_res — skipping this condition.
+
+OOM: sample=58 cond=high_res — skipping this condition.
+
+OOM: sample=59 cond=high_res — skipping this condition.
+
+OOM: sample=60 cond=high_res — skipping this condition.
+
+OOM: sample=61 cond=high_res — skipping this condition.
+
+OOM: sample=64 cond=high_res — skipping this condition.
+
+OOM: sample=65 cond=high_res — skipping this condition.
+
+OOM: sample=66 cond=high_res — skipping this condition.
+
+OOM: sample=67 cond=high_res — skipping this condition.
+
+OOM: sample=68 cond=high_res — skipping this condition.
+
+OOM: sample=69 cond=high_res — skipping this condition.
+
+OOM: sample=71 cond=high_res — skipping this condition.
+
+OOM: sample=75 cond=high_res — skipping this condition.
+
+OOM: sample=76 cond=high_res — skipping this condition.
+
+OOM: sample=77 cond=high_res — skipping this condition.
+
+OOM: sample=78 cond=high_res — skipping this condition.
+
+OOM: sample=81 cond=high_res — skipping this condition.
+
+OOM: sample=84 cond=high_res — skipping this condition.
+
+OOM: sample=85 cond=high_res — skipping this condition.
+
+OOM: sample=86 cond=high_res — skipping this condition.
+
+OOM: sample=87 cond=high_res — skipping this condition.
+
+OOM: sample=88 cond=high_res — skipping this condition.
+
+OOM: sample=89 cond=high_res — skipping this condition.
+
+OOM: sample=90 cond=high_res — skipping this condition.
+
+OOM: sample=93 cond=high_res — skipping this condition.
+
+OOM: sample=95 cond=high_res — skipping this condition.
+
+OOM: sample=96 cond=high_res — skipping this condition.
+
+OOM: sample=97 cond=high_res — skipping this condition.
+
+OOM: sample=99 cond=high_res — skipping this condition.
+
+OOM: sample=100 cond=high_res — skipping this condition.
+
+OOM: sample=104 cond=high_res — skipping this condition.
+
+OOM: sample=105 cond=high_res — skipping this condition.
+
+OOM: sample=106 cond=high_res — skipping this condition.
+
+OOM: sample=107 cond=high_res — skipping this condition.
+
+OOM: sample=108 cond=high_res — skipping this condition.
+
+OOM: sample=110 cond=high_res — skipping this condition.
+
+OOM: sample=112 cond=high_res — skipping this condition.
+
+OOM: sample=113 cond=high_res — skipping this condition.
+
+OOM: sample=114 cond=high_res — skipping this condition.
+
+OOM: sample=115 cond=high_res — skipping this condition.
+
+OOM: sample=116 cond=high_res — skipping this condition.
+
+OOM: sample=117 cond=high_res — skipping this condition.
+
+OOM: sample=119 cond=high_res — skipping this condition.
+
+OOM: sample=120 cond=high_res — skipping this condition.
+
+OOM: sample=122 cond=high_res — skipping this condition.
+
+OOM: sample=123 cond=high_res — skipping this condition.
+
+OOM: sample=124 cond=high_res — skipping this condition.
+
+OOM: sample=125 cond=high_res — skipping this condition.
+
+OOM: sample=126 cond=high_res — skipping this condition.
+
+OOM: sample=127 cond=high_res — skipping this condition.
+
+OOM: sample=128 cond=high_res — skipping this condition.
+
+OOM: sample=130 cond=high_res — skipping this condition.
+
+OOM: sample=131 cond=high_res — skipping this condition.
+
+OOM: sample=132 cond=high_res — skipping this condition.
+
+OOM: sample=133 cond=high_res — skipping this condition.
+
+OOM: sample=134 cond=high_res — skipping this condition.
+
+OOM: sample=135 cond=high_res — skipping this condition.
+
+OOM: sample=137 cond=high_res — skipping this condition.
+
+OOM: sample=139 cond=high_res — skipping this condition.
+
+OOM: sample=140 cond=high_res — skipping this condition.
+
+OOM: sample=141 cond=high_res — skipping this condition.
+
+OOM: sample=146 cond=high_res — skipping this condition.
+
+OOM: sample=147 cond=high_res — skipping this condition.
+
+OOM: sample=148 cond=high_res — skipping this condition.
+
+OOM: sample=150 cond=high_res — skipping this condition.
+
+OOM: sample=152 cond=high_res — skipping this condition.
+
+OOM: sample=153 cond=high_res — skipping this condition.
+
+OOM: sample=154 cond=high_res — skipping this condition.
+
+OOM: sample=156 cond=high_res — skipping this condition.
+
+OOM: sample=157 cond=high_res — skipping this condition.
+
+OOM: sample=159 cond=high_res — skipping this condition.
+
+OOM: sample=160 cond=high_res — skipping this condition.
+
+OOM: sample=162 cond=high_res — skipping this condition.
+
+OOM: sample=163 cond=high_res — skipping this condition.
+
+OOM: sample=164 cond=high_res — skipping this condition.
+
+OOM: sample=165 cond=high_res — skipping this condition.
+
+OOM: sample=168 cond=high_res — skipping this condition.
+
+OOM: sample=169 cond=high_res — skipping this condition.
+
+OOM: sample=170 cond=high_res — skipping this condition.
+
+OOM: sample=171 cond=high_res — skipping this condition.
+
+OOM: sample=176 cond=high_res — skipping this condition.
+
+OOM: sample=179 cond=high_res — skipping this condition.
+
+OOM: sample=180 cond=high_res — skipping this condition.
+
+OOM: sample=181 cond=high_res — skipping this condition.
+
+OOM: sample=182 cond=high_res — skipping this condition.
+
+OOM: sample=184 cond=high_res — skipping this condition.
+
+OOM: sample=185 cond=high_res — skipping this condition.
+
+OOM: sample=186 cond=high_res — skipping this condition.
+
+OOM: sample=188 cond=high_res — skipping this condition.
+
+OOM: sample=189 cond=high_res — skipping this condition.
+
+OOM: sample=190 cond=high_res — skipping this condition.
+
+OOM: sample=191 cond=high_res — skipping this condition.
+
+OOM: sample=193 cond=high_res — skipping this condition.
+
+OOM: sample=195 cond=high_res — skipping this condition.
+Saved records: /volumes2/mllm/lmms-eval/my_analysis/results/attention/bias/attention_records.jsonl  (871 rows)
+Saved summary: /volumes2/mllm/lmms-eval/my_analysis/results/attention/bias/summary.json
+Saved plot1: token counts by condition
+Saved plot2: VTAR by condition
+Saved plot3: input token % vs output attention %
+Saved plot4: layer-wise VTAR by condition
+Saved plot5: VTAR by topic (baseline_real)
+Saved plot6: head × layer heatmap (baseline_real)
+
+=== Attention Analysis Summary — VLMs-Are-Biased (multi-condition) ===
+  Samples    : 200
+  Accuracy   : 0.185  (baseline_real prediction)
+  Bias rate  : 0.505
+
+  condition               img_tok  txt_tok   vision_attn%   text_attn%
+  --------------------------------------------------------------------
+  baseline_real             503.1     44.6          7.82%       92.18%
+  low_res_x8                503.1     44.6          7.31%       92.69%
+  blur_r5                   503.1     44.6          7.37%       92.63%
+  patch_shuffle16           503.1     44.6          7.66%       92.34%
+  high_res                  656.4     44.4          8.23%       91.77%

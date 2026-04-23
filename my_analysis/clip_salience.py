@@ -29,7 +29,8 @@ from PIL import Image
 
 _CLIP_MODEL = None
 _CLIP_PROCESSOR = None
-_CLIP_DEVICE = "cpu"
+# Use CUDA if available — CLIP ViT-L/14 is ~0.86 GB fp16, fits alongside Qwen 3B on RTX 2080 Ti
+_CLIP_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
 COARSE_GRID    = 7       # NxN coarse grid for CLIP — 7×7 gives ~50px patches, better spatial precision
 ABSENCE_THRESH = 0.20    # max sim below this → object probably absent
@@ -48,8 +49,8 @@ def _load_clip(model_name: str = "openai/clip-vit-large-patch14") -> tuple:
     global _CLIP_MODEL, _CLIP_PROCESSOR
     if _CLIP_MODEL is None:
         from transformers import CLIPModel, CLIPProcessor
-        print(f"  [clip_salience] Loading {model_name} on CPU (one-time)…")
-        _CLIP_MODEL     = CLIPModel.from_pretrained(model_name).to(_CLIP_DEVICE).eval()
+        print(f"  [clip_salience] Loading {model_name} on {_CLIP_DEVICE} (one-time)…")
+        _CLIP_MODEL     = CLIPModel.from_pretrained(model_name, torch_dtype=torch.float16 if _CLIP_DEVICE == "cuda" else torch.float32).to(_CLIP_DEVICE).eval()
         _CLIP_PROCESSOR = CLIPProcessor.from_pretrained(model_name)
     return _CLIP_MODEL, _CLIP_PROCESSOR
 

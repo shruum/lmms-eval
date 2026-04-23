@@ -123,8 +123,8 @@ SALIENCY = {
 # =============================================================================
 
 BIAS = {
-    "layer_start":      10,
-    "layer_end":        12,
+    "layer_start":      8,
+    "layer_end":        15,
     "head_top_k_pct":   0.20,          # top-20% most vision-aware heads (narrower = less disruption)
     "sys_beta":         0.10,          # system prompt suppression (all modes)
 
@@ -132,8 +132,8 @@ BIAS = {
     "bias_mode":        "additive_logit", # "additive_logit" | "prob_interp" | "prob_scale" | "attn_floor" | "global_redistribute"
 
     # additive_logit params:
-    "boost_alpha":      5.0,           # logit units added directly (exp(5)≈148x boost); negative = suppress
-    "background_eps":   0.0,           # suppress non-salient img tokens by this amount
+    "boost_alpha":      0.0,           # logit units added directly; 0 = no boost to salient tokens
+    "background_eps":   1.5,           # suppress non-salient img tokens — force model onto top-30% only
 
     # prob_interp params:
     "interp_lambda":    1.0,           # 0 = no-op, 1 = full redistribution
@@ -183,7 +183,7 @@ def setup(model, processor) -> None:
 
     # Register the patch using "vaf" to satisfy patch_model's valid-method check.
     # prepare_sample() will flip _STATE["method"] to "srf" before each generate().
-    patch.patch_model(model, "vaf", BIAS["boost_alpha"])
+    patch.patch_model(model, "vaf", max(float(BIAS["boost_alpha"]), 1e-6))
     patch._STATE["vaf_layer_start"]    = BIAS["layer_start"]
     patch._STATE["vaf_layer_end"]      = BIAS["layer_end"]
     patch._STATE["vaf_beta"]           = BIAS["sys_beta"]

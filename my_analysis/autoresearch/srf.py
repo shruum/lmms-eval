@@ -65,6 +65,7 @@ SALIENCY = {
     #   max_sim >= thresh → BOOST salient region (object likely present, fix FN)
     #   max_sim <  thresh → SUPPRESS salient region (object likely absent, fix FP hallucination)
     "clip_suppress_thresh": 0.248,  # calibrated from quality data
+    "clip_suppress_alpha":  3.0,    # separate alpha for suppress direction (stronger than boost)
 
     # HSSA params
     "hssa_layer":         8,       # decoder layer (sweep: 8,12,16,20,24 per quality vis)
@@ -126,14 +127,14 @@ SALIENCY = {
 BIAS = {
     "layer_start":      8,
     "layer_end":        15,
-    "head_top_k_pct":   0.50,          # top-50% vision-aware heads
+    "head_top_k_pct":   0.20,          # top-20% vision-aware heads
     "sys_beta":         0.10,          # system prompt suppression (all modes)
 
     # Bias mode — pick one:
     "bias_mode":        "additive_logit", # "additive_logit" | "prob_interp" | "prob_scale" | "attn_floor" | "global_redistribute"
 
     # additive_logit params:
-    "boost_alpha":      2.0,           # logit units added directly (exp(2)≈7.4x boost); negative = suppress
+    "boost_alpha":      1.0,           # logit units for BOOST (present object); suppress uses clip_suppress_alpha
     "background_eps":   0.0,           # suppress non-salient img tokens by this amount
 
     # prob_interp params:
@@ -298,11 +299,12 @@ def prepare_sample(
     # trigger. Boosting it makes things WORSE; suppressing it helps.
     # suppress_thresh=0.0 disables this (always boost). Calibrate from saliency_quality.py.
     suppress_thresh = SALIENCY.get("clip_suppress_thresh", 0.0)
+    suppress_alpha  = SALIENCY.get("clip_suppress_alpha", BIAS["boost_alpha"])
     if suppress_thresh > 0.0 and source in ("clip", "clip_hssa"):
         if result.max_sim < suppress_thresh:
-            patch._STATE["value"] = -abs(BIAS["boost_alpha"])
+            patch._STATE["value"] = -abs(suppress_alpha)   # absent: strong suppress
         else:
-            patch._STATE["value"] = abs(BIAS["boost_alpha"])
+            patch._STATE["value"] = abs(BIAS["boost_alpha"])  # present: gentle boost
     else:
         patch._STATE["value"] = BIAS["boost_alpha"]
 

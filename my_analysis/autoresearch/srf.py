@@ -126,14 +126,14 @@ SALIENCY = {
 BIAS = {
     "layer_start":      8,
     "layer_end":        15,
-    "head_top_k_pct":   0.20,          # top-20% most vision-aware heads
+    "head_top_k_pct":   0.50,          # top-50% vision-aware heads
     "sys_beta":         0.10,          # system prompt suppression (all modes)
 
     # Bias mode — pick one:
     "bias_mode":        "additive_logit", # "additive_logit" | "prob_interp" | "prob_scale" | "attn_floor" | "global_redistribute"
 
     # additive_logit params:
-    "boost_alpha":      3.0,           # logit units added directly (exp(3)≈20x boost); negative = suppress
+    "boost_alpha":      2.0,           # logit units added directly (exp(2)≈7.4x boost); negative = suppress
     "background_eps":   0.0,           # suppress non-salient img tokens by this amount
 
     # prob_interp params:

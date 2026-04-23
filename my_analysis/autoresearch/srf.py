@@ -122,7 +122,7 @@ BIAS = {
     "sys_beta":         0.10,          # system prompt suppression (all modes)
 
     # Bias mode — pick one:
-    "bias_mode":        "prob_interp", # "additive_logit" | "prob_interp" | "prob_scale" | "attn_floor" | "global_redistribute"
+    "bias_mode":        "global_redistribute", # "additive_logit" | "prob_interp" | "prob_scale" | "attn_floor" | "global_redistribute"
 
     # additive_logit params:
     "boost_alpha":      1.5,
@@ -138,7 +138,7 @@ BIAS = {
     "prob_floor":       0.005,         # min attention per salient token
 
     # global_redistribute params:
-    "img_scale":        2.0,           # multiply current total img attention fraction
+    "img_scale":        1.5,           # multiply current total img attention fraction
 }
 
 

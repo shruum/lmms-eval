@@ -133,7 +133,7 @@ BIAS = {
     "bias_mode":        "additive_logit", # "additive_logit" | "prob_interp" | "prob_scale" | "attn_floor" | "global_redistribute"
 
     # additive_logit params:
-    "boost_alpha":      2.0,           # logit units added directly (exp(2)≈7.4x boost); negative = suppress
+    "boost_alpha":      3.0,           # logit units added directly (exp(3)≈20x boost); negative = suppress
     "background_eps":   0.0,           # suppress non-salient img tokens by this amount
 
     # prob_interp params:

@@ -29,10 +29,12 @@ from PIL import Image
 
 _CLIP_MODEL = None
 _CLIP_PROCESSOR = None
-# Keep CLIP on CPU at rest; move to CUDA temporarily only during CLIP forward pass.
-# This avoids OOM when Qwen 3B (7.5 GB) + CLIP ViT-L/14 (0.86 GB) + activations exceed VRAM.
+# Use ViT-B/32 (0.31 GB fp16) instead of ViT-L/14 (0.86 GB) to fit alongside Qwen 3B (7.5 GB).
+# Borrow-GPU strategy: load on CPU, move to CUDA for inference, move back after.
+# ViT-B/32 on GPU: ~0.07s/sample vs ~40s/sample on CPU = 570x speedup.
 _CLIP_STORAGE_DEVICE = "cpu"
 _CLIP_INFER_DEVICE   = "cuda" if torch.cuda.is_available() else "cpu"
+_CLIP_DEFAULT_MODEL  = "openai/clip-vit-base-patch32"  # 0.31 GB fp16 — fits with Qwen
 
 COARSE_GRID    = 7       # NxN coarse grid for CLIP — 7×7 gives ~50px patches, better spatial precision
 ABSENCE_THRESH = 0.20    # max sim below this → object probably absent
@@ -47,7 +49,7 @@ class ClipSalienceResult:
     query_noun: str             # extracted noun used for CLIP
 
 
-def _load_clip(model_name: str = "openai/clip-vit-large-patch14") -> tuple:
+def _load_clip(model_name: str = _CLIP_DEFAULT_MODEL) -> tuple:
     global _CLIP_MODEL, _CLIP_PROCESSOR
     if _CLIP_MODEL is None:
         from transformers import CLIPModel, CLIPProcessor
@@ -102,7 +104,7 @@ def compute_clip_salience(
     grid_w: int,
     top_k_pct: float = 0.3,
     coarse_n: int = COARSE_GRID,
-    clip_model_name: str = "openai/clip-vit-large-patch14",
+    clip_model_name: str = _CLIP_DEFAULT_MODEL,
 ) -> ClipSalienceResult:
     """
     Compute CLIP-based salience mask at coarse grid resolution, then upsample

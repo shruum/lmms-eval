@@ -64,7 +64,7 @@ SALIENCY = {
     #   threshold=0.248 separates them with ~70% accuracy.
     #   max_sim >= thresh → BOOST salient region (object likely present, fix FN)
     #   max_sim <  thresh → SUPPRESS salient region (object likely absent, fix FP hallucination)
-    "clip_suppress_thresh": 0.248,  # calibrated from quality data
+    "clip_suppress_thresh": 0.243,  # lower threshold biases toward FN boost (42 FN >> 8 FP)
     "clip_suppress_alpha":  3.0,    # separate alpha for suppress direction (stronger than boost)
 
     # HSSA params

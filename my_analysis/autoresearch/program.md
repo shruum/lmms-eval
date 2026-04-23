@@ -29,9 +29,9 @@ Both stages are configured in `srf.py`. The eval harness is `pope_eval_all.py` (
 
 | File | Role |
 |------|------|
-| `pope_eval_fast.py` | **IMMUTABLE** — fast loop harness (adversarial n=50, ~2 min). Use in the loop. |
-| `pope_eval_all.py` | **IMMUTABLE** — full harness (all 3 splits n=100 each, ~15 min). Use for final validation. |
-| `pope_eval.py` | **IMMUTABLE** — adversarial n=100 harness. Kept for reference. |
+| `pope_eval.py` | **IMMUTABLE** — loop harness (adversarial n=100, ~5 min). Use in the loop. |
+| `pope_eval_all.py` | **IMMUTABLE** — full harness (all 3 splits n=100 each). Use for final validation only. |
+| `pope_eval_fast.py` | **IMMUTABLE** — adversarial n=50. Kept for reference. |
 | `srf.py` | **YOUR SANDBOX** — modify `SALIENCY`, `BIAS`, and/or the implementation. |
 | `results.tsv` | Experiment log — untracked by git, never commit. |
 | `program.md` | This file — human-written instructions. |
@@ -50,7 +50,7 @@ cd /volumes2/mllm/lmms-eval
 git checkout -b autoresearch/<tag>   # e.g. autoresearch/apr23-pope-srf
 
 # 2. Run baseline to confirm the harness works and log the starting point
-conda run -n mllm python my_analysis/autoresearch/pope_eval_fast.py > run.log 2>&1
+conda run -n mllm python my_analysis/autoresearch/pope_eval.py > run.log 2>&1
 grep "POPE accuracy:" run.log
 
 # 3. Initialise results.tsv with the baseline row
@@ -71,7 +71,7 @@ LOOP FOREVER until manually interrupted:
 3. Edit srf.py
 4. git add my_analysis/autoresearch/srf.py
    git commit -m "experiment: <brief description>"
-5. conda run -n mllm python my_analysis/autoresearch/pope_eval_fast.py > run.log 2>&1
+5. conda run -n mllm python my_analysis/autoresearch/pope_eval.py > run.log 2>&1
 6. grep "POPE accuracy:" run.log
 7. If this is a Stage 1 experiment: inspect my_analysis/autoresearch/vis/sample_*.png
    to confirm the saliency map is localising the queried object correctly.
@@ -87,7 +87,7 @@ LOOP FOREVER until manually interrupted:
 
 **NEVER STOP once the loop has started.**
 **NEVER ask if you should continue.**
-**NEVER modify pope_eval_fast.py, pope_eval_all.py, or pope_eval.py.**
+**NEVER modify pope_eval.py, pope_eval_all.py, or pope_eval_fast.py.**
 
 ---
 
@@ -97,24 +97,18 @@ LOOP FOREVER until manually interrupted:
 grep "POPE accuracy:" run.log
 ```
 
-**During the search loop**: use `pope_eval_fast.py` (adversarial n=50, ~2 min).
-**For final validation of promising configs**: use `pope_eval_all.py` (all 3 splits n=100, ~15 min).
+**Loop harness**: `pope_eval.py` — adversarial split, n=100, ~5 min per run.
+**Final validation**: `pope_eval_all.py` — all 3 splits n=100 each, after finding a strong config.
 
 Higher is better.
 
-**Qwen no-intervention baseline:**
-- adversarial n=50 (fast): TBD — measure at loop start
-- adversarial n=100 (full): 0.8800 (measured)
-- all 3 splits average:     0.8333 (adv=0.82 pop=0.80 rand=0.88, user-reported n=500)
+**Qwen no-intervention baseline (adversarial n=100):** 0.8800 (measured).
+Any SRF config below 0.8800 is actively hurting and must be discarded.
 
-Any SRF fast config that scores below the fast baseline is actively hurting and must be discarded.
-
-Statistical guidance (adversarial n=50):
-- Gain ≥ 0.020 (2.0%) → clearly meaningful at n=50
-- Gain 0.010–0.020   → likely real, keep it
-- Gain < 0.010       → within noise at n=50, treat as discard
-
-When a fast config shows ≥ 0.020 gain: validate with pope_eval_all.py before declaring victory.
+Statistical guidance (adversarial n=100):
+- Gain ≥ 0.010 (1.0%) → clearly meaningful
+- Gain 0.005–0.010   → real, keep it
+- Gain < 0.005       → within noise, treat as discard
 
 ---
 

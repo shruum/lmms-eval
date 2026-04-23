@@ -123,13 +123,13 @@ SALIENCY = {
 # =============================================================================
 
 BIAS = {
-    "layer_start":      8,
-    "layer_end":        15,
+    "layer_start":      28,
+    "layer_end":        35,
     "head_top_k_pct":   0.50,          # top-50% vision-aware heads
     "sys_beta":         0.10,          # system prompt suppression (all modes)
 
     # Bias mode — pick one:
-    "bias_mode":        "attn_floor",     # "additive_logit" | "prob_interp" | "prob_scale" | "attn_floor" | "global_redistribute"
+    "bias_mode":        "additive_logit", # "additive_logit" | "prob_interp" | "prob_scale" | "attn_floor" | "global_redistribute"
 
     # additive_logit params:
     "boost_alpha":      1.0,           # logit units added directly (exp(1)≈2.7x boost); negative = suppress

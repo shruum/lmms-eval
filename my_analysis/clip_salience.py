@@ -29,8 +29,10 @@ from PIL import Image
 
 _CLIP_MODEL = None
 _CLIP_PROCESSOR = None
-# Use CUDA if available — CLIP ViT-L/14 is ~0.86 GB fp16, fits alongside Qwen 3B on RTX 2080 Ti
-_CLIP_DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+# Keep CLIP on CPU at rest; move to CUDA temporarily only during CLIP forward pass.
+# This avoids OOM when Qwen 3B (7.5 GB) + CLIP ViT-L/14 (0.86 GB) + activations exceed VRAM.
+_CLIP_STORAGE_DEVICE = "cpu"
+_CLIP_INFER_DEVICE   = "cuda" if torch.cuda.is_available() else "cpu"
 
 COARSE_GRID    = 7       # NxN coarse grid for CLIP — 7×7 gives ~50px patches, better spatial precision
 ABSENCE_THRESH = 0.20    # max sim below this → object probably absent
@@ -49,10 +51,29 @@ def _load_clip(model_name: str = "openai/clip-vit-large-patch14") -> tuple:
     global _CLIP_MODEL, _CLIP_PROCESSOR
     if _CLIP_MODEL is None:
         from transformers import CLIPModel, CLIPProcessor
-        print(f"  [clip_salience] Loading {model_name} on {_CLIP_DEVICE} (one-time)…")
-        _CLIP_MODEL     = CLIPModel.from_pretrained(model_name, torch_dtype=torch.float16 if _CLIP_DEVICE == "cuda" else torch.float32).to(_CLIP_DEVICE).eval()
+        print(f"  [clip_salience] Loading {model_name} on {_CLIP_STORAGE_DEVICE} (one-time, infers on {_CLIP_INFER_DEVICE})…")
+        _CLIP_MODEL     = CLIPModel.from_pretrained(
+            model_name,
+            torch_dtype=torch.float16 if _CLIP_INFER_DEVICE == "cuda" else torch.float32,
+        ).to(_CLIP_STORAGE_DEVICE).eval()
         _CLIP_PROCESSOR = CLIPProcessor.from_pretrained(model_name)
     return _CLIP_MODEL, _CLIP_PROCESSOR
+
+
+def _clip_model_to_infer() -> None:
+    """Move CLIP to inference device (called just before CLIP forward pass)."""
+    global _CLIP_MODEL
+    if _CLIP_MODEL is not None and _CLIP_INFER_DEVICE != _CLIP_STORAGE_DEVICE:
+        _CLIP_MODEL.to(_CLIP_INFER_DEVICE)
+
+
+def _clip_model_to_storage() -> None:
+    """Move CLIP back to storage device (CPU) after inference to free VRAM for Qwen."""
+    global _CLIP_MODEL
+    if _CLIP_MODEL is not None and _CLIP_INFER_DEVICE != _CLIP_STORAGE_DEVICE:
+        _CLIP_MODEL.to(_CLIP_STORAGE_DEVICE)
+        if _CLIP_INFER_DEVICE.startswith("cuda"):
+            torch.cuda.empty_cache()
 
 
 def extract_query_noun(prompt: str) -> str:
@@ -114,19 +135,21 @@ def compute_clip_salience(
             patch = image.crop((x0, y0, x1, y1))
             patches.append(patch)
 
+    _clip_model_to_infer()   # move CLIP to GPU for fast inference
     with torch.no_grad():
         img_inputs = processor(images=patches, return_tensors="pt",
-                               padding=True).to(_CLIP_DEVICE)
+                               padding=True).to(_CLIP_INFER_DEVICE)
         img_feats  = model.get_image_features(**img_inputs)      # (n_patches, d)
         img_feats  = img_feats / img_feats.norm(dim=-1, keepdim=True)
 
         txt_inputs = processor(text=[noun], return_tensors="pt",
                                padding=True, truncation=True,
-                               max_length=77).to(_CLIP_DEVICE)
+                               max_length=77).to(_CLIP_INFER_DEVICE)
         txt_feat   = model.get_text_features(**txt_inputs)        # (1, d)
         txt_feat   = txt_feat / txt_feat.norm(dim=-1, keepdim=True)
 
         sims = (img_feats @ txt_feat.T).squeeze(-1).cpu()         # (n_patches,)
+    _clip_model_to_storage()  # free VRAM before Qwen forward pass
 
     max_sim        = float(sims.max())
     object_present = max_sim >= ABSENCE_THRESH

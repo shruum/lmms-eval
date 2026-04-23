@@ -80,18 +80,23 @@ def _clip_model_to_storage() -> None:
 
 def extract_query_noun(prompt: str) -> str:
     """
-    Extract the object noun from a POPE-style question.
-    "Is there a chair in the image?\nAnswer with Yes or No only." → "chair"
+    Extract the object noun phrase from a POPE-style question.
+    "Is there a dining table in the image?" → "dining table"
+    "Is there a chair in the image?"        → "chair"
     Falls back to the full first sentence if extraction fails.
     """
-    # Match: "is there a/an <noun>" pattern
-    m = re.search(r"is there an?\s+(\w+)", prompt, re.IGNORECASE)
+    # Match: "is there a/an <phrase> in the image" — captures multi-word nouns
+    m = re.search(r"is there an?\s+([\w\s]+?)\s+in\s+the\s+image", prompt, re.IGNORECASE)
     if m:
-        return m.group(1).lower()
-    # Match: "do you see a/an <noun>" pattern
-    m = re.search(r"do you see an?\s+(\w+)", prompt, re.IGNORECASE)
+        return m.group(1).lower().strip()
+    # Match: "do you see a/an <phrase> in the image"
+    m = re.search(r"do you see an?\s+([\w\s]+?)\s+in\s+the\s+image", prompt, re.IGNORECASE)
     if m:
-        return m.group(1).lower()
+        return m.group(1).lower().strip()
+    # Match: "is there a/an <phrase>?" (no "in the image")
+    m = re.search(r"is there an?\s+([\w\s]+?)[\?\.!\n]", prompt, re.IGNORECASE)
+    if m:
+        return m.group(1).lower().strip()
     # Fallback: first sentence only
     first = prompt.split("\n")[0].split("?")[0]
     return first.strip()

@@ -257,12 +257,15 @@ def _patched_softmax(
 
                 # ── Image-token boost: pre-softmax, additive_logit mode only ──
                 if bias_mode == "additive_logit":
-                    log_w = math.log(max(float(value), 1e-8))
+                    # Use boost_alpha directly as logit addition (same convention as vaf).
+                    # boost_alpha=3 → add 3 to salient token logits → exp(3)≈20× attention.
+                    # Previously used log(alpha), which was ~13× too weak.
+                    alpha_val = float(value)
                     if sal is not None:
                         sal_dev  = sal.to(device=input.device, dtype=input.dtype)
-                        bias_row = log_w * sal_dev - eps * (1.0 - sal_dev)
+                        bias_row = alpha_val * sal_dev - eps * (1.0 - sal_dev)
                     else:
-                        bias_row = input.new_full((n_img,), log_w)
+                        bias_row = input.new_full((n_img,), alpha_val)
 
                     if head_mask is not None:
                         mask_dev  = head_mask.to(input.device)
@@ -592,9 +595,11 @@ def identify_visual_heads(
     _STATE["_calib_head_acc"]   = None
     _STATE["_calib_head_count"] = 0
 
-    for inputs, (img_start, img_end) in zip(calibration_inputs, img_ranges):
-        update_sample(img_start, img_end)
-        model(**inputs)
+    import torch as _torch
+    with _torch.no_grad():
+        for inputs, (img_start, img_end) in zip(calibration_inputs, img_ranges):
+            update_sample(img_start, img_end)
+            model(**inputs)
 
     _STATE["_calibrate_heads"] = False
 

@@ -55,11 +55,18 @@ SALIENCY = {
     # CLIP params
     "clip_coarse_grid":   7,       # N×N grid for CLIP patch extraction
     "clip_top_k_pct":     0.30,    # fraction of img tokens to mark as salient
-    "clip_absence_thresh": 0.20,   # max_sim below this → object probably absent
+    "clip_absence_thresh": 0.20,   # max_sim below this → object absent (uniform sal)
     "clip_use_soft":      True,    # True = soft [0,1] saliency; False = binary top-k
 
+    # Absence-aware boost/suppress strategy (see saliency_quality.py vis to calibrate):
+    #   max_sim >= clip_suppress_thresh → BOOST salient region (object likely present)
+    #   max_sim <  clip_suppress_thresh → SUPPRESS salient region (adversarial absent:
+    #                                     most similar region is the hallucination trigger)
+    # Set to 0.0 to always boost. Set to 1.0 to always suppress. Typical: 0.25–0.35.
+    "clip_suppress_thresh": 0.0,   # START: disabled — sweep after saliency quality run
+
     # HSSA params
-    "hssa_layer":         16,      # decoder layer to extract hidden states from
+    "hssa_layer":         16,      # decoder layer (sweep: 8,12,16,20,24 per quality vis)
     "hssa_top_k_pct":     0.30,
     "hssa_use_soft":      True,
 
@@ -122,11 +129,11 @@ BIAS = {
     "sys_beta":         0.10,          # system prompt suppression (all modes)
 
     # Bias mode — pick one:
-    "bias_mode":        "global_redistribute", # "additive_logit" | "prob_interp" | "prob_scale" | "attn_floor" | "global_redistribute"
+    "bias_mode":        "additive_logit", # "additive_logit" | "prob_interp" | "prob_scale" | "attn_floor" | "global_redistribute"
 
     # additive_logit params:
-    "boost_alpha":      1.5,
-    "background_eps":   0.0,
+    "boost_alpha":      3.0,           # logit units added directly (exp(3)≈20x boost); negative = suppress
+    "background_eps":   0.0,           # suppress non-salient img tokens by this amount
 
     # prob_interp params:
     "interp_lambda":    1.0,           # 0 = no-op, 1 = full redistribution
@@ -284,6 +291,19 @@ def prepare_sample(
         sal      = (combined - mn) / (mx - mn + 1e-8)
 
     patch._STATE["salience_mask"] = sal
+
+    # ── Absence-aware alpha: suppress when object likely absent, boost when present ──
+    # For adversarial POPE "no" cases, the CLIP salient region IS the hallucination
+    # trigger. Boosting it makes things WORSE; suppressing it helps.
+    # suppress_thresh=0.0 disables this (always boost). Calibrate from saliency_quality.py.
+    suppress_thresh = SALIENCY.get("clip_suppress_thresh", 0.0)
+    if suppress_thresh > 0.0 and source in ("clip", "clip_hssa"):
+        if result.max_sim < suppress_thresh:
+            patch._STATE["value"] = -abs(BIAS["boost_alpha"])
+        else:
+            patch._STATE["value"] = abs(BIAS["boost_alpha"])
+    else:
+        patch._STATE["value"] = BIAS["boost_alpha"]
 
     # ── Stage 1 visualization (first VIS_SAMPLES per run) ────────────────
     global _vis_count

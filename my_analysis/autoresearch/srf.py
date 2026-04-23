@@ -50,7 +50,7 @@ import hssa_salience   as hssa_sal
 # =============================================================================
 
 SALIENCY = {
-    "source":            "hssa",   # "clip" | "hssa" | "clip_hssa"
+    "source":            "clip",   # "clip" | "hssa" | "clip_hssa"
 
     # CLIP params
     "clip_coarse_grid":   7,       # N×N grid for CLIP patch extraction
@@ -58,12 +58,13 @@ SALIENCY = {
     "clip_absence_thresh": 0.20,   # max_sim below this → object absent (uniform sal)
     "clip_use_soft":      True,    # True = soft [0,1] saliency; False = binary top-k
 
-    # Absence-aware boost/suppress strategy (see saliency_quality.py vis to calibrate):
-    #   max_sim >= clip_suppress_thresh → BOOST salient region (object likely present)
-    #   max_sim <  clip_suppress_thresh → SUPPRESS salient region (adversarial absent:
-    #                                     most similar region is the hallucination trigger)
-    # Set to 0.0 to always boost. Set to 1.0 to always suppress. Typical: 0.25–0.35.
-    "clip_suppress_thresh": 0.0,   # START: disabled — sweep after saliency quality run
+    # Absence-aware boost/suppress strategy (calibrated from saliency_quality.py):
+    #   Quality data shows present objects (gt=yes): mean max_sim=0.252
+    #                    absent  objects (gt=no):    mean max_sim=0.242
+    #   threshold=0.248 separates them with ~70% accuracy.
+    #   max_sim >= thresh → BOOST salient region (object likely present, fix FN)
+    #   max_sim <  thresh → SUPPRESS salient region (object likely absent, fix FP hallucination)
+    "clip_suppress_thresh": 0.248,  # calibrated from quality data
 
     # HSSA params
     "hssa_layer":         8,       # decoder layer (sweep: 8,12,16,20,24 per quality vis)
@@ -125,15 +126,15 @@ SALIENCY = {
 BIAS = {
     "layer_start":      8,
     "layer_end":        15,
-    "head_top_k_pct":   0.20,          # top-20% most vision-aware heads (narrower = less disruption)
+    "head_top_k_pct":   0.20,          # top-20% most vision-aware heads
     "sys_beta":         0.10,          # system prompt suppression (all modes)
 
     # Bias mode — pick one:
     "bias_mode":        "additive_logit", # "additive_logit" | "prob_interp" | "prob_scale" | "attn_floor" | "global_redistribute"
 
     # additive_logit params:
-    "boost_alpha":      0.0,           # logit units added directly; 0 = no boost to salient tokens
-    "background_eps":   3.0,           # suppress non-salient img tokens — force model onto top-30% only
+    "boost_alpha":      2.0,           # logit units added directly (exp(2)≈7.4x boost); negative = suppress
+    "background_eps":   0.0,           # suppress non-salient img tokens by this amount
 
     # prob_interp params:
     "interp_lambda":    1.0,           # 0 = no-op, 1 = full redistribution

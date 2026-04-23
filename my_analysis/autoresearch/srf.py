@@ -50,7 +50,7 @@ import hssa_salience   as hssa_sal
 # =============================================================================
 
 SALIENCY = {
-    "source":            "clip",   # "clip" | "hssa" | "clip_hssa"
+    "source":            "hssa",   # "clip" | "hssa" | "clip_hssa"
 
     # CLIP params
     "clip_coarse_grid":   7,       # N×N grid for CLIP patch extraction
@@ -66,7 +66,7 @@ SALIENCY = {
     "clip_suppress_thresh": 0.0,   # START: disabled — sweep after saliency quality run
 
     # HSSA params
-    "hssa_layer":         16,      # decoder layer (sweep: 8,12,16,20,24 per quality vis)
+    "hssa_layer":         8,       # decoder layer (sweep: 8,12,16,20,24 per quality vis)
     "hssa_top_k_pct":     0.30,
     "hssa_use_soft":      True,
 

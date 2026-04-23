@@ -79,6 +79,12 @@ _STATE: dict = {
     #   "global_redistribute" — post-softmax: scale up total img fraction by img_scale,
     #                           distribute within img budget by saliency, scale text down.
     "srf_img_scale":     2.0,    # for global_redistribute: multiply current img attn total
+    # ---- SRF phase control ----
+    # srf_apply_phase: "both" | "prefill" | "generation"
+    #   "both"       — apply image-token bias at all q_len (current behaviour)
+    #   "generation" — only at q_len==1 (generation step); skip prefill
+    #   "prefill"    — only at q_len>1 (prefill); skip generation step
+    "srf_apply_phase": "both",   # default: both (preserves original behaviour)
     # ---- internal captures (not part of public API) ----
     "_capture":          False,   # CHECK 3: capture one 4-D softmax output
     "_captured":         None,    # CHECK 3: last captured (n_heads, q_len, kv_len) on CPU
@@ -256,7 +262,15 @@ def _patched_softmax(
                         input[..., : sys_end + 1] = input[..., : sys_end + 1] - beta
 
                 # ── Image-token boost: pre-softmax, additive_logit mode only ──
-                if bias_mode == "additive_logit":
+                # Phase gate: skip img bias if phase restriction is active.
+                _phase    = _STATE.get("srf_apply_phase", "both")
+                _is_gen   = (input.shape[2] == 1)    # True when q_len==1 (generation step)
+                _phase_ok = (
+                    _phase == "both"
+                    or (_phase == "generation" and _is_gen)
+                    or (_phase == "prefill"    and not _is_gen)
+                )
+                if bias_mode == "additive_logit" and _phase_ok:
                     # Use boost_alpha directly as logit addition (same convention as vaf).
                     # boost_alpha=3 → add 3 to salient token logits → exp(3)≈20× attention.
                     # Previously used log(alpha), which was ~13× too weak.

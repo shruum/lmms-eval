@@ -148,6 +148,11 @@ BIAS = {
 
     # global_redistribute params:
     "img_scale":        1.5,           # multiply current total img attention fraction
+
+    # Phase control: "both" | "prefill" | "generation"
+    # "prefill": apply image-token bias only during prefill (q_len>1), skip generation.
+    # Hypothesis: generation-time bias may add noise to the prefill-based gain.
+    "srf_apply_phase":  "prefill",     # test prefill-only
 }
 
 
@@ -194,6 +199,7 @@ def setup(model, processor) -> None:
     patch._STATE["srf_interp_lambda"]  = BIAS["interp_lambda"]
     patch._STATE["srf_prob_floor"]     = BIAS["prob_floor"]
     patch._STATE["srf_img_scale"]      = BIAS["img_scale"]
+    patch._STATE["srf_apply_phase"]    = BIAS.get("srf_apply_phase", "both")
 
 
 def _calibrate_heads() -> None:

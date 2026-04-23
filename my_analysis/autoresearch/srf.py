@@ -129,7 +129,7 @@ BIAS = {
     "background_eps":   0.0,
 
     # prob_interp params:
-    "interp_lambda":    0.3,           # 0 = no-op, 1 = full redistribution
+    "interp_lambda":    0.7,           # 0 = no-op, 1 = full redistribution
 
     # prob_scale params:
     # (uses boost_alpha)

@@ -29,8 +29,9 @@ Both stages are configured in `srf.py`. The eval harness is `pope_eval_all.py` (
 
 | File | Role |
 |------|------|
-| `pope_eval_all.py` | **IMMUTABLE** — eval harness (all 3 splits). Never touch. |
-| `pope_eval.py` | **IMMUTABLE** — single-split harness (adversarial only). Never touch. |
+| `pope_eval_fast.py` | **IMMUTABLE** — fast loop harness (adversarial n=50, ~2 min). Use in the loop. |
+| `pope_eval_all.py` | **IMMUTABLE** — full harness (all 3 splits n=100 each, ~15 min). Use for final validation. |
+| `pope_eval.py` | **IMMUTABLE** — adversarial n=100 harness. Kept for reference. |
 | `srf.py` | **YOUR SANDBOX** — modify `SALIENCY`, `BIAS`, and/or the implementation. |
 | `results.tsv` | Experiment log — untracked by git, never commit. |
 | `program.md` | This file — human-written instructions. |
@@ -49,12 +50,12 @@ cd /volumes2/mllm/lmms-eval
 git checkout -b autoresearch/<tag>   # e.g. autoresearch/apr23-pope-srf
 
 # 2. Run baseline to confirm the harness works and log the starting point
-conda run -n mllm python my_analysis/autoresearch/pope_eval_all.py > run.log 2>&1
-grep "POPE average:" run.log
+conda run -n mllm python my_analysis/autoresearch/pope_eval_fast.py > run.log 2>&1
+grep "POPE accuracy:" run.log
 
 # 3. Initialise results.tsv with the baseline row
-echo -e "commit\tavg\tadv\tpop\trand\tstatus\tdescription" > my_analysis/autoresearch/results.tsv
-echo -e "$(git rev-parse --short HEAD)\t<avg>\t<adv>\t<pop>\t<rand>\tkeep\tbaseline: <description>" \
+echo -e "commit\taccuracy\tstatus\tdescription" > my_analysis/autoresearch/results.tsv
+echo -e "$(git rev-parse --short HEAD)\t<acc>\tkeep\tbaseline: <description>" \
   >> my_analysis/autoresearch/results.tsv
 ```
 
@@ -70,45 +71,50 @@ LOOP FOREVER until manually interrupted:
 3. Edit srf.py
 4. git add my_analysis/autoresearch/srf.py
    git commit -m "experiment: <brief description>"
-5. conda run -n mllm python my_analysis/autoresearch/pope_eval_all.py > run.log 2>&1
-6. grep "POPE average:" run.log
+5. conda run -n mllm python my_analysis/autoresearch/pope_eval_fast.py > run.log 2>&1
+6. grep "POPE accuracy:" run.log
 7. If this is a Stage 1 experiment: inspect my_analysis/autoresearch/vis/sample_*.png
    to confirm the saliency map is localising the queried object correctly.
 8. Compare to current best:
    - IMPROVED  → keep commit, it is the new baseline
    - NOT IMPROVED → git reset --hard HEAD~1
 9. Log to results.tsv:
-   echo -e "$(git rev-parse --short HEAD)\t<avg>\t<adv>\t<pop>\t<rand>\t<keep|discard|crash>\t<desc>" \
+   echo -e "$(git rev-parse --short HEAD)\t<acc>\t<keep|discard|crash>\t<desc>" \
      >> my_analysis/autoresearch/results.tsv
+   NOTE: once a promising config is found, validate with pope_eval_all.py (all 3 splits)
 10. Repeat
 ```
 
 **NEVER STOP once the loop has started.**
 **NEVER ask if you should continue.**
-**NEVER modify pope_eval_all.py or pope_eval.py.**
+**NEVER modify pope_eval_fast.py, pope_eval_all.py, or pope_eval.py.**
 
 ---
 
 ## Metric
 
 ```bash
-grep "POPE average:" run.log
+grep "POPE accuracy:" run.log
 ```
 
-Metric is **average accuracy across adversarial + popular + random** (n=100 each).
+**During the search loop**: use `pope_eval_fast.py` (adversarial n=50, ~2 min).
+**For final validation of promising configs**: use `pope_eval_all.py` (all 3 splits n=100, ~15 min).
+
 Higher is better.
 
-**Qwen no-intervention baseline (measured):**
-- adversarial: 0.8200 | popular: 0.8000 | random: 0.8800 | **average: 0.8333**
+**Qwen no-intervention baseline:**
+- adversarial n=50 (fast): TBD — measure at loop start
+- adversarial n=100 (full): 0.8800 (measured)
+- all 3 splits average:     0.8333 (adv=0.82 pop=0.80 rand=0.88, user-reported n=500)
 
-Any SRF config that scores below 0.8333 average is actively hurting and must be discarded.
+Any SRF fast config that scores below the fast baseline is actively hurting and must be discarded.
 
-Statistical guidance (n=100 per split, n=300 total):
-- Gain ≥ 0.007 (0.7%) → clearly meaningful at n=300
-- Gain 0.003–0.007   → real, keep it
-- Gain < 0.003       → within noise, treat as discard
+Statistical guidance (adversarial n=50):
+- Gain ≥ 0.020 (2.0%) → clearly meaningful at n=50
+- Gain 0.010–0.020   → likely real, keep it
+- Gain < 0.010       → within noise at n=50, treat as discard
 
-Also note per-split scores — a config that hurts one split while helping another is suspect.
+When a fast config shows ≥ 0.020 gain: validate with pope_eval_all.py before declaring victory.
 
 ---
 
@@ -250,14 +256,17 @@ one number → keep.
 ## results.tsv Format
 
 Tab-separated. Never use commas inside descriptions (they break TSV).
-Columns: commit | avg | adv | pop | rand | status | description
+Columns: commit | accuracy | status | description
+(accuracy = adversarial n=50 fast score during search; use "full:" prefix when from pope_eval_all.py)
 
 ```
-commit	avg	adv	pop	rand	status	description
-a1b2c3d	0.8333	0.8200	0.8000	0.8800	keep	baseline (no intervention)
-b2c3d4e	0.8367	0.8300	0.8100	0.8700	keep	prob_interp lambda=0.5 clip-7x7 top30%
-c3d4e5f	0.8300	0.8200	0.7900	0.8800	discard	lambda=0.7 no gain
-d4e5f6g	0.0000	0.0000	0.0000	0.0000	crash	IndexError in clip_sal
+commit	accuracy	status	description
+a1b2c3d	0.8800	keep	baseline: no intervention adversarial n=50
+b2c3d4e	0.8600	keep	SRF start: prob_interp λ=0.5 clip-7x7 top30%
+c3d4e5f	0.8800	keep	prob_interp λ=0.3 (best so far)
+d4e5f6g	0.8700	discard	prob_interp λ=0.7 no gain over λ=0.3
+e5f6g7h	0.0000	crash	IndexError in clip_sal
+f6g7h8i	full:0.8950	keep	VALIDATION: full 3-split avg after finding best config
 e5f6g7h	0.0000	crash	IndexError in clip_sal — noun extractor failed on short question
 ```
 

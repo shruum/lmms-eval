@@ -64,8 +64,8 @@ SALIENCY = {
     #   threshold=0.248 separates them with ~70% accuracy.
     #   max_sim >= thresh → BOOST salient region (object likely present, fix FN)
     #   max_sim <  thresh → SUPPRESS salient region (object likely absent, fix FP hallucination)
-    "clip_suppress_thresh": 0.243,  # lower threshold biases toward FN boost (42 FN >> 8 FP)
-    "clip_suppress_alpha":  3.0,    # separate alpha for suppress direction (stronger than boost)
+    "clip_suppress_thresh": 0.248,  # calibrated from quality data
+    "clip_suppress_alpha":  5.0,    # strong suppress for absent (need to overcome hallucination prior)
 
     # HSSA params
     "hssa_layer":         8,       # decoder layer (sweep: 8,12,16,20,24 per quality vis)
@@ -134,7 +134,7 @@ BIAS = {
     "bias_mode":        "additive_logit", # "additive_logit" | "prob_interp" | "prob_scale" | "attn_floor" | "global_redistribute"
 
     # additive_logit params:
-    "boost_alpha":      1.0,           # logit units for BOOST (present object); suppress uses clip_suppress_alpha
+    "boost_alpha":      2.0,           # logit units for BOOST (present object); suppress uses clip_suppress_alpha
     "background_eps":   0.0,           # suppress non-salient img tokens by this amount
 
     # prob_interp params:

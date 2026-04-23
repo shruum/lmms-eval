@@ -133,7 +133,7 @@ BIAS = {
 
     # additive_logit params:
     "boost_alpha":      0.0,           # logit units added directly; 0 = no boost to salient tokens
-    "background_eps":   1.5,           # suppress non-salient img tokens — force model onto top-30% only
+    "background_eps":   3.0,           # suppress non-salient img tokens — force model onto top-30% only
 
     # prob_interp params:
     "interp_lambda":    1.0,           # 0 = no-op, 1 = full redistribution

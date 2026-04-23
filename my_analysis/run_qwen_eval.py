@@ -47,9 +47,11 @@ from PIL import Image
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import qwen_attn_patch  as patch
 import qwen_decode_patch as decode_patch
+import clip_salience
+import hssa_salience
 
 os.environ["HF_HOME"] = "/volumes2/hugging_face_cache"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ.setdefault("CUDA_VISIBLE_DEVICES", "0")
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
 MODEL       = "Qwen/Qwen2.5-VL-3B-Instruct"
@@ -158,10 +160,167 @@ def load_mmbench(groups_filter: Optional[List[str]], n_samples: int) -> List[Dic
     return out
 
 
+def load_cv_bench(groups_filter: Optional[List[str]], n_samples: int) -> List[Dict]:
+    from datasets import load_dataset as hf_load
+
+    print("  Loading CV-Bench Relation (nyu-visionx/CV-Bench)…")
+    ds  = hf_load("nyu-visionx/CV-Bench", split="test")
+    rel = [r for r in ds if r["task"] == "Relation"]
+
+    # Group by spatial direction type
+    by_group: Dict[str, List[Dict]] = defaultdict(list)
+    for row in rel:
+        group = "_".join(sorted(row["choices"]))   # "above_below" or "left_right"
+        if groups_filter and group not in groups_filter:
+            continue
+        # Answer: "(A)" → "A"
+        gt      = row["answer"].strip().strip("()")
+        choices = row["choices"]   # e.g. ['above', 'below']
+        opt_text = "\n".join(f"{chr(65+i)}. {c}" for i, c in enumerate(choices))
+        prompt  = (f"{row['question']}\n{opt_text}\n"
+                   "Answer with the option's letter from the given choices directly.")
+        by_group[group].append({
+            "image":        row["image"].convert("RGB"),
+            "prompt":       prompt,
+            "ground_truth": gt,
+            "group":        group,
+        })
+
+    rng = random.Random(SEED)
+    out = []
+    for grp, items in sorted(by_group.items()):
+        out.extend(rng.sample(items, min(n_samples, len(items))))
+    print(f"  → {len(out)} samples, {len(by_group)} groups")
+    return out
+
+
+def load_mmvp(groups_filter: Optional[List[str]], n_samples: int) -> List[Dict]:
+    """MMVP: 300 image pairs, each with an MCQ question testing fine-grained visual patterns.
+    Images are indexed 1-300; Questions.csv has matching Index column.
+    Groups = pair index (1-150), since each pair shares a question topic.
+    We cap at n_samples pairs (2 samples each) unless groups_filter specifies pair IDs.
+    """
+    import pandas as pd
+    from datasets import load_dataset as hf_load
+
+    QUESTIONS_CSV = "/volumes2/hugging_face_cache/mmvp_questions/Questions.csv"
+    if not os.path.exists(QUESTIONS_CSV):
+        from huggingface_hub import hf_hub_download
+        QUESTIONS_CSV = hf_hub_download(
+            "MMVP/MMVP", "Questions.csv", repo_type="dataset",
+            local_dir="/volumes2/hugging_face_cache/mmvp_questions",
+        )
+
+    print("  Loading MMVP (MMVP/MMVP)…")
+    df  = pd.read_csv(QUESTIONS_CSV)   # columns: Index, Question, Options, Correct Answer
+    img_ds = hf_load("MMVP/MMVP", split="train")   # 300 PIL images
+
+    # HuggingFace imagefolder loads files in lexicographic order (1, 10, 100, 101, ... 2, 20 ...)
+    # but the CSV uses numeric order (1, 2, 3, ..., 300).
+    # Build mapping: CSV 1-indexed value → HF dataset index.
+    lex_sorted = sorted(range(1, 301), key=str)          # lexicographic sort of 1..300
+    csv_to_hf  = {csv_1idx: hf_idx for hf_idx, csv_1idx in enumerate(lex_sorted)}
+
+    rng  = random.Random(SEED)
+    # Pair IDs: 1..150 (pair i = CSV rows 2i-1 and 2i, 1-indexed)
+    pair_ids = list(range(1, 151))
+    if groups_filter:
+        pair_ids = [int(g) for g in groups_filter if g.isdigit()]
+    rng.shuffle(pair_ids)
+    selected_pairs = pair_ids[:n_samples]   # n_samples pairs = up to 2*n_samples images
+
+    out = []
+    for pair_id in selected_pairs:
+        for offset in (0, 1):   # two images per pair
+            csv_1idx = (pair_id - 1) * 2 + offset + 1   # 1-indexed CSV Index
+            row_idx  = csv_1idx - 1                      # 0-based df.iloc row
+            if row_idx >= len(df):
+                continue
+            row     = df.iloc[row_idx]
+            img_idx = csv_to_hf[csv_1idx]               # correct HF dataset index
+            # Parse options: "(a) Open (b) Closed" → choices list
+            opts_raw = str(row["Options"])
+            # Extract option letters and text
+            import re
+            opt_matches = re.findall(r'\(([ab])\)\s*([^(]+)', opts_raw, re.IGNORECASE)
+            if not opt_matches:
+                continue
+            # Map (a)→A, (b)→B for standard MCQ format the model was trained on
+            choices  = {m[0].upper(): m[1].strip() for m in opt_matches}
+            opt_text = "\n".join(f"{k}. {v}" for k, v in sorted(choices.items()))
+            gt_raw   = str(row["Correct Answer"]).strip().strip("()").upper()   # "A" or "B"
+
+            prompt = (f"{row['Question']}\n{opt_text}\n"
+                      "Answer with the option letter only.")
+
+            out.append({
+                "image":        img_ds[img_idx]["image"].convert("RGB"),  # img_idx = csv_to_hf[csv_1idx]
+                "prompt":       prompt,
+                "ground_truth": gt_raw,   # "A" or "B"
+                "group":        f"pair_{pair_id:03d}",
+                "dataset":      "mmvp",
+            })
+
+    print(f"  → {len(out)} samples, {len(selected_pairs)} pairs")
+    return out
+
+
+def load_hallusionbench(groups_filter: Optional[List[str]], n_samples: int) -> List[Dict]:
+    """HallusionBench: visual hallucination benchmark with Yes/No questions.
+    Uses the 'image' split (951 samples with images).
+    Categories: VS (Visual Supplement = prior-vision conflict), FS, VD, etc.
+    gt_answer: '1' = Yes, '0' = No.
+    Groups = subcategory (chart, figure, illusion, ocr, etc.).
+    """
+    from datasets import load_dataset as hf_load
+
+    print("  Loading HallusionBench (lmms-lab/HallusionBench)…")
+    ds = hf_load("lmms-lab/HallusionBench", split="image")
+
+    # Default: use VS category (Visual Supplement = prior-vision conflict, best fit)
+    # groups_filter can override with specific subcategories
+    target_cats  = {"VS"}   # expand later if needed
+    by_group: Dict[str, List[Dict]] = defaultdict(list)
+
+    for row in ds:
+        cat    = str(row.get("category", "")).strip()
+        subcat = str(row.get("subcategory", "unknown")).strip()
+        if cat not in target_cats:
+            continue
+        gt_raw = str(row.get("gt_answer", "0")).strip()
+        gt     = "Yes" if gt_raw == "1" else "No"
+        prompt = str(row.get("question", "")).strip() + "\nAnswer with Yes or No only."
+        img    = row.get("image")
+        if img is None:
+            continue
+
+        group = f"{cat}_{subcat}"
+        if groups_filter and group not in groups_filter and subcat not in groups_filter:
+            continue
+
+        by_group[group].append({
+            "image":        img.convert("RGB"),
+            "prompt":       prompt,
+            "ground_truth": gt,
+            "group":        group,
+            "dataset":      "hallusionbench",
+        })
+
+    rng = random.Random(SEED)
+    out = []
+    for grp, items in sorted(by_group.items()):
+        out.extend(rng.sample(items, min(n_samples, len(items))))
+    print(f"  → {len(out)} samples, {len(by_group)} groups")
+    return out
+
+
 LOADERS: Dict[str, Any] = {
-    "vlm_bias": load_vlm_bias,
-    "pope":     load_pope,
-    "mmbench":  load_mmbench,
+    "vlm_bias":        load_vlm_bias,
+    "pope":            load_pope,
+    "mmbench":         load_mmbench,
+    "cv_bench":        load_cv_bench,
+    "mmvp":            load_mmvp,
+    "hallusionbench":  load_hallusionbench,
 }
 
 
@@ -170,9 +329,10 @@ LOADERS: Dict[str, Any] = {
 # ---------------------------------------------------------------------------
 
 def is_correct(pred: str, gt: str) -> bool:
-    """Case-insensitive prefix match.
-    Strips curly braces from pred to handle VLM-Bias format: '{Yes}' vs 'Yes'.
-    Also handles verbose predictions like 'A. Some explanation...' for MMBench.
+    """Flexible answer matching:
+    - Strips curly braces: '{Yes}' → 'Yes'  (VLM Bias)
+    - Prefix match: 'A. explanation' → 'A'  (MMBench, MMVP)
+    - Case-insensitive
     """
     pred_clean = pred.strip().strip("{}").strip().lower()
     gt_clean   = gt.strip().lower()
@@ -253,7 +413,8 @@ def _save_attn_npy(
 # Per-value evaluation pass
 # ---------------------------------------------------------------------------
 
-ATTN_METHODS    = ("baseline", "temperature", "vision_boost", "vhr_boost")
+ATTN_METHODS     = ("baseline", "temperature", "vision_boost", "vhr_boost", "vaf",
+                    "attn_salience", "clip_salience", "srf_clip", "srf_hssa")
 CONTRAST_METHODS = ("icd", "vcd")
 _GEN_KWARGS = dict(max_new_tokens=16, do_sample=False,
                    temperature=None, top_p=None, num_beams=1)
@@ -302,6 +463,51 @@ def evaluate(
         # --- generate ---
         if method in ATTN_METHODS:
             img_start, img_end = patch.get_image_token_range(inputs, processor)
+
+            # Salience methods: compute per-token mask before the intervention pass
+            sal_top_k = patch._STATE.get("_sal_top_k", 0.3)
+            if method == "attn_salience":
+                sal = patch.compute_attention_salience(
+                    model, inputs, img_start, img_end,
+                    top_k_pct=sal_top_k, normalize=True,
+                )
+                patch._STATE["salience_mask"] = sal
+            elif method == "clip_salience":
+                grid_h, grid_w = clip_salience.get_grid_dims(inputs, spatial_merge_size)
+                clip_result = clip_salience.compute_clip_salience(
+                    sample["image"], sample["prompt"], grid_h, grid_w,
+                    top_k_pct=sal_top_k,
+                )
+                # If object is absent (low CLIP similarity), clip_result.mask is
+                # uniform (ones) so we fall back to standard visboost_heads behaviour.
+                patch._STATE["salience_mask"] = clip_result.mask
+            elif method == "srf_clip":
+                # SRF-CLIP: use soft continuous saliency (not binary mask).
+                # Reset then flip to "srf" so generate uses the SRF intervention.
+                patch._STATE["method"] = "srf_clip"
+                grid_h, grid_w = clip_salience.get_grid_dims(inputs, spatial_merge_size)
+                clip_result = clip_salience.compute_clip_salience(
+                    sample["image"], sample["prompt"], grid_h, grid_w,
+                    top_k_pct=sal_top_k,
+                )
+                patch._STATE["salience_mask"] = clip_result.saliency   # soft [0,1]
+                patch._STATE["method"] = "srf"
+            elif method == "srf_hssa":
+                # SRF-HSSA: one forward pass for HSSA saliency, then generate with srf.
+                # Reset method to "srf_hssa" (no-op in _patched_softmax) before the
+                # HSSA forward pass to avoid using stale img_start/img_end from the
+                # previous sample. Flip to "srf" after saliency is ready.
+                patch._STATE["method"] = "srf_hssa"
+                hssa_layer = patch._STATE.get("_hssa_layer", 16)
+                hssa_result = hssa_salience.compute_hssa_salience(
+                    model, inputs, img_start, img_end,
+                    layer_idx=hssa_layer, top_k_pct=sal_top_k,
+                )
+                patch._STATE["salience_mask"] = hssa_result.saliency   # soft [0,1]
+                patch._STATE["method"] = "srf"
+            else:
+                patch._STATE["salience_mask"] = None
+
             patch.update_sample(img_start, img_end)
             with torch.inference_mode():
                 out = model.generate(**inputs, **_GEN_KWARGS)
@@ -549,11 +755,15 @@ def main(args: argparse.Namespace) -> None:
     # Load model once
     # -----------------------------------------------------------------------
     print(f"\nLoading {MODEL} (eager attention)…")
+    # bfloat16 requires Ampere+ (RTX 30xx). On older GPUs (e.g. GTX 1080 Ti / Pascal)
+    # use float16 instead: TORCH_DTYPE=float16 python run_qwen_eval.py ...
+    _dtype_str = os.environ.get("TORCH_DTYPE", "bfloat16")
+    _dtype = torch.float16 if _dtype_str == "float16" else torch.bfloat16
     model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-        MODEL, device_map="auto", torch_dtype=torch.bfloat16,
+        MODEL, device_map="auto", torch_dtype=_dtype,
         attn_implementation="eager",
     ).eval()
-    processor = AutoProcessor.from_pretrained(MODEL, max_pixels=512 * 28 * 28)
+    processor = AutoProcessor.from_pretrained(MODEL, max_pixels=400 * 28 * 28)
 
     vision_cfg         = getattr(model.config, "vision_config", None)
     spatial_merge_size = int(getattr(vision_cfg, "spatial_merge_size", 2))
@@ -597,21 +807,25 @@ def main(args: argparse.Namespace) -> None:
         # Use temperature=1.5 as the non-trivial method for baseline runs
         if args.method == "baseline":
             sc_method, sc_value = "temperature", 1.5
+        elif args.method in ("vhr_boost", "vaf", "attn_salience", "clip_salience",
+                             "srf_clip", "srf_hssa"):
+            # Standard checks use vision_boost as proxy (simpler, same principle)
+            sc_method = "vision_boost"
+            sc_value  = 2.0
         else:
             sc_method = args.method
             sc_value  = next((v for v in values if v != 1.0), None)
             if sc_value is None:
-                sc_value = 2.0 if args.method in ("vision_boost", "vhr_boost") else 1.5
-            # Use vision_boost for the standard checks; VHR checks run separately
-            if args.method == "vhr_boost":
-                sc_method = "vision_boost"
+                sc_value = 1.5
 
         patch.run_sanity_checks(model, sc_inputs, processor, sc_method, sc_value)
         patch.unpatch_model()
 
-        # VHR-specific: identify vision-aware heads + dedicated sanity checks
-        if args.method == "vhr_boost":
-            print("\n--- VHR head identification ---")
+        # VHR / VAF / salience methods: identify vision-aware heads
+        if args.method in ("vhr_boost", "vaf", "attn_salience", "clip_salience",
+                           "srf_clip", "srf_hssa"):
+            torch.cuda.empty_cache()   # reclaim fragmented memory before calibration
+            print(f"\n--- VHR head identification (used by {args.method}) ---")
             patch.run_vhr_sanity_checks(
                 model,
                 calib_inputs_list,
@@ -626,6 +840,35 @@ def main(args: argparse.Namespace) -> None:
             print(f"  Using {n_selected}/{n_heads} vision-aware heads "
                   f"(top {args.vhr_top_k*100:.0f}%)")
 
+        # VAF / SRF: propagate layer range + beta into _STATE
+        if args.method in ("vaf", "srf_clip", "srf_hssa"):
+            patch._STATE["vaf_beta"]        = args.vaf_beta
+            patch._STATE["vaf_layer_start"] = args.vaf_layer_start
+            patch._STATE["vaf_layer_end"]   = args.vaf_layer_end
+            if args.method == "vaf":
+                print(f"  VAF: alpha=value (sweep), beta={args.vaf_beta}, "
+                      f"layers={args.vaf_layer_start}-{args.vaf_layer_end}")
+
+        # Salience methods: store top_k in _STATE for per-sample computation
+        if args.method in ("attn_salience", "clip_salience", "srf_clip", "srf_hssa"):
+            patch._STATE["_sal_top_k"] = args.sal_top_k
+            print(f"  {args.method}: sal_top_k={args.sal_top_k:.0%}, "
+                  f"using {'vision-aware heads' if patch._STATE['head_mask'] is not None else 'all heads'}")
+
+        # SRF: propagate SRF-specific params
+        if args.method in ("srf_clip", "srf_hssa"):
+            patch._STATE["srf_background_eps"] = args.srf_background_eps
+            patch._STATE["_hssa_layer"]        = args.hssa_layer
+            print(f"  SRF: boost=log(value), background_eps={args.srf_background_eps}, "
+                  f"beta={args.vaf_beta}, layers={args.vaf_layer_start}-{args.vaf_layer_end}"
+                  + (f", hssa_layer={args.hssa_layer}" if args.method == "srf_hssa" else ""))
+
+        # Free calibration GPU tensors — calib_inputs_list holds pixel_values
+        # for n_calib samples on GPU. With n_calib=20 this can consume ~1-2 GB
+        # and cause OOM in the vision encoder during evaluation.
+        del calib_inputs_list, calib_img_ranges
+        torch.cuda.empty_cache()
+
     elif args.method in CONTRAST_METHODS:
         # For contrastive methods: run attn checks with temperature (to verify patch),
         # then run contrastive-specific checks
@@ -634,6 +877,8 @@ def main(args: argparse.Namespace) -> None:
         decode_patch.run_decode_sanity_checks(
             model, sc_inputs, sc_sample, processor, process_vision_info, alpha=1.0
         )
+        del calib_inputs_list, calib_img_ranges
+        torch.cuda.empty_cache()
 
     # -----------------------------------------------------------------------
     # Main evaluation loop
@@ -701,17 +946,47 @@ if __name__ == "__main__":
     p.add_argument(
         "--dataset", default="all",
         choices=["all"] + list(LOADERS.keys()),
-        help="Dataset(s) to evaluate (default: all).",
+        help="Dataset(s) to evaluate (default: all). "
+             "Options: " + ", ".join(LOADERS.keys()),
     )
     p.add_argument(
         "--method", default="baseline",
-        choices=["baseline", "temperature", "vision_boost", "vhr_boost", "icd", "vcd"],
-        help="Intervention method. Attn-level: baseline/temperature/vision_boost/vhr_boost. "
-             "Logit-level: icd/vcd.",
+        choices=["baseline", "temperature", "vision_boost", "vhr_boost", "vaf",
+                 "icd", "vcd", "attn_salience", "clip_salience",
+                 "srf_clip", "srf_hssa"],
+        help="Intervention method. Attn-level: baseline/temperature/vision_boost/vhr_boost/vaf/"
+             "attn_salience/clip_salience/srf_clip/srf_hssa. Logit-level: icd/vcd.",
     )
     p.add_argument(
-        "--vhr_top_k", type=float, default=0.20,
-        help="Fraction of heads to select as vision-aware for vhr_boost (default: 0.20).",
+        "--vhr_top_k", type=float, default=0.50,
+        help="Fraction of heads to select as vision-aware for vhr_boost/vaf (default: 0.50).",
+    )
+    # Salience-method hyperparameters
+    p.add_argument(
+        "--sal_top_k", type=float, default=0.3,
+        help="Fraction of image tokens selected as salient for attn_salience/clip_salience/srf_* (default: 0.3).",
+    )
+    # SRF-specific hyperparameters
+    p.add_argument(
+        "--srf_background_eps", type=float, default=0.5,
+        help="SRF: suppression amount for non-salient image tokens (default: 0.5).",
+    )
+    p.add_argument(
+        "--hssa_layer", type=int, default=16,
+        help="SRF-HSSA: decoder layer index for hidden-state saliency (default: 16).",
+    )
+    # VAF-specific hyperparameters
+    p.add_argument(
+        "--vaf_beta", type=float, default=0.1,
+        help="VAF suppression coefficient β for system-prompt attention (default: 0.1).",
+    )
+    p.add_argument(
+        "--vaf_layer_start", type=int, default=8,
+        help="VAF: first decoder layer to apply (default: 8).",
+    )
+    p.add_argument(
+        "--vaf_layer_end", type=int, default=15,
+        help="VAF: last decoder layer to apply inclusive (default: 15).",
     )
     p.add_argument(
         "--value", type=float, default=1.0,

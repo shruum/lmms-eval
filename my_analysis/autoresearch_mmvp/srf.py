@@ -44,8 +44,8 @@ BIAS = {
     "text_layer_start": 24,     # proportionally deep for 32-layer model
     "text_layer_end":   31,
     "bias_mode":        "additive_logit",
-    "boost_alpha":      8.0,
-    "background_eps":   0.5,
+    "boost_alpha":      0.0,    # TRUE BASELINE: no boost
+    "background_eps":   0.0,   # TRUE BASELINE: no suppress
     "interp_lambda":    1.0,
     "prob_floor":       0.005,
     "img_scale":        1.5,

@@ -45,7 +45,7 @@ BIAS = {
     "text_layer_end":   31,
     "bias_mode":        "additive_logit",
     "boost_alpha":      4.0,
-    "background_eps":   0.5,
+    "background_eps":   0.2,   # lower suppression — MMVP needs full visual context, not just salient region
     "interp_lambda":    1.0,
     "prob_floor":       0.005,
     "img_scale":        1.5,

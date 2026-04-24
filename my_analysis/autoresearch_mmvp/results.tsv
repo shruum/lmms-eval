@@ -4,3 +4,5 @@ commit	pair_acc	img_acc	status	description
 0618ffc8	0.4133	0.6867	keep	srf_apply_phase=both — +0.020! prefill boost critical for MMVP single-token decisions
 43bf235d	0.4133	0.6867	discard	srf_apply_phase=prefill — same as both (generation phase irrelevant for 1-token output)
 e0d3eee7	0.3867	0.6633	discard	alpha=12.0 phase=both — regression -0.027, too strong distorts attention
+92d7b63c	0.4267	0.7000	keep	alpha=4.0 phase=both — +0.013 over alpha=8.0; gentler boost better for prefill
+50ea43b2	0.4200	0.6900	discard	alpha=2.0 — slightly worse (63 vs 64 pairs); sweet spot at alpha=4.0

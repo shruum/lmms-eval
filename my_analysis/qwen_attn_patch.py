@@ -88,7 +88,9 @@ _STATE: dict = {
     # Post-image text suppression — reduces language-prior bias (e.g. "4 legs" for animals).
     # Suppresses KV attention to question tokens after the image during generation.
     # 0.0 = disabled (default, fully backward-compatible with POPE and all existing code).
-    "srf_text_beta":  0.0,
+    "srf_text_beta":         0.0,   # strength; 0.0 = disabled
+    "srf_text_layer_start":  20,    # deep layers where language priors form
+    "srf_text_layer_end":    27,
     # ---- internal captures (not part of public API) ----
     "_capture":          False,   # CHECK 3: capture one 4-D softmax output
     "_captured":         None,    # CHECK 3: last captured (n_heads, q_len, kv_len) on CPU
@@ -294,21 +296,20 @@ def _patched_softmax(
                         input[..., s : e + 1] = input[..., s : e + 1] + bias_row
 
                 # ── Post-image text suppression (language prior reduction) ──
-                # Suppress KV positions after the image (question text) during
-                # generation to reduce language-prior bias toward frequent answers
-                # (e.g. "4 legs" for animals). Generic: works for all categories.
+                # Suppress KV attention to post-image question tokens during generation
+                # to reduce parametric language-prior bias (e.g. "4 legs" for animals).
+                # Applied to ALL heads (not just visual heads) at a configurable layer
+                # range (default: deep layers 20-27, separate from image-boost 8-14).
                 # Default text_beta=0.0 → no-op, fully backward-compatible.
-                _text_beta = float(_STATE.get("srf_text_beta", 0.0))
-                if _text_beta > 0.0 and _phase_ok and e is not None:
+                _text_beta   = float(_STATE.get("srf_text_beta", 0.0))
+                _txt_l_start = int(_STATE.get("srf_text_layer_start", 20))
+                _txt_l_end   = int(_STATE.get("srf_text_layer_end",   27))
+                if (_text_beta > 0.0 and _phase_ok and e is not None
+                        and _txt_l_start <= current_layer <= _txt_l_end):
                     n_kv = input.shape[-1]
                     if e + 1 < n_kv:
-                        if head_mask is not None:
-                            mask_dev   = head_mask.to(input.device)
-                            txt_sup    = input.new_zeros(1, n_heads, 1, 1)
-                            txt_sup[0, mask_dev, 0, 0] = -_text_beta
-                            input[..., e + 1 :] = input[..., e + 1 :] + txt_sup
-                        else:
-                            input[..., e + 1 :] = input[..., e + 1 :] - _text_beta
+                        # ALL heads — language prior is not head-specific
+                        input[..., e + 1 :] = input[..., e + 1 :] - _text_beta
 
     result = _ORIGINAL_SOFTMAX(input, dim=dim, dtype=dtype, **kwargs)
 

@@ -36,7 +36,9 @@ BIAS = {
     "layer_end":        14,
     "head_top_k_pct":   0.20,
     "sys_beta":         0.10,
-    "text_beta":        0.0,    # post-image text suppression (new lever; 0=off)
+    "text_beta":        0.5,    # post-image text suppression strength
+    "text_layer_start": 20,    # ALL heads, deep layers (language prior forms here)
+    "text_layer_end":   27,
     "bias_mode":        "additive_logit",
     "boost_alpha":      8.0,
     "background_eps":   0.5,
@@ -98,7 +100,9 @@ def setup(model, processor) -> None:
     patch._STATE["srf_prob_floor"]     = BIAS["prob_floor"]
     patch._STATE["srf_img_scale"]      = BIAS["img_scale"]
     patch._STATE["srf_apply_phase"]    = BIAS["srf_apply_phase"]
-    patch._STATE["srf_text_beta"]      = BIAS["text_beta"]
+    patch._STATE["srf_text_beta"]         = BIAS["text_beta"]
+    patch._STATE["srf_text_layer_start"]  = BIAS["text_layer_start"]
+    patch._STATE["srf_text_layer_end"]    = BIAS["text_layer_end"]
 
 
 def _calibrate_heads() -> None:

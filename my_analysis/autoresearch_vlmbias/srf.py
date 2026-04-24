@@ -36,7 +36,7 @@ BIAS = {
     "layer_end":        14,
     "head_top_k_pct":   0.20,
     "sys_beta":         0.10,
-    "text_beta":        0.5,    # post-image text suppression strength
+    "text_beta":        2.0,    # post-image text suppression strength
     "text_layer_start": 20,    # ALL heads, deep layers (language prior forms here)
     "text_layer_end":   27,
     "bias_mode":        "additive_logit",

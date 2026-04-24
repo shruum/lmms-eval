@@ -1,0 +1,41 @@
+commit	accuracy	status	description
+3eb057d9	0.1810	keep	baseline: POPE warmstart additive_logit alpha=2.0 layers 8-14 head_top_k=0.20
+77930c22	0.1810	discard	boost_alpha=3.0 no gain (Flags dropped)
+fdc27756	0.1810	discard	global_redistribute img_scale=2.0 no gain
+180eca5b	0.1810	discard	srf_apply_phase=both — no gain
+c5ab7759	0.2000	keep	srf_apply_phase=generation — +0.019 Flags 0.53 OptIllusion 0.60
+60c4215b	0.2000	discard	boost_alpha=4.0 — no gain over alpha=2.0
+82b8bdf6	0.2000	discard	head_top_k_pct=0.50 — no gain
+c45be424	0.1905	discard	layer_end=20 — regression OptIllusion dropped
+2174163d	0.2000	discard	sys_beta=0.20 — no gain
+46a800b2	0.2000	discard	clip_fallback_thresh=0.10 — no gain
+95c18a51	0.1810	discard	global_redistribute img_scale=2.0 + generation — regression
+54554c01	0.1905	discard	clip_coarse_grid=14 — regression OI dropped
+46d21d78	0.2000	discard	clip_top_k_pct=0.20 — no gain
+d70856f1	0.1905	discard	layer_start=4 — regression OI dropped
+f1e7666c	0.2000	discard	clip_use_soft=False — no gain
+3c022114	0.1905	discard	head_top_k_pct=0.0 all-heads — regression OI dropped
+8cbedbd8	0.1905	discard	prob_scale+phase_gate+gen — regression OI dropped
+e35a0740	0.2000	discard	prob_interp+phase_gate+gen — same result (0.2000 but not better)
+139aa67f	0.2000	discard	alpha=4.0+eps=1.0 — no gain (same 0.2000)
+c521193f	0.2000	discard	layer_start=10 — no gain
+6c4395e9	0.2095	gray	alpha=16.0 — +0.0095 (Logos+1 PattGrid+1 Flags-1) gray zone
+4cf5f54a	0.2095	gray	alpha=8.0 — +0.0095 PattGrid+1 gray zone, Flags stable
+c4ec736b	0.2000	discard	alpha=12.0 — Flags regression
+b2886434	0.2190	keep	alpha=8.0+eps=0.5 — +0.019 Logos+1 PattGrid+1, Flags stable
+ee4c340f	0.2095	discard	eps=1.0 — PattGrid regression
+7d243c36	0.2190	discard	clip_top_k_pct=0.20 — no gain
+92f7ef5b	0.2000	discard	head_top_k_pct=0.30 — Flags+Logos regression
+76744089	0.2190	discard	clip_fallback_thresh=0.10 — no gain
+9f73297b	0.2000	discard	alpha=6.0+eps=0.5 — alpha too low
+0de21243	0.2190	discard	alpha=8.0+eps=0.7 — no gain over 0.5
+3a8d15cd	0.2095	discard	sys_beta=0.20 — Logos regression
+e39cf97e	0.2190	discard	dynamic alpha — no gain
+ad34bfbf	0.2190	discard	clip_top_k_pct=0.40 — no gain
+164bc380	0.2190	discard	dual CLIP query — no gain
+f690ece3	0.2190	keep	text_beta=0.0 sanity check — confirmed backward-compat
+051bed25	0.2000	discard	text_beta=0.1 — Flags+Logos regression (loses task context)
+f532396f	0.2190	discard	text_beta=0.05 — no gain (Animals still 0)
+463b7cad	0.2190	discard	text_beta=0.5 L20-27 — no gain Animals still 0
+94029665	0.2190	discard	text_beta=0.5 all-heads L20-27 — identical no effect
+9882cb73	0.2190	discard	text_beta=2.0 all-heads L20-27 — identical even 4x stronger has zero effect; language prior is in MLP not attention

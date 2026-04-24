@@ -1,2 +1,3 @@
 commit	pair_acc	img_acc	status	description
-4e6409a9	0.3933	0.6800	keep	warmstart: VLM Bias best (alpha=8.0 eps=0.5 gen-only layers 8-15 head_top_k=0.20)
+4e6409a9	0.3933	0.6800	baseline	warmstart: VLM Bias best (alpha=8.0 eps=0.5 gen-only layers 8-15 head_top_k=0.20) — this IS the baseline
+69c5df89	0.3933	0.6800	discard	alpha=0 eps=0 true no-op — identical to warmstart: gen-only boost does NOTHING on single-token A/B decisions

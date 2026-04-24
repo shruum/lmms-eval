@@ -1,92 +1,32 @@
 `torch_dtype` is deprecated! Use `dtype` instead!
-/home/shruum/anaconda3/envs/mllm/lib/python3.10/site-packages/torch/cuda/__init__.py:435: UserWarning: 
-    Found GPU1 NVIDIA GeForce GTX 1080 Ti which is of cuda capability 6.1.
-    Minimum and Maximum cuda capability supported by this version of PyTorch is
-    (7.0) - (12.0)
-    
-  queued_call()
-/home/shruum/anaconda3/envs/mllm/lib/python3.10/site-packages/torch/cuda/__init__.py:435: UserWarning: 
-    Please install PyTorch with a following CUDA
-    configurations:  12.6 following instructions at
-    https://pytorch.org/get-started/locally/
-    
-  queued_call()
-/home/shruum/anaconda3/envs/mllm/lib/python3.10/site-packages/torch/cuda/__init__.py:435: UserWarning: 
-NVIDIA GeForce GTX 1080 Ti with CUDA capability sm_61 is not compatible with the current PyTorch installation.
-The current PyTorch install supports CUDA capabilities sm_70 sm_75 sm_80 sm_86 sm_90 sm_100 sm_120.
-If you want to use the NVIDIA GeForce GTX 1080 Ti GPU with PyTorch, please check the instructions at https://pytorch.org/get-started/locally/
 
-  queued_call()
-
-Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s]
-Loading checkpoint shards:  20%|██        | 1/5 [00:00<00:02,  1.34it/s]
-Loading checkpoint shards:  40%|████      | 2/5 [00:01<00:02,  1.39it/s]
-Loading checkpoint shards:  60%|██████    | 3/5 [00:02<00:02,  1.06s/it]
-Loading checkpoint shards:  80%|████████  | 4/5 [00:04<00:01,  1.22s/it]
-Loading checkpoint shards: 100%|██████████| 5/5 [00:04<00:00,  1.08it/s]
-Loading checkpoint shards: 100%|██████████| 5/5 [00:04<00:00,  1.04it/s]
+Loading checkpoint shards:   0%|          | 0/2 [00:00<?, ?it/s]
+Loading checkpoint shards:  50%|█████     | 1/2 [00:00<00:00,  1.37it/s]
+Loading checkpoint shards: 100%|██████████| 2/2 [00:01<00:00,  1.55it/s]
+Loading checkpoint shards: 100%|██████████| 2/2 [00:01<00:00,  1.52it/s]
 The image processor of type `Qwen2VLImageProcessor` is now loaded as a fast processor by default, even if the model checkpoint was saved with a slow processor. This is a breaking change and may produce slightly different outputs. To continue using the slow processor, instantiate this class with `use_fast=False`. Note that this behavior will be extended to all models in a future release.
-Traceback (most recent call last):
-  File "/volumes2/mllm/lmms-eval/my_analysis/autoresearch_mmvp/mmvp_eval.py", line 233, in <module>
-    run()
-  File "/volumes2/mllm/lmms-eval/my_analysis/autoresearch_mmvp/mmvp_eval.py", line 166, in run
-    srf.setup(model, processor)
-  File "/volumes2/mllm/lmms-eval/my_analysis/autoresearch_mmvp/srf.py", line 117, in setup
-    _calibrate_heads()
-  File "/volumes2/mllm/lmms-eval/my_analysis/autoresearch_mmvp/srf.py", line 170, in _calibrate_heads
-    patch.identify_visual_heads(_model, calib_inputs, img_ranges, BIAS["head_top_k_pct"])
-  File "/home/shruum/anaconda3/envs/mllm/lib/python3.10/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
-    return func(*args, **kwargs)
-  File "/volumes2/mllm/lmms-eval/my_analysis/qwen_attn_patch.py", line 638, in identify_visual_heads
-    model(**inputs)
-  File "/home/shruum/anaconda3/envs/mllm/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl
-    return self._call_impl(*args, **kwargs)
-  File "/home/shruum/anaconda3/envs/mllm/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl
-    return forward_call(*args, **kwargs)
-  File "/home/shruum/anaconda3/envs/mllm/lib/python3.10/site-packages/accelerate/hooks.py", line 175, in new_forward
-    output = module._old_forward(*args, **kwargs)
-  File "/home/shruum/anaconda3/envs/mllm/lib/python3.10/site-packages/transformers/utils/generic.py", line 918, in wrapper
-    output = func(self, *args, **kwargs)
-  File "/home/shruum/anaconda3/envs/mllm/lib/python3.10/site-packages/transformers/models/qwen2_5_vl/modeling_qwen2_5_vl.py", line 1476, in forward
-    outputs = self.model(
-  File "/home/shruum/anaconda3/envs/mllm/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl
-    return self._call_impl(*args, **kwargs)
-  File "/home/shruum/anaconda3/envs/mllm/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl
-    return forward_call(*args, **kwargs)
-  File "/home/shruum/anaconda3/envs/mllm/lib/python3.10/site-packages/transformers/models/qwen2_5_vl/modeling_qwen2_5_vl.py", line 1305, in forward
-    outputs = self.language_model(
-  File "/home/shruum/anaconda3/envs/mllm/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl
-    return self._call_impl(*args, **kwargs)
-  File "/home/shruum/anaconda3/envs/mllm/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1882, in _call_impl
-    return inner()
-  File "/home/shruum/anaconda3/envs/mllm/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1830, in inner
-    result = forward_call(*args, **kwargs)
-  File "/home/shruum/anaconda3/envs/mllm/lib/python3.10/site-packages/transformers/models/qwen2_5_vl/modeling_qwen2_5_vl.py", line 881, in forward
-    position_embeddings = self.rotary_emb(hidden_states, position_ids)
-  File "/home/shruum/anaconda3/envs/mllm/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1776, in _wrapped_call_impl
-    return self._call_impl(*args, **kwargs)
-  File "/home/shruum/anaconda3/envs/mllm/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1787, in _call_impl
-    return forward_call(*args, **kwargs)
-  File "/home/shruum/anaconda3/envs/mllm/lib/python3.10/site-packages/accelerate/hooks.py", line 175, in new_forward
-    output = module._old_forward(*args, **kwargs)
-  File "/home/shruum/anaconda3/envs/mllm/lib/python3.10/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
-    return func(*args, **kwargs)
-  File "/home/shruum/anaconda3/envs/mllm/lib/python3.10/site-packages/transformers/modeling_rope_utils.py", line 87, in wrapper
-    return rope_forward(self, x, position_ids)
-  File "/home/shruum/anaconda3/envs/mllm/lib/python3.10/site-packages/transformers/models/qwen2_5_vl/modeling_qwen2_5_vl.py", line 517, in forward
-    position_ids_expanded = position_ids[:, :, None, :].float()  # shape (3, bs, 1, positions)
-torch.AcceleratorError: CUDA error: no kernel image is available for execution on the device
-Search for `cudaErrorNoKernelImageForDevice' in https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__TYPES.html for more information.
-CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.
-For debugging consider passing CUDA_LAUNCH_BLOCKING=1
-Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.52, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+The following generation flags are not valid and may be ignored: ['temperature']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
 
-
-ERROR conda.cli.main_run:execute(125): `conda run python my_analysis/autoresearch_mmvp/mmvp_eval.py` failed. (See above for error)
   Loading MMVP Questions.csv…
   Loading MMVP/MMVP images from HuggingFace…
   → 300 samples, 150 pairs
 
-  Loading Qwen/Qwen2.5-VL-7B-Instruct…
+  Loading Qwen/Qwen2.5-VL-3B-Instruct…
   [SRF] Calibrating heads on MMVP samples (20, seed=0)…
+  [SRF] 3 heads selected (top 20%)
+  [clip_salience] Loading openai/clip-vit-base-patch32 on cpu (one-time, infers on cuda)…
+  [ 30/300] img acc: 0.7667  pair acc: 0.6000
+  [ 60/300] img acc: 0.7167  pair acc: 0.4667
+  [ 90/300] img acc: 0.6889  pair acc: 0.4000
+  [120/300] img acc: 0.6917  pair acc: 0.4000
+  [150/300] img acc: 0.6933  pair acc: 0.4000
+  [180/300] img acc: 0.6778  pair acc: 0.3667
+  [210/300] img acc: 0.6952  pair acc: 0.4000
+  [240/300] img acc: 0.6750  pair acc: 0.3750
+  [270/300] img acc: 0.6815  pair acc: 0.3926
+  [300/300] img acc: 0.6800  pair acc: 0.3933
+
+MMVP pair accuracy:  0.3933  (59/150 pairs)
+MMVP image accuracy: 0.6800  (204/300 images)
 

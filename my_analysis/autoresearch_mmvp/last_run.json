@@ -1,0 +1,2408 @@
+{
+  "pair_accuracy": 0.3933333333333333,
+  "image_accuracy": 0.68,
+  "n_pairs": 150,
+  "n_images": 300,
+  "samples": [
+    {
+      "csv_1idx": 1,
+      "pair_id": 0,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 2,
+      "pair_id": 0,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 3,
+      "pair_id": 1,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 4,
+      "pair_id": 1,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 5,
+      "pair_id": 2,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 6,
+      "pair_id": 2,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 7,
+      "pair_id": 3,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 8,
+      "pair_id": 3,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 9,
+      "pair_id": 4,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 10,
+      "pair_id": 4,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 11,
+      "pair_id": 5,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 12,
+      "pair_id": 5,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 13,
+      "pair_id": 6,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 14,
+      "pair_id": 6,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 15,
+      "pair_id": 7,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 16,
+      "pair_id": 7,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 17,
+      "pair_id": 8,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 18,
+      "pair_id": 8,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 19,
+      "pair_id": 9,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 20,
+      "pair_id": 9,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 21,
+      "pair_id": 10,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 22,
+      "pair_id": 10,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 23,
+      "pair_id": 11,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 24,
+      "pair_id": 11,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 25,
+      "pair_id": 12,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 26,
+      "pair_id": 12,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 27,
+      "pair_id": 13,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 28,
+      "pair_id": 13,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 29,
+      "pair_id": 14,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 30,
+      "pair_id": 14,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 31,
+      "pair_id": 15,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 32,
+      "pair_id": 15,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 33,
+      "pair_id": 16,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 34,
+      "pair_id": 16,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 35,
+      "pair_id": 17,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 36,
+      "pair_id": 17,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 37,
+      "pair_id": 18,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 38,
+      "pair_id": 18,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 39,
+      "pair_id": 19,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 40,
+      "pair_id": 19,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 41,
+      "pair_id": 20,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 42,
+      "pair_id": 20,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 43,
+      "pair_id": 21,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 44,
+      "pair_id": 21,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 45,
+      "pair_id": 22,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 46,
+      "pair_id": 22,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 47,
+      "pair_id": 23,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 48,
+      "pair_id": 23,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 49,
+      "pair_id": 24,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 50,
+      "pair_id": 24,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 51,
+      "pair_id": 25,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 52,
+      "pair_id": 25,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 53,
+      "pair_id": 26,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 54,
+      "pair_id": 26,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 55,
+      "pair_id": 27,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 56,
+      "pair_id": 27,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 57,
+      "pair_id": 28,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 58,
+      "pair_id": 28,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 59,
+      "pair_id": 29,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 60,
+      "pair_id": 29,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 61,
+      "pair_id": 30,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 62,
+      "pair_id": 30,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 63,
+      "pair_id": 31,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 64,
+      "pair_id": 31,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 65,
+      "pair_id": 32,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 66,
+      "pair_id": 32,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 67,
+      "pair_id": 33,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 68,
+      "pair_id": 33,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 69,
+      "pair_id": 34,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 70,
+      "pair_id": 34,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 71,
+      "pair_id": 35,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 72,
+      "pair_id": 35,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 73,
+      "pair_id": 36,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 74,
+      "pair_id": 36,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 75,
+      "pair_id": 37,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 76,
+      "pair_id": 37,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 77,
+      "pair_id": 38,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 78,
+      "pair_id": 38,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 79,
+      "pair_id": 39,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 80,
+      "pair_id": 39,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 81,
+      "pair_id": 40,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 82,
+      "pair_id": 40,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 83,
+      "pair_id": 41,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 84,
+      "pair_id": 41,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 85,
+      "pair_id": 42,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 86,
+      "pair_id": 42,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 87,
+      "pair_id": 43,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 88,
+      "pair_id": 43,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 89,
+      "pair_id": 44,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 90,
+      "pair_id": 44,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 91,
+      "pair_id": 45,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 92,
+      "pair_id": 45,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 93,
+      "pair_id": 46,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 94,
+      "pair_id": 46,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 95,
+      "pair_id": 47,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 96,
+      "pair_id": 47,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 97,
+      "pair_id": 48,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 98,
+      "pair_id": 48,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 99,
+      "pair_id": 49,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 100,
+      "pair_id": 49,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 101,
+      "pair_id": 50,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A"
+    },
+    {
+      "csv_1idx": 102,
+      "pair_id": 50,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A"
+    },
+    {
+      "csv_1idx": 103,
+      "pair_id": 51,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 104,
+      "pair_id": 51,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 105,
+      "pair_id": 52,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 106,
+      "pair_id": 52,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 107,
+      "pair_id": 53,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 108,
+      "pair_id": 53,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 109,
+      "pair_id": 54,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 110,
+      "pair_id": 54,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 111,
+      "pair_id": 55,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 112,
+      "pair_id": 55,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 113,
+      "pair_id": 56,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 114,
+      "pair_id": 56,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 115,
+      "pair_id": 57,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 116,
+      "pair_id": 57,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 117,
+      "pair_id": 58,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 118,
+      "pair_id": 58,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 119,
+      "pair_id": 59,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 120,
+      "pair_id": 59,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 121,
+      "pair_id": 60,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 122,
+      "pair_id": 60,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 123,
+      "pair_id": 61,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 124,
+      "pair_id": 61,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 125,
+      "pair_id": 62,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 126,
+      "pair_id": 62,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 127,
+      "pair_id": 63,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 128,
+      "pair_id": 63,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 129,
+      "pair_id": 64,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 130,
+      "pair_id": 64,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 131,
+      "pair_id": 65,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 132,
+      "pair_id": 65,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 133,
+      "pair_id": 66,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 134,
+      "pair_id": 66,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 135,
+      "pair_id": 67,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 136,
+      "pair_id": 67,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 137,
+      "pair_id": 68,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 138,
+      "pair_id": 68,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 139,
+      "pair_id": 69,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 140,
+      "pair_id": 69,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 141,
+      "pair_id": 70,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 142,
+      "pair_id": 70,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 143,
+      "pair_id": 71,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 144,
+      "pair_id": 71,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 145,
+      "pair_id": 72,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 146,
+      "pair_id": 72,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 147,
+      "pair_id": 73,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 148,
+      "pair_id": 73,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 149,
+      "pair_id": 74,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 150,
+      "pair_id": 74,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 151,
+      "pair_id": 75,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 152,
+      "pair_id": 75,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 153,
+      "pair_id": 76,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 154,
+      "pair_id": 76,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 155,
+      "pair_id": 77,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 156,
+      "pair_id": 77,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 157,
+      "pair_id": 78,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 158,
+      "pair_id": 78,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 159,
+      "pair_id": 79,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 160,
+      "pair_id": 79,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 161,
+      "pair_id": 80,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 162,
+      "pair_id": 80,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 163,
+      "pair_id": 81,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 164,
+      "pair_id": 81,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 165,
+      "pair_id": 82,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 166,
+      "pair_id": 82,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 167,
+      "pair_id": 83,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 168,
+      "pair_id": 83,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 169,
+      "pair_id": 84,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 170,
+      "pair_id": 84,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 171,
+      "pair_id": 85,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 172,
+      "pair_id": 85,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 173,
+      "pair_id": 86,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 174,
+      "pair_id": 86,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 175,
+      "pair_id": 87,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 176,
+      "pair_id": 87,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 177,
+      "pair_id": 88,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 178,
+      "pair_id": 88,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 179,
+      "pair_id": 89,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 180,
+      "pair_id": 89,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 181,
+      "pair_id": 90,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 182,
+      "pair_id": 90,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 183,
+      "pair_id": 91,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 184,
+      "pair_id": 91,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 185,
+      "pair_id": 92,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 186,
+      "pair_id": 92,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 187,
+      "pair_id": 93,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 188,
+      "pair_id": 93,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 189,
+      "pair_id": 94,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 190,
+      "pair_id": 94,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 191,
+      "pair_id": 95,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 192,
+      "pair_id": 95,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 193,
+      "pair_id": 96,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 194,
+      "pair_id": 96,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 195,
+      "pair_id": 97,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 196,
+      "pair_id": 97,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 197,
+      "pair_id": 98,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 198,
+      "pair_id": 98,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 199,
+      "pair_id": 99,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A"
+    },
+    {
+      "csv_1idx": 200,
+      "pair_id": 99,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 201,
+      "pair_id": 100,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 202,
+      "pair_id": 100,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 203,
+      "pair_id": 101,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 204,
+      "pair_id": 101,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 205,
+      "pair_id": 102,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 206,
+      "pair_id": 102,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 207,
+      "pair_id": 103,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 208,
+      "pair_id": 103,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 209,
+      "pair_id": 104,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 210,
+      "pair_id": 104,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 211,
+      "pair_id": 105,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 212,
+      "pair_id": 105,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 213,
+      "pair_id": 106,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 214,
+      "pair_id": 106,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 215,
+      "pair_id": 107,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 216,
+      "pair_id": 107,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 217,
+      "pair_id": 108,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 218,
+      "pair_id": 108,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 219,
+      "pair_id": 109,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 220,
+      "pair_id": 109,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 221,
+      "pair_id": 110,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 222,
+      "pair_id": 110,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 223,
+      "pair_id": 111,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 224,
+      "pair_id": 111,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 225,
+      "pair_id": 112,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 226,
+      "pair_id": 112,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 227,
+      "pair_id": 113,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 228,
+      "pair_id": 113,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 229,
+      "pair_id": 114,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 230,
+      "pair_id": 114,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 231,
+      "pair_id": 115,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 232,
+      "pair_id": 115,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 233,
+      "pair_id": 116,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 234,
+      "pair_id": 116,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 235,
+      "pair_id": 117,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 236,
+      "pair_id": 117,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 237,
+      "pair_id": 118,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 238,
+      "pair_id": 118,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 239,
+      "pair_id": 119,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 240,
+      "pair_id": 119,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 241,
+      "pair_id": 120,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 242,
+      "pair_id": 120,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 243,
+      "pair_id": 121,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 244,
+      "pair_id": 121,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 245,
+      "pair_id": 122,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 246,
+      "pair_id": 122,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 247,
+      "pair_id": 123,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 248,
+      "pair_id": 123,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 249,
+      "pair_id": 124,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 250,
+      "pair_id": 124,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 251,
+      "pair_id": 125,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 252,
+      "pair_id": 125,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 253,
+      "pair_id": 126,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 254,
+      "pair_id": 126,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 255,
+      "pair_id": 127,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 256,
+      "pair_id": 127,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 257,
+      "pair_id": 128,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 258,
+      "pair_id": 128,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 259,
+      "pair_id": 129,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 260,
+      "pair_id": 129,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 261,
+      "pair_id": 130,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 262,
+      "pair_id": 130,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 263,
+      "pair_id": 131,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 264,
+      "pair_id": 131,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 265,
+      "pair_id": 132,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 266,
+      "pair_id": 132,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 267,
+      "pair_id": 133,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 268,
+      "pair_id": 133,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 269,
+      "pair_id": 134,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 270,
+      "pair_id": 134,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 271,
+      "pair_id": 135,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 272,
+      "pair_id": 135,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 273,
+      "pair_id": 136,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 274,
+      "pair_id": 136,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 275,
+      "pair_id": 137,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 276,
+      "pair_id": 137,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 277,
+      "pair_id": 138,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A"
+    },
+    {
+      "csv_1idx": 278,
+      "pair_id": 138,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 279,
+      "pair_id": 139,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 280,
+      "pair_id": 139,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 281,
+      "pair_id": 140,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 282,
+      "pair_id": 140,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 283,
+      "pair_id": 141,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 284,
+      "pair_id": 141,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 285,
+      "pair_id": 142,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 286,
+      "pair_id": 142,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 287,
+      "pair_id": 143,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 288,
+      "pair_id": 143,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 289,
+      "pair_id": 144,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 290,
+      "pair_id": 144,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 291,
+      "pair_id": 145,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 292,
+      "pair_id": 145,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 293,
+      "pair_id": 146,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 294,
+      "pair_id": 146,
+      "gt": "B",
+      "pred": "A",
+      "correct": false,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 295,
+      "pair_id": 147,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 296,
+      "pair_id": 147,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 297,
+      "pair_id": 148,
+      "gt": "A",
+      "pred": "A",
+      "correct": true,
+      "response": "A."
+    },
+    {
+      "csv_1idx": 298,
+      "pair_id": 148,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 299,
+      "pair_id": 149,
+      "gt": "A",
+      "pred": "B",
+      "correct": false,
+      "response": "B."
+    },
+    {
+      "csv_1idx": 300,
+      "pair_id": 149,
+      "gt": "B",
+      "pred": "B",
+      "correct": true,
+      "response": "B."
+    }
+  ]
+}

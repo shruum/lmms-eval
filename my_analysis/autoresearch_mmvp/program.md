@@ -8,7 +8,8 @@ git checkout autoresearch/mmvp-srf 2>/dev/null || git checkout -b autoresearch/m
 ```
 
 The model is **Qwen2.5-VL-7B-Instruct** split across GPU 0 (RTX 2080 Ti) + GPU 1 (GTX 1080 Ti).
-CLIP runs on GPU 0. Total free VRAM: ~21 GB. Do not run VLM Bias or other jobs in parallel.
+CLIP runs on GPU 0. GPU usage when loaded: 7.6/11.5 GB (GPU 0) + 9.0/11.7 GB (GPU 1).
+Do not run VLM Bias or other jobs in parallel — 7B needs both GPUs fully.
 
 ## The Objective
 
@@ -55,8 +56,8 @@ To discard: `git reset --hard HEAD~1`
 - `srf_apply_phase`: "both" vs "generation" vs "prefill" (warmstart: "generation")
 
 ### Stage 2: Layer range
-- `layer_start` / `layer_end`: sweep {6-13, 8-15, 10-17, 12-19} for 32-layer model
-  - Reference: ClearSight uses 8-15 for 7B models
+- `layer_start` / `layer_end`: sweep {6-13, 8-14, 8-15, 8-19, 10-17} (model has 28 layers, same as 3B)
+  - VLM Bias best was 8-14; warmstart here is 8-15
 - `head_top_k_pct`: {0.10, 0.15, 0.20, 0.30, 0.50} (warmstart: 0.20)
 
 ### Stage 3: Saliency quality

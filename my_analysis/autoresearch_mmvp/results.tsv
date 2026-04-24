@@ -6,3 +6,17 @@ commit	pair_acc	img_acc	status	description
 e0d3eee7	0.3867	0.6633	discard	alpha=12.0 phase=both — regression -0.027, too strong distorts attention
 92d7b63c	0.4267	0.7000	keep	alpha=4.0 phase=both — +0.013 over alpha=8.0; gentler boost better for prefill
 50ea43b2	0.4200	0.6900	discard	alpha=2.0 — slightly worse (63 vs 64 pairs); sweet spot at alpha=4.0
+e062e384	0.4333	0.7000	keep	alpha=4.0 eps=0.2 — +0.007 (65 pairs); lower suppression sweet spot for MMVP
+0e5e137b	0.4200	0.6833	discard	alpha=4.0 eps=0.0 — worse (63 pairs); mild suppression (0.2) better than none
+5f09ee97	0.3933	0.6800	discard	layers 8-19 wider — big regression back to baseline; too many late layers interfere
+528148f2	0.4067	0.6767	discard	layers 8-12 narrow — worse (61 pairs)
+94710141	0.4133	0.6933	discard	layers 8-14 — worse than 8-15 (62 vs 65); 8-15 is optimal layer range
+a30a6aed	0.4067	0.6900	discard	head_top_k=0.10 — fewer heads worse (61 pairs)
+2b6b693c	0.3867	0.6733	discard	head_top_k=0.30 — more heads worse (58 pairs)
+c8a803d1	0.4333	0.7000	discard	clip_top_k_pct=0.20 — identical (65 pairs); saliency granularity insensitive
+523454c9	0.3933	0.6800	discard	prob_interp — big regression to baseline
+8eb1e125	0.4000	0.6800	discard	global_redistribute img_scale=2.0 — slight gain over baseline but worse than additive
+665db23c	0.3867	0.6767	discard	clip_fallback_thresh=0.30 — worse; CLIP useful even at moderate confidence
+f790f299	0.4333	0.7000	discard	clip_fallback_thresh=0.10 — same (65 pairs); threshold not sensitive
+c397b72b	0.4333	0.6967	discard	alpha=5.0 — same (65 pairs); alpha=4.0-5.0 are equivalent ceiling
+0a4a3a2b	0.4200	0.6867	discard	sys_beta=0.0 — slightly worse (63 pairs); small sys suppression (0.10) is helpful

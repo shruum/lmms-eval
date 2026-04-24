@@ -1,3 +1,6 @@
 commit	pair_acc	img_acc	status	description
 4e6409a9	0.3933	0.6800	baseline	warmstart: VLM Bias best (alpha=8.0 eps=0.5 gen-only layers 8-15 head_top_k=0.20) — this IS the baseline
 69c5df89	0.3933	0.6800	discard	alpha=0 eps=0 true no-op — identical to warmstart: gen-only boost does NOTHING on single-token A/B decisions
+0618ffc8	0.4133	0.6867	keep	srf_apply_phase=both — +0.020! prefill boost critical for MMVP single-token decisions
+43bf235d	0.4133	0.6867	discard	srf_apply_phase=prefill — same as both (generation phase irrelevant for 1-token output)
+e0d3eee7	0.3867	0.6633	discard	alpha=12.0 phase=both — regression -0.027, too strong distorts attention

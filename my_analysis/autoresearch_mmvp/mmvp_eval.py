@@ -27,7 +27,7 @@ import re
 import sys
 
 os.environ.setdefault("HF_HOME", "/volumes2/hugging_face_cache")
-os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"      # 7B needs both 2080Ti + 1080Ti
+os.environ.setdefault("CUDA_VISIBLE_DEVICES", "0")   # GPU0 only: GTX 1080 Ti (CC 6.1) unsupported by PyTorch 2.10
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
 SCRIPT_DIR   = pathlib.Path(__file__).parent
@@ -36,7 +36,7 @@ ANALYSIS_DIR = SCRIPT_DIR.parent
 sys.path.insert(0, str(SCRIPT_DIR))
 sys.path.insert(0, str(ANALYSIS_DIR))
 
-MODEL_ID       = "Qwen/Qwen2.5-VL-7B-Instruct"
+MODEL_ID       = "Qwen/Qwen2.5-VL-3B-Instruct"   # 7B needs 2×GPU but GTX 1080 Ti is CC 6.1, incompatible with PyTorch 2.10
 IMAGE_TOKEN    = "<|image_pad|>"
 MAX_NEW_TOKENS = 16
 GEN_KWARGS     = dict(max_new_tokens=MAX_NEW_TOKENS, do_sample=False)

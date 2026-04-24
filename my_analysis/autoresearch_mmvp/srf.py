@@ -37,7 +37,7 @@ SALIENCY = {
 
 BIAS = {
     "layer_start":      8,
-    "layer_end":        15,     # 7B has 28 layers (same as 3B); 8-15 is one wider than VLM Bias best (8-14)
+    "layer_end":        15,     # 28 layers total; 8-15 is one wider than VLM Bias best (8-14) — good warmstart
     "head_top_k_pct":   0.20,
     "sys_beta":         0.10,
     "text_beta":        0.0,    # disabled — confirmed no effect on VLM Bias

@@ -7,9 +7,9 @@ cd /volumes2/mllm/lmms-eval
 git checkout autoresearch/mmvp-srf 2>/dev/null || git checkout -b autoresearch/mmvp-srf
 ```
 
-The model is **Qwen2.5-VL-7B-Instruct** split across GPU 0 (RTX 2080 Ti) + GPU 1 (GTX 1080 Ti).
-CLIP runs on GPU 0. GPU usage when loaded: 7.6/11.5 GB (GPU 0) + 9.0/11.7 GB (GPU 1).
-Do not run VLM Bias or other jobs in parallel — 7B needs both GPUs fully.
+The model is **Qwen2.5-VL-3B-Instruct** on GPU 0 (RTX 2080 Ti, CC 7.5) only.
+**Why not 7B**: GTX 1080 Ti is CC 6.1; PyTorch 2.10 requires CC ≥ 7.0. 7B also wouldn't fit in 11 GB alone.
+This is the same model as VLM Bias autoresearch — config transfers directly.
 
 ## The Objective
 
@@ -75,7 +75,7 @@ To discard: `git reset --hard HEAD~1`
 | Aspect | VLM Bias | MMVP |
 |--------|----------|------|
 | Task | Counting (how many X) | Fine-grained attribute (A or B) |
-| Model | 3B | 7B (32 layers) |
+| Model | 3B | 3B (same model) |
 | Answer format | {number} | A or B |
 | Noun extraction | Counted object | Subject visual object |
 | CLIP utility | High for Logos/Flags, none for Animals/Chess | High for all (clear photos) |

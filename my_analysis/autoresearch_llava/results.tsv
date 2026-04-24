@@ -1,0 +1,8 @@
+commit	accuracy	status	description
+3eb057d	0.8300	keep	baseline: no intervention
+7cb7e97	0.8300	discard	prob_interp λ=0.5
+46ef5e4	0.8300	discard	prob_interp λ=1.0
+15699ae	0.8300	discard	global_redistribute img_scale=2.0
+0fc50db	0.8300	discard	CLIP top_k=0.50
+823d6ba	0.8300	discard	disable absence suppression
+2c62d4d	0.8300	crash	strong boost α=4.0 PATCH NOT WORKING

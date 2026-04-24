@@ -23,14 +23,6 @@ def load_pope(n: int, seed: int = SEED) -> list[dict]:
     print(f"  → {len(samples)} samples loaded")
     return samples
 
-def get_img_range(inputs: dict, model) -> tuple[int, int]:
-    ids = inputs["input_ids"][0].tolist()
-    s = ids.index(model.config.image_token_index)
-    e = s
-    while e + 1 < len(ids) and ids[e + 1] == model.config.image_token_index:
-        e += 1
-    return s, e + 1
-
 def run() -> float:
     samples = load_pope(N_SAMPLES)
     print(f"\n  Loading {MODEL_ID}…")
@@ -47,8 +39,7 @@ def run() -> float:
             print(f"    [{idx}/{total}] ETA: {(time.time()-t)/idx*(total-idx+1):.0f}s…", flush=True)
         prompt = processor.apply_chat_template([{"role": "user", "content": [{"type": "image"}, {"type": "text", "text": sample["question"]}]}], add_generation_prompt=True)
         inputs = processor(images=sample["image"], text=prompt, return_tensors="pt").to(model.device)
-        img_start, img_end = get_img_range(inputs, model)
-        srf.prepare_sample(inputs, img_start, img_end, sample["image"], prompt, model, processor)
+        srf.prepare_sample(inputs, 0, 0, sample["image"], prompt, model, processor)
         with torch.no_grad():
             outputs = model.generate(**inputs, **GEN_KWARGS)
         srf.cleanup()

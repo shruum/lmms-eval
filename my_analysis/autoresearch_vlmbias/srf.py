@@ -36,6 +36,7 @@ BIAS = {
     "layer_end":        14,
     "head_top_k_pct":   0.20,
     "sys_beta":         0.10,
+    "text_beta":        0.0,    # post-image text suppression (new lever; 0=off)
     "bias_mode":        "additive_logit",
     "boost_alpha":      8.0,
     "background_eps":   0.5,
@@ -97,6 +98,7 @@ def setup(model, processor) -> None:
     patch._STATE["srf_prob_floor"]     = BIAS["prob_floor"]
     patch._STATE["srf_img_scale"]      = BIAS["img_scale"]
     patch._STATE["srf_apply_phase"]    = BIAS["srf_apply_phase"]
+    patch._STATE["srf_text_beta"]      = BIAS["text_beta"]
 
 
 def _calibrate_heads() -> None:
@@ -137,6 +139,7 @@ def prepare_sample(inputs, img_start, img_end, image, question, model, processor
     patch._STATE["srf_interp_lambda"] = BIAS["interp_lambda"]
     patch._STATE["srf_prob_floor"]    = BIAS["prob_floor"]
     patch._STATE["srf_img_scale"]     = BIAS["img_scale"]
+    patch._STATE["srf_text_beta"]     = BIAS["text_beta"]
     grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial)
     noun   = _extract_noun(question)
     result = clip_sal.compute_clip_salience(image, noun, grid_h, grid_w,

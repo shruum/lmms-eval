@@ -126,7 +126,7 @@ SALIENCY = {
 
 BIAS = {
     "layer_start":      8,
-    "layer_end":        15,
+    "layer_end":        14,
     "head_top_k_pct":   0.20,          # top-20% vision-aware heads
     "sys_beta":         0.10,          # system prompt suppression (all modes)
 

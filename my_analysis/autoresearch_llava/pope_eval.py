@@ -8,6 +8,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 from datasets import load_dataset as hf_load
 from transformers import AutoProcessor, LlavaForConditionalGeneration
 import srf
+import llava_attn_patch as patch
 
 MODEL_ID = "llava-hf/llava-1.5-7b-hf"
 SPLIT, N_SAMPLES, SEED = "adversarial", 100, 42

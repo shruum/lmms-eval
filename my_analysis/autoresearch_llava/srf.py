@@ -14,8 +14,8 @@ import clip_salience as clip_sal
 # =============================================================================
 SALIENCY = {
     "source": "clip",  # CLIP ViT-B/32 for LLaVA
-    "clip_coarse_grid": 7,
-    "clip_top_k_pct": 0.30,
+    "clip_coarse_grid": 9,
+    "clip_top_k_pct": 0.2,
     "clip_absence_thresh": 0.20,
     "clip_use_soft": True,
 }
@@ -24,11 +24,11 @@ SALIENCY = {
 # STAGE 2: ATTENTION BIAS
 # =============================================================================
 BIAS = {
-    "layer_start": 8,  # ClearSight's optimal range for LLaVA
-    "layer_end": 15,
-    "bias_mode": "additive_logit",  # Start with additive logit
-    "boost_alpha": 2.0,
-    "sys_beta": 0.10,  # System prompt suppression
+    "layer_start": 10,  # ClearSight's optimal range for LLaVA
+    "layer_end": 14,
+    "bias_mode": "prob_scale",  # Start with additive logit
+    "boost_alpha": 3.0,
+    "sys_beta": 0.15,  # System prompt suppression
     "head_top_k_pct": 0.0,  # Apply to all heads initially
     "srf_background_eps": 0.0,
 }

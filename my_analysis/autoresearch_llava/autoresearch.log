@@ -1,0 +1,278 @@
+============================================================
+AUTORESEARCH LOOP: POPE × LLaVA-1.5-7B
+Baseline: 0.8300
+GPU: 2
+Time budget: 4 hours
+============================================================
+
+  Testing: L10-16_prob_interp_a3.0_top40_grid7_beta0.15
+  [DISCARD] 0.4800 — L10-16_prob_interp_a3.0_top40_grid7_beta0.15
+  Progress: 1 experiments | Best: 0.8300 | Time: 0min
+
+  Testing: L8-15_prob_interp_a2.0_top20_grid9_beta0.1
+  [DISCARD] 0.4800 — L8-15_prob_interp_a2.0_top20_grid9_beta0.1
+  Progress: 2 experiments | Best: 0.8300 | Time: 2min
+
+  Testing: L9-16_prob_scale_a1.5_top40_grid9_beta0.0
+  [DISCARD] 0.4800 — L9-16_prob_scale_a1.5_top40_grid9_beta0.0
+  Progress: 3 experiments | Best: 0.8300 | Time: 3min
+
+  Testing: L8-14_prob_interp_a2.5_top20_grid7_beta0.15
+  [DISCARD] 0.4800 — L8-14_prob_interp_a2.5_top20_grid7_beta0.15
+  Progress: 4 experiments | Best: 0.8300 | Time: 5min
+
+  Testing: L10-14_prob_scale_a1.5_top30_grid5_beta0.1
+  [DISCARD] 0.4800 — L10-14_prob_scale_a1.5_top30_grid5_beta0.1
+  Progress: 5 experiments | Best: 0.8300 | Time: 7min
+
+  Testing: L8-16_additive_logit_a2.5_top30_grid5_beta0.0
+  [DISCARD] 0.4800 — L8-16_additive_logit_a2.5_top30_grid5_beta0.0
+  Progress: 6 experiments | Best: 0.8300 | Time: 8min
+
+  Testing: L9-16_prob_scale_a2.0_top20_grid5_beta0.15
+  [DISCARD] 0.4800 — L9-16_prob_scale_a2.0_top20_grid5_beta0.15
+  Progress: 7 experiments | Best: 0.8300 | Time: 10min
+
+  Testing: L10-16_prob_scale_a3.0_top20_grid9_beta0.05
+  [ERROR] Could not parse accuracy from output:
+  Loading POPE (adversarial, n=100, seed=42)…
+  → 100 samples loaded
+
+  Loading llava-hf/llava-1.5-7b-hf…
+  → Model loaded in 5.5s
+  [SRF] Mode: prob_scale, boost=3.0
+  [SRF] Layers: 10-14, saliency=clip
+
+  Running evaluation (100 samples)…
+    [1/100] ETA: 0s…
+  [clip_salience] Loading openai/clip-vit-base-patch32 on cpu (one-time, infers on cuda)…
+    [20/100] ETA: 60s…
+    [40/100] ETA: 41s…
+    [60/100] ETA: 27s…
+
+  [CRASH] 0.0000 — ERROR: Could not parse accuracy from output:
+  Loading POPE (adversarial, n=100, seed=42)…
+  → 100 samples loaded
+
+  Loading llava-hf/llava-1.5-7b-hf…
+  → Model loaded in 5.5s
+  [SRF] Mode: prob_scale, boost=3.0
+  [SRF] Layers: 10-14, saliency=clip
+
+  Running evaluation (100 samples)…
+    [1/100] ETA: 0s…
+  [clip_salience] Loading openai/clip-vit-base-patch32 on cpu (one-time, infers on cuda)…
+    [20/100] ETA: 60s…
+    [40/100] ETA: 41s…
+    [60/100] ETA: 27s…
+
+
+  Testing: L8-14_prob_interp_a1.5_top20_grid9_beta0.15
+  [DISCARD] 0.4800 — L8-14_prob_interp_a1.5_top20_grid9_beta0.15
+  Progress: 8 experiments | Best: 0.8300 | Time: 13min
+
+  Testing: L9-16_prob_scale_a2.0_top40_grid5_beta0.05
+  [DISCARD] 0.4800 — L9-16_prob_scale_a2.0_top40_grid5_beta0.05
+  Progress: 9 experiments | Best: 0.8300 | Time: 15min
+
+  Testing: L8-16_prob_interp_a3.0_top40_grid7_beta0.1
+  [DISCARD] 0.4800 — L8-16_prob_interp_a3.0_top40_grid7_beta0.1
+  Progress: 10 experiments | Best: 0.8300 | Time: 16min
+
+  Testing: L9-14_prob_scale_a3.0_top30_grid5_beta0.05
+  [DISCARD] 0.4800 — L9-14_prob_scale_a3.0_top30_grid5_beta0.05
+  Progress: 11 experiments | Best: 0.8300 | Time: 18min
+
+  Testing: L8-16_prob_interp_a2.0_top20_grid5_beta0.05
+  [DISCARD] 0.4800 — L8-16_prob_interp_a2.0_top20_grid5_beta0.05
+  Progress: 12 experiments | Best: 0.8300 | Time: 19min
+
+  Testing: L10-15_additive_logit_a1.5_top40_grid5_beta0.0
+  [DISCARD] 0.4800 — L10-15_additive_logit_a1.5_top40_grid5_beta0.0
+  Progress: 13 experiments | Best: 0.8300 | Time: 21min
+
+  Testing: L10-15_additive_logit_a1.5_top40_grid5_beta0.05
+  [DISCARD] 0.4800 — L10-15_additive_logit_a1.5_top40_grid5_beta0.05
+  Progress: 14 experiments | Best: 0.8300 | Time: 23min
+
+  Testing: L8-14_additive_logit_a3.0_top40_grid7_beta0.0
+  [DISCARD] 0.4800 — L8-14_additive_logit_a3.0_top40_grid7_beta0.0
+  Progress: 15 experiments | Best: 0.8300 | Time: 24min
+
+  Testing: L9-15_prob_scale_a2.0_top30_grid9_beta0.1
+  [DISCARD] 0.4800 — L9-15_prob_scale_a2.0_top30_grid9_beta0.1
+  Progress: 16 experiments | Best: 0.8300 | Time: 26min
+
+  Testing: L9-15_prob_scale_a1.0_top40_grid7_beta0.05
+  [DISCARD] 0.4800 — L9-15_prob_scale_a1.0_top40_grid7_beta0.05
+  Progress: 17 experiments | Best: 0.8300 | Time: 27min
+
+  Testing: L9-16_prob_scale_a2.5_top40_grid7_beta0.1
+  [DISCARD] 0.4800 — L9-16_prob_scale_a2.5_top40_grid7_beta0.1
+  Progress: 18 experiments | Best: 0.8300 | Time: 29min
+
+  Testing: L10-16_additive_logit_a2.0_top20_grid7_beta0.15
+  [ERROR] Could not parse accuracy from output:
+
+  [CRASH] 0.0000 — ERROR: Could not parse accuracy from output:
+
+
+  Testing: L9-16_prob_scale_a1.0_top40_grid5_beta0.1
+  [ERROR] Could not parse accuracy from output:
+
+  [CRASH] 0.0000 — ERROR: Could not parse accuracy from output:
+
+
+  Testing: L10-16_prob_scale_a2.0_top40_grid5_beta0.05
+  [ERROR] Could not parse accuracy from output:
+
+  [CRASH] 0.0000 — ERROR: Could not parse accuracy from output:
+
+
+  Testing: L9-16_prob_scale_a1.0_top30_grid7_beta0.0
+  [ERROR] Could not parse accuracy from output:
+
+  [CRASH] 0.0000 — ERROR: Could not parse accuracy from output:
+
+
+  Testing: L10-14_prob_scale_a1.0_top40_grid5_beta0.0
+  [ERROR] Could not parse accuracy from output:
+
+  [CRASH] 0.0000 — ERROR: Could not parse accuracy from output:
+
+
+  Testing: L10-16_prob_scale_a2.5_top40_grid9_beta0.0
+  [ERROR] Could not parse accuracy from output:
+
+  [CRASH] 0.0000 — ERROR: Could not parse accuracy from output:
+
+
+  Testing: L9-14_prob_interp_a1.0_top20_grid5_beta0.15
+  [ERROR] Could not parse accuracy from output:
+
+  [CRASH] 0.0000 — ERROR: Could not parse accuracy from output:
+
+
+  Testing: L9-15_prob_interp_a1.5_top30_grid9_beta0.1
+  [ERROR] Could not parse accuracy from output:
+
+  [CRASH] 0.0000 — ERROR: Could not parse accuracy from output:
+
+
+  Testing: L10-15_prob_scale_a3.0_top40_grid5_beta0.0
+  [ERROR] Could not parse accuracy from output:
+
+  [CRASH] 0.0000 — ERROR: Could not parse accuracy from output:
+
+
+  Testing: L10-14_prob_scale_a2.0_top30_grid5_beta0.0
+  [ERROR] Could not parse accuracy from output:
+
+  [CRASH] 0.0000 — ERROR: Could not parse accuracy from output:
+
+
+  Testing: L10-14_prob_scale_a1.5_top40_grid7_beta0.15
+  [ERROR] Could not parse accuracy from output:
+
+  [CRASH] 0.0000 — ERROR: Could not parse accuracy from output:
+
+
+  Testing: L10-14_prob_interp_a1.0_top20_grid7_beta0.1
+  [ERROR] Could not parse accuracy from output:
+
+  [CRASH] 0.0000 — ERROR: Could not parse accuracy from output:
+
+
+  Testing: L10-14_prob_interp_a2.5_top40_grid5_beta0.1
+  [ERROR] Could not parse accuracy from output:
+
+  [CRASH] 0.0000 — ERROR: Could not parse accuracy from output:
+
+
+  Testing: L9-15_prob_interp_a3.0_top20_grid5_beta0.05
+  [ERROR] Could not parse accuracy from output:
+
+  [CRASH] 0.0000 — ERROR: Could not parse accuracy from output:
+
+
+  Testing: L10-14_prob_scale_a3.0_top40_grid9_beta0.0
+  [ERROR] Could not parse accuracy from output:
+
+  [CRASH] 0.0000 — ERROR: Could not parse accuracy from output:
+
+
+  Testing: L10-16_additive_logit_a2.5_top20_grid9_beta0.15
+  [ERROR] Could not parse accuracy from output:
+
+  [CRASH] 0.0000 — ERROR: Could not parse accuracy from output:
+
+
+  Testing: L10-15_prob_interp_a2.5_top20_grid5_beta0.0
+  [ERROR] Could not parse accuracy from output:
+
+  [CRASH] 0.0000 — ERROR: Could not parse accuracy from output:
+
+
+  Testing: L9-14_prob_scale_a2.0_top20_grid5_beta0.05
+  [ERROR] Could not parse accuracy from output:
+
+  [CRASH] 0.0000 — ERROR: Could not parse accuracy from output:
+
+
+  Testing: L9-14_additive_logit_a1.5_top30_grid9_beta0.1
+  [ERROR] Could not parse accuracy from output:
+
+  [CRASH] 0.0000 — ERROR: Could not parse accuracy from output:
+
+
+  Testing: L8-15_prob_interp_a1.0_top30_grid5_beta0.1
+  [ERROR] Could not parse accuracy from output:
+
+  [CRASH] 0.0000 — ERROR: Could not parse accuracy from output:
+
+
+  Testing: L10-15_prob_interp_a1.0_top40_grid5_beta0.0
+  [ERROR] Could not parse accuracy from output:
+
+  [CRASH] 0.0000 — ERROR: Could not parse accuracy from output:
+
+
+  Testing: L9-16_prob_interp_a2.5_top40_grid9_beta0.15
+  [DISCARD] 0.4800 — L9-16_prob_interp_a2.5_top40_grid9_beta0.15
+  Progress: 19 experiments | Best: 0.8300 | Time: 30min
+
+  Testing: L8-16_prob_scale_a2.0_top30_grid5_beta0.1
+  [DISCARD] 0.4800 — L8-16_prob_scale_a2.0_top30_grid5_beta0.1
+  Progress: 20 experiments | Best: 0.8300 | Time: 31min
+
+  Testing: L10-15_additive_logit_a2.0_top40_grid7_beta0.1
+  [DISCARD] 0.4800 — L10-15_additive_logit_a2.0_top40_grid7_beta0.1
+  Progress: 21 experiments | Best: 0.8300 | Time: 33min
+
+  Testing: L9-15_additive_logit_a3.0_top30_grid7_beta0.15
+  [DISCARD] 0.4800 — L9-15_additive_logit_a3.0_top30_grid7_beta0.15
+  Progress: 22 experiments | Best: 0.8300 | Time: 34min
+
+  Testing: L8-14_prob_scale_a2.5_top20_grid9_beta0.15
+  [DISCARD] 0.4800 — L8-14_prob_scale_a2.5_top20_grid9_beta0.15
+  Progress: 23 experiments | Best: 0.8300 | Time: 35min
+
+  Testing: L10-15_prob_scale_a1.5_top40_grid7_beta0.05
+  [DISCARD] 0.4800 — L10-15_prob_scale_a1.5_top40_grid7_beta0.05
+  Progress: 24 experiments | Best: 0.8300 | Time: 37min
+
+  Testing: L9-15_additive_logit_a1.5_top40_grid7_beta0.15
+  [DISCARD] 0.4800 — L9-15_additive_logit_a1.5_top40_grid7_beta0.15
+  Progress: 25 experiments | Best: 0.8300 | Time: 38min
+
+  Testing: L8-15_prob_scale_a1.5_top20_grid9_beta0.15
+  [DISCARD] 0.4800 — L8-15_prob_scale_a1.5_top20_grid9_beta0.15
+  Progress: 26 experiments | Best: 0.8300 | Time: 40min
+
+  Testing: L10-16_prob_interp_a1.0_top20_grid9_beta0.05
+  [DISCARD] 0.4800 — L10-16_prob_interp_a1.0_top20_grid9_beta0.05
+  Progress: 27 experiments | Best: 0.8300 | Time: 41min
+
+  Testing: L10-15_additive_logit_a2.5_top30_grid5_beta0.15
+  [DISCARD] 0.4800 — L10-15_additive_logit_a2.5_top30_grid5_beta0.15
+  Progress: 28 experiments | Best: 0.8300 | Time: 42min

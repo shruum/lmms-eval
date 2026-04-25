@@ -7,3 +7,225 @@ commit	accuracy	status	description
 823d6ba	0.8300	discard	disable absence suppression
 2c62d4d	0.8300	crash	strong boost α=4.0 PATCH NOT WORKING
 5ab501d	0.0000	crash	DINO saliency bug: attentions=None in dino_salience.py
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: [Errno 2] No such file or directory: '$HOME/miniconda3/envs/mllm/bin/python'
+dcb132e	0.0000	crash	ERROR: Could not parse accuracy from output:
+  Loading POPE (adversarial, n=100, seed=42)…
+  → 100 samples loaded
+
+  Loading llava-hf/llava-1.5-7b-hf…
+  → Model loaded in 5.4s
+  [SRF] Mode: prob_scale, boost=3.0
+  [SRF] Layers: 10-14, saliency=clip
+
+  Running evaluation (100 samples)…
+    [1/100] ETA: 0s…
+
+dcb132e	0.0000	crash	ERROR: Could not parse accuracy from output:
+  Loading POPE (adversarial, n=100, seed=42)…
+  → 100 samples loaded
+
+  Loading llava-hf/llava-1.5-7b-hf…
+  → Model loaded in 4.6s
+  [SRF] Mode: prob_scale, boost=3.0
+  [SRF] Layers: 10-14, saliency=clip
+
+  Running evaluation (100 samples)…
+    [1/100] ETA: 0s…
+
+dcb132e	0.0000	crash	ERROR: Could not parse accuracy from output:
+  Loading POPE (adversarial, n=100, seed=42)…
+  → 100 samples loaded
+
+  Loading llava-hf/llava-1.5-7b-hf…
+  → Model loaded in 5.6s
+  [SRF] Mode: prob_scale, boost=3.0
+  [SRF] Layers: 10-14, saliency=clip
+
+  Running evaluation (100 samples)…
+    [1/100] ETA: 0s…
+
+dcb132e	0.4800	discard	L10-16_prob_interp_a3.0_top40_grid7_beta0.15
+dcb132e	0.4800	discard	L8-15_prob_interp_a2.0_top20_grid9_beta0.1
+dcb132e	0.4800	discard	L9-16_prob_scale_a1.5_top40_grid9_beta0.0
+dcb132e	0.4800	discard	L8-14_prob_interp_a2.5_top20_grid7_beta0.15
+dcb132e	0.4800	discard	L10-14_prob_scale_a1.5_top30_grid5_beta0.1
+dcb132e	0.4800	discard	L8-16_additive_logit_a2.5_top30_grid5_beta0.0
+dcb132e	0.4800	discard	L9-16_prob_scale_a2.0_top20_grid5_beta0.15
+dcb132e	0.0000	crash	ERROR: Could not parse accuracy from output:
+  Loading POPE (adversarial, n=100, seed=42)…
+  → 100 samples loaded
+
+  Loading llava-hf/llava-1.5-7b-hf…
+  → Model loaded in 5.5s
+  [SRF] Mode: prob_scale, boost=3.0
+  [SRF] Layers: 10-14, saliency=clip
+
+  Running evaluation (100 samples)…
+    [1/100] ETA: 0s…
+  [clip_salience] Loading openai/clip-vit-base-patch32 on cpu (one-time, infers on cuda)…
+    [20/100] ETA: 60s…
+    [40/100] ETA: 41s…
+    [60/100] ETA: 27s…
+
+dcb132e	0.4800	discard	L8-14_prob_interp_a1.5_top20_grid9_beta0.15
+dcb132e	0.4800	discard	L9-16_prob_scale_a2.0_top40_grid5_beta0.05
+dcb132e	0.4800	discard	L8-16_prob_interp_a3.0_top40_grid7_beta0.1
+dcb132e	0.4800	discard	L9-14_prob_scale_a3.0_top30_grid5_beta0.05
+dcb132e	0.4800	discard	L8-16_prob_interp_a2.0_top20_grid5_beta0.05
+dcb132e	0.4800	discard	L10-15_additive_logit_a1.5_top40_grid5_beta0.0
+dcb132e	0.4800	discard	L10-15_additive_logit_a1.5_top40_grid5_beta0.05
+dcb132e	0.4800	discard	L8-14_additive_logit_a3.0_top40_grid7_beta0.0
+dcb132e	0.4800	discard	L9-15_prob_scale_a2.0_top30_grid9_beta0.1
+dcb132e	0.4800	discard	L9-15_prob_scale_a1.0_top40_grid7_beta0.05
+dcb132e	0.4800	discard	L9-16_prob_scale_a2.5_top40_grid7_beta0.1
+dcb132e	0.0000	crash	ERROR: Could not parse accuracy from output:
+
+dcb132e	0.0000	crash	ERROR: Could not parse accuracy from output:
+
+dcb132e	0.0000	crash	ERROR: Could not parse accuracy from output:
+
+dcb132e	0.0000	crash	ERROR: Could not parse accuracy from output:
+
+dcb132e	0.0000	crash	ERROR: Could not parse accuracy from output:
+
+dcb132e	0.0000	crash	ERROR: Could not parse accuracy from output:
+
+dcb132e	0.0000	crash	ERROR: Could not parse accuracy from output:
+
+dcb132e	0.0000	crash	ERROR: Could not parse accuracy from output:
+
+dcb132e	0.0000	crash	ERROR: Could not parse accuracy from output:
+
+dcb132e	0.0000	crash	ERROR: Could not parse accuracy from output:
+
+dcb132e	0.0000	crash	ERROR: Could not parse accuracy from output:
+
+dcb132e	0.0000	crash	ERROR: Could not parse accuracy from output:
+
+dcb132e	0.0000	crash	ERROR: Could not parse accuracy from output:
+
+dcb132e	0.0000	crash	ERROR: Could not parse accuracy from output:
+
+dcb132e	0.0000	crash	ERROR: Could not parse accuracy from output:
+
+dcb132e	0.0000	crash	ERROR: Could not parse accuracy from output:
+
+dcb132e	0.0000	crash	ERROR: Could not parse accuracy from output:
+
+dcb132e	0.0000	crash	ERROR: Could not parse accuracy from output:
+
+dcb132e	0.0000	crash	ERROR: Could not parse accuracy from output:
+
+dcb132e	0.0000	crash	ERROR: Could not parse accuracy from output:
+
+dcb132e	0.0000	crash	ERROR: Could not parse accuracy from output:
+
+dcb132e	0.4800	discard	L9-16_prob_interp_a2.5_top40_grid9_beta0.15
+dcb132e	0.4800	discard	L8-16_prob_scale_a2.0_top30_grid5_beta0.1
+dcb132e	0.4800	discard	L10-15_additive_logit_a2.0_top40_grid7_beta0.1
+dcb132e	0.4800	discard	L9-15_additive_logit_a3.0_top30_grid7_beta0.15
+dcb132e	0.4800	discard	L8-14_prob_scale_a2.5_top20_grid9_beta0.15
+dcb132e	0.4800	discard	L10-15_prob_scale_a1.5_top40_grid7_beta0.05
+dcb132e	0.4800	discard	L9-15_additive_logit_a1.5_top40_grid7_beta0.15
+dcb132e	0.4800	discard	L8-15_prob_scale_a1.5_top20_grid9_beta0.15
+dcb132e	0.4800	discard	L10-16_prob_interp_a1.0_top20_grid9_beta0.05
+dcb132e	0.4800	discard	L10-15_additive_logit_a2.5_top30_grid5_beta0.15

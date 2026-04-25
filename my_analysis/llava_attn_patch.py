@@ -278,11 +278,23 @@ class AttnAdapter(nn.Module):
                 alpha_val = float(value)
                 n_img = img_end - img_start + 1
 
+                # DEBUG: Print shapes
+                if self.layer_idx == layer_start:
+                    print(f"  [DEBUG L{self.layer_idx}] attn_weights shape: {attn_weights.shape}")
+                    print(f"  [DEBUG L{self.layer_idx}] img range: [{img_start}, {img_end}], n_img={n_img}")
+                    if sal is not None:
+                        print(f"  [DEBUG L{self.layer_idx}] salience shape: {sal.shape}")
+                    print(f"  [DEBUG L{self.layer_idx}] alpha_val: {alpha_val}")
+
                 if sal is not None:
                     sal_dev = sal.to(device=device, dtype=attn_weights.dtype)
                     bias_row = alpha_val * sal_dev - eps * (1.0 - sal_dev)
                 else:
                     bias_row = attn_weights.new_full((n_img,), alpha_val)
+
+                if self.layer_idx == layer_start:
+                    print(f"  [DEBUG L{self.layer_idx}] bias_row shape: {bias_row.shape}")
+                    print(f"  [DEBUG L{self.layer_idx}] bias_row range: [{bias_row.min():.4f}, {bias_row.max():.4f}]")
 
                 if head_mask is not None:
                     mask_dev = head_mask.to(device)
@@ -291,6 +303,9 @@ class AttnAdapter(nn.Module):
                     attn_weights[:, mask_dev, :, img_start : img_end + 1] += full_bias
                 else:
                     attn_weights[:, :, :, img_start : img_end + 1] += bias_row
+
+                if self.layer_idx == layer_start:
+                    print(f"  [DEBUG L{self.layer_idx}] After bias: attn_weights range: [{attn_weights.min():.4f}, {attn_weights.max():.4f}]")
 
         return attn_weights
 
@@ -347,6 +362,9 @@ def patch_model(model: Any, method: str = "baseline", value: float = 1.0) -> Non
     _STATE["enabled"] = True
     _STATE["method"] = method
     _STATE["value"] = value
+
+    # Force eager attention so we can intercept F.softmax
+    model.config._attn_implementation = "eager"
 
     # Get LLaMA decoder layers - LLaVA uses LlamaForCausalLM as language_model
     lm = model.language_model

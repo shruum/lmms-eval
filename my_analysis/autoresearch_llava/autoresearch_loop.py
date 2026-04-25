@@ -135,8 +135,9 @@ def run_evaluation(config: Config) -> float:
     update_srf_config(config)
 
     # Run pope_eval.py
+    python_path = os.path.expandvars("$HOME/miniconda3/envs/mllm/bin/python")
     result = subprocess.run(
-        ["$HOME/miniconda3/envs/mllm/bin/python", "pope_eval.py"],
+        [python_path, "pope_eval.py"],
         cwd=SCRIPT_DIR,
         capture_output=True,
         text=True,

@@ -1,0 +1,5 @@
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/transformers/utils/hub.py:110: FutureWarning: Using `TRANSFORMERS_CACHE` is deprecated and will be removed in v5 of Transformers. Use `HF_HOME` instead.
+  warnings.warn(
+Traceback (most recent call last):
+  File "<string>", line 7, in <module>
+ImportError: cannot import name 'main' from 'pope_eval' (/home/anna2/shruthi/lmms-eval/my_analysis/autoresearch/pope_eval.py)

@@ -1,0 +1,95 @@
+{
+  "model": "llava-hf/llava-1.5-7b-hf",
+  "arch": "llava",
+  "n_per_split": 100,
+  "suppress_thresh": 0.253173828125,
+  "srf_config": {
+    "clip_coarse_grid": 7,
+    "clip_top_k_pct": 0.3,
+    "clip_use_soft": true,
+    "boost_alpha": 2.0,
+    "suppress_alpha": 4.0,
+    "head_top_k_pct": 0.2,
+    "sys_beta": 0.1,
+    "background_eps": 0.0,
+    "n_calib_samples": 20,
+    "calib_seed": 0,
+    "layer_start": 8,
+    "layer_end": 12,
+    "saliency_method": "clip"
+  },
+  "metrics": {
+    "adversarial": {
+      "baseline": {
+        "accuracy": 0.83,
+        "precision": 0.926829268292683,
+        "recall": 0.7307692307692307,
+        "f1": 0.8172043010752689,
+        "yes_rate": 0.41,
+        "tp": 38,
+        "fp": 3,
+        "tn": 45,
+        "fn": 14
+      },
+      "srf": {
+        "accuracy": 0.82,
+        "precision": 0.925,
+        "recall": 0.7115384615384616,
+        "f1": 0.8043478260869567,
+        "yes_rate": 0.4,
+        "tp": 37,
+        "fp": 3,
+        "tn": 45,
+        "fn": 15
+      }
+    },
+    "popular": {
+      "baseline": {
+        "accuracy": 0.84,
+        "precision": 0.95,
+        "recall": 0.7307692307692307,
+        "f1": 0.8260869565217392,
+        "yes_rate": 0.4,
+        "tp": 38,
+        "fp": 2,
+        "tn": 46,
+        "fn": 14
+      },
+      "srf": {
+        "accuracy": 0.83,
+        "precision": 0.9487179487179487,
+        "recall": 0.7115384615384616,
+        "f1": 0.8131868131868132,
+        "yes_rate": 0.39,
+        "tp": 37,
+        "fp": 2,
+        "tn": 46,
+        "fn": 15
+      }
+    },
+    "random": {
+      "baseline": {
+        "accuracy": 0.84,
+        "precision": 0.95,
+        "recall": 0.7307692307692307,
+        "f1": 0.8260869565217392,
+        "yes_rate": 0.4,
+        "tp": 38,
+        "fp": 2,
+        "tn": 46,
+        "fn": 14
+      },
+      "srf": {
+        "accuracy": 0.82,
+        "precision": 0.925,
+        "recall": 0.7115384615384616,
+        "f1": 0.8043478260869567,
+        "yes_rate": 0.4,
+        "tp": 37,
+        "fp": 3,
+        "tn": 45,
+        "fn": 15
+      }
+    }
+  }
+}

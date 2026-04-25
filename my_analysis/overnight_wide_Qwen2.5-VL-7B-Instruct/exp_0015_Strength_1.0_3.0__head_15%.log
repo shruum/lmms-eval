@@ -1,0 +1,73 @@
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/transformers/utils/hub.py:110: FutureWarning: Using `TRANSFORMERS_CACHE` is deprecated and will be removed in v5 of Transformers. Use `HF_HOME` instead.
+  warnings.warn(
+`torch_dtype` is deprecated! Use `dtype` instead!
+
+============================================================
+  POPE SRF Evaluation
+  arch=qwen  model=Qwen/Qwen2.5-VL-7B-Instruct
+  mode=both  n_per_split=100
+  SRF: layers 6-12, head_top_k=0.15, boost=1.0, suppress=3.0
+============================================================
+
+  Loading Qwen/Qwen2.5-VL-7B-Instruct (bfloat16, eager)…
+Loading checkpoint shards:   0%|          | 0/5 [00:00<?, ?it/s]Loading checkpoint shards:  20%|██        | 1/5 [00:00<00:02,  1.88it/s]Loading checkpoint shards:  40%|████      | 2/5 [00:00<00:01,  2.05it/s]Loading checkpoint shards:  60%|██████    | 3/5 [00:01<00:00,  2.09it/s]Loading checkpoint shards:  80%|████████  | 4/5 [00:01<00:00,  2.12it/s]Loading checkpoint shards: 100%|██████████| 5/5 [00:02<00:00,  2.84it/s]Loading checkpoint shards: 100%|██████████| 5/5 [00:02<00:00,  2.43it/s]
+The image processor of type `Qwen2VLImageProcessor` is now loaded as a fast processor by default, even if the model checkpoint was saved with a slow processor. This is a breaking change and may produce slightly different outputs. To continue using the slow processor, instantiate this class with `use_fast=False`. Note that this behavior will be extended to all models in a future release.
+Using a slow image processor as `use_fast` is unset and a slow processor was saved with this model. `use_fast=True` will be the default behavior in v4.52, even if the model was saved with a slow processor. This will result in minor differences in outputs. You'll still be able to use a slow processor with `use_fast=False`.
+The following generation flags are not valid and may be ignored: ['temperature']. Set `TRANSFORMERS_VERBOSITY=info` for more details.
+
+── Calibration ──────────────────────────────────────────────
+  Loading POPE adversarial (n=40, seed=0)…
+  → 40 samples
+  Calibrating vision-aware heads on 20 samples…
+  4 vision heads selected (top 15%)
+  Calibrating suppress threshold on 20 samples…
+  [clip_salience] Loading openai/clip-vit-base-patch32 on cpu (one-time, infers on cuda)…
+  present max_sim mean=0.2607  absent mean=0.2457  → thresh=0.2532
+  suppress_thresh = 0.2532
+
+── ADVERSARIAL ──────────────────────────────────────────
+  Loading POPE adversarial (n=100, seed=42)…
+  → 100 samples
+  [adversarial  50/100]  baseline=0.8400 | srf=0.8600  ETA=0.6min
+  [adversarial 100/100]  baseline=0.8500 | srf=0.8600  ETA=0.0min
+  adversarial  [baseline]  acc=0.8500  f1=0.8387  yes_rate=0.410
+  adversarial  [srf     ]  acc=0.8600  f1=0.8511  yes_rate=0.420
+
+── POPULAR ──────────────────────────────────────────
+  Loading POPE popular (n=100, seed=42)…
+  → 100 samples
+  [popular  50/100]  baseline=0.8400 | srf=0.8600  ETA=0.6min
+  [popular 100/100]  baseline=0.8600 | srf=0.8700  ETA=0.0min
+  popular      [baseline]  acc=0.8600  f1=0.8478  yes_rate=0.400
+  popular      [srf     ]  acc=0.8700  f1=0.8602  yes_rate=0.410
+
+── RANDOM ──────────────────────────────────────────
+  Loading POPE random (n=100, seed=42)…
+  → 100 samples
+  [random  50/100]  baseline=0.8600 | srf=0.8800  ETA=0.6min
+  [random 100/100]  baseline=0.8700 | srf=0.8800  ETA=0.0min
+  random       [baseline]  acc=0.8700  f1=0.8571  yes_rate=0.390
+  random       [srf     ]  acc=0.8800  f1=0.8696  yes_rate=0.400
+
+============================================================
+  FINAL RESULTS  (qwen | Qwen/Qwen2.5-VL-7B-Instruct)
+  n_per_split=100  suppress_thresh=0.2532
+============================================================
+
+  [BASELINE]
+  split            acc      f1    prec     rec    yes%
+  -------------------------------------------------------
+  adversarial   0.8500  0.8387  0.9512  0.7500   0.410
+  popular       0.8600  0.8478  0.9750  0.7500   0.400
+  random        0.8700  0.8571  1.0000  0.7500   0.390
+  AVERAGE       0.8600  0.8479
+
+  [SRF]
+  split            acc      f1    prec     rec    yes%
+  -------------------------------------------------------
+  adversarial   0.8600  0.8511  0.9524  0.7692   0.420
+  popular       0.8700  0.8602  0.9756  0.7692   0.410
+  random        0.8800  0.8696  1.0000  0.7692   0.400
+  AVERAGE       0.8700  0.8603
+
+  Results saved → overnight_wide_Qwen2.5-VL-7B-Instruct/result_0015.json

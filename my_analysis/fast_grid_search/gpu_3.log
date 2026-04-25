@@ -1,0 +1,44 @@
+🔍 STAGE 1: Coarse Search (18 experiments)
+   Testing: 3 layer ranges × 3 boost/suppress × 2 saliency methods
+Generated 18 experiments
+GPU 1 (physical 3): 9 experiments
+
+[1/9] Experiment 1
+[GPU 3] Exp 1: Layers 8-12, Boost 1.5/3.0, Saliency dino
+
+[2/9] Experiment 3
+[GPU 3] Exp 3: Layers 8-12, Boost 2.0/4.0, Saliency dino
+
+[3/9] Experiment 5
+[GPU 3] Exp 5: Layers 8-12, Boost 2.5/5.0, Saliency dino
+
+[4/9] Experiment 7
+[GPU 3] Exp 7: Layers 10-16, Boost 1.5/3.0, Saliency dino
+
+[5/9] Experiment 9
+[GPU 3] Exp 9: Layers 10-16, Boost 2.0/4.0, Saliency dino
+
+[6/9] Experiment 11
+[GPU 3] Exp 11: Layers 10-16, Boost 2.5/5.0, Saliency dino
+
+[7/9] Experiment 13
+[GPU 3] Exp 13: Layers 12-18, Boost 1.5/3.0, Saliency dino
+
+[8/9] Experiment 15
+[GPU 3] Exp 15: Layers 12-18, Boost 2.0/4.0, Saliency dino
+
+[9/9] Experiment 17
+[GPU 3] Exp 17: Layers 12-18, Boost 2.5/5.0, Saliency dino
+
+✅ GPU 1 completed in 45.4 minutes
+   Successful: 9/9
+
+🏆 Top 3 configurations:
+Traceback (most recent call last):
+  File "/home/anna2/shruthi/lmms-eval/my_analysis/fast_grid_search_llava.py", line 295, in <module>
+    main()
+  File "/home/anna2/shruthi/lmms-eval/my_analysis/fast_grid_search_llava.py", line 287, in main
+    for r in sorted(successful, key=lambda x: x['results']['srf']['srf_acc'], reverse=True)[:3]:
+  File "/home/anna2/shruthi/lmms-eval/my_analysis/fast_grid_search_llava.py", line 287, in <lambda>
+    for r in sorted(successful, key=lambda x: x['results']['srf']['srf_acc'], reverse=True)[:3]:
+KeyError: 'srf'

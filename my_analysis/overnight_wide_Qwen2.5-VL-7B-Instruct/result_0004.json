@@ -1,0 +1,98 @@
+{
+  "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+  "arch": "qwen",
+  "n_per_split": 100,
+  "suppress_thresh": 0.253173828125,
+  "srf_config": {
+    "clip_coarse_grid": 7,
+    "clip_top_k_pct": 0.3,
+    "clip_use_soft": true,
+    "boost_alpha": 2.0,
+    "suppress_alpha": 5.0,
+    "head_top_k_pct": 0.2,
+    "sys_beta": 0.1,
+    "background_eps": 0.0,
+    "n_calib_samples": 20,
+    "calib_seed": 0,
+    "exp_id": 4,
+    "priority": 1,
+    "layer_start": 14,
+    "layer_end": 20,
+    "saliency_method": "clip",
+    "description": "Layers 14-20"
+  },
+  "metrics": {
+    "adversarial": {
+      "baseline": {
+        "accuracy": 0.85,
+        "precision": 0.9512195121951219,
+        "recall": 0.75,
+        "f1": 0.8387096774193549,
+        "yes_rate": 0.41,
+        "tp": 39,
+        "fp": 2,
+        "tn": 46,
+        "fn": 13
+      },
+      "srf": {
+        "accuracy": 0.86,
+        "precision": 0.9318181818181818,
+        "recall": 0.7884615384615384,
+        "f1": 0.8541666666666667,
+        "yes_rate": 0.44,
+        "tp": 41,
+        "fp": 3,
+        "tn": 45,
+        "fn": 11
+      }
+    },
+    "popular": {
+      "baseline": {
+        "accuracy": 0.86,
+        "precision": 0.975,
+        "recall": 0.75,
+        "f1": 0.8478260869565216,
+        "yes_rate": 0.4,
+        "tp": 39,
+        "fp": 1,
+        "tn": 47,
+        "fn": 13
+      },
+      "srf": {
+        "accuracy": 0.88,
+        "precision": 0.9761904761904762,
+        "recall": 0.7884615384615384,
+        "f1": 0.8723404255319148,
+        "yes_rate": 0.42,
+        "tp": 41,
+        "fp": 1,
+        "tn": 47,
+        "fn": 11
+      }
+    },
+    "random": {
+      "baseline": {
+        "accuracy": 0.87,
+        "precision": 1.0,
+        "recall": 0.75,
+        "f1": 0.8571428571428571,
+        "yes_rate": 0.39,
+        "tp": 39,
+        "fp": 0,
+        "tn": 48,
+        "fn": 13
+      },
+      "srf": {
+        "accuracy": 0.89,
+        "precision": 1.0,
+        "recall": 0.7884615384615384,
+        "f1": 0.8817204301075269,
+        "yes_rate": 0.41,
+        "tp": 41,
+        "fp": 0,
+        "tn": 48,
+        "fn": 11
+      }
+    }
+  }
+}

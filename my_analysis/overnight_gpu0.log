@@ -1,0 +1,148 @@
+🌙 OVERNIGHT SRF EXPERIMENTS
+============================================================
+Model: Qwen/Qwen2.5-VL-7B-Instruct
+Architecture: qwen
+Focus: late
+GPU: 0
+Samples per split: 100
+Output: overnight_late_Qwen2.5-VL-7B-Instruct
+============================================================
+Generated 21 experiments
+  Priority 1 (layer ranges): 7
+  Priority 2 (strengths): 12
+  Priority 3 (CLIP configs): 2
+
+Running 21 experiments...
+Estimated time: 3.5 hours
+
+Press Ctrl+C to stop early (results are saved automatically)
+
+
+[1/21] 
+🔬 [0] Layers 14-20
+   Layers 14-20, Boost 2.0/5.0, Head 20%
+   ✓ Baseline: 0.8600 → SRF: 0.8767 (+0.0167) [6.2min]
+   🏆 NEW BEST!
+
+[2/21] 
+🔬 [1] Layers 13-19
+   Layers 13-19, Boost 2.0/5.0, Head 20%
+   ✓ Baseline: 0.8600 → SRF: 0.8600 (+0.0000) [5.9min]
+
+[3/21] 
+🔬 [2] Layers 15-21
+   Layers 15-21, Boost 2.0/5.0, Head 20%
+   ✓ Baseline: 0.8600 → SRF: 0.8867 (+0.0267) [5.8min]
+   🏆 NEW BEST!
+
+[4/21] 
+🔬 [3] Layers 14-18
+   Layers 14-18, Boost 2.0/5.0, Head 20%
+   ✓ Baseline: 0.8600 → SRF: 0.8767 (+0.0167) [5.9min]
+
+[5/21] 
+🔬 [4] Layers 16-20
+   Layers 16-20, Boost 2.0/5.0, Head 20%
+   ✓ Baseline: 0.8600 → SRF: 0.8800 (+0.0200) [6.0min]
+
+[6/21] 
+🔬 [5] Layers 12-18
+   Layers 12-18, Boost 2.0/5.0, Head 20%
+   ✓ Baseline: 0.8600 → SRF: 0.8600 (+0.0000) [6.0min]
+
+[7/21] 
+🔬 [6] Layers 15-19
+   Layers 15-19, Boost 2.0/5.0, Head 20%
+   ✓ Baseline: 0.8600 → SRF: 0.8767 (+0.0167) [5.9min]
+
+[8/21] 
+🔬 [7] Strength 1.5/4.0, head 15%
+   Layers 14-20, Boost 1.5/4.0, Head 15%
+   ✓ Baseline: 0.8600 → SRF: 0.8667 (+0.0067) [5.9min]
+
+[9/21] 
+🔬 [8] Strength 1.5/4.0, head 20%
+   Layers 14-20, Boost 1.5/4.0, Head 20%
+   ✓ Baseline: 0.8600 → SRF: 0.8767 (+0.0167) [6.0min]
+
+[10/21] 
+🔬 [9] Strength 1.5/4.0, head 25%
+   Layers 14-20, Boost 1.5/4.0, Head 25%
+   ✓ Baseline: 0.8600 → SRF: 0.8867 (+0.0267) [5.9min]
+
+[11/21] 
+🔬 [10] Strength 2.0/5.0, head 15%
+   Layers 14-20, Boost 2.0/5.0, Head 15%
+   ✓ Baseline: 0.8600 → SRF: 0.8667 (+0.0067) [5.7min]
+
+[12/21] 
+🔬 [11] Strength 2.0/5.0, head 20%
+   Layers 14-20, Boost 2.0/5.0, Head 20%
+   ✓ Baseline: 0.8600 → SRF: 0.8767 (+0.0167) [5.9min]
+
+[13/21] 
+🔬 [12] Strength 2.0/5.0, head 25%
+   Layers 14-20, Boost 2.0/5.0, Head 25%
+   ✓ Baseline: 0.8600 → SRF: 0.8867 (+0.0267) [5.8min]
+
+[14/21] 
+🔬 [13] Strength 2.5/6.0, head 15%
+   Layers 14-20, Boost 2.5/6.0, Head 15%
+   ✓ Baseline: 0.8600 → SRF: 0.8667 (+0.0067) [5.9min]
+
+[15/21] 
+🔬 [14] Strength 2.5/6.0, head 20%
+   Layers 14-20, Boost 2.5/6.0, Head 20%
+   ✓ Baseline: 0.8600 → SRF: 0.8767 (+0.0167) [6.0min]
+
+[16/21] 
+🔬 [15] Strength 2.5/6.0, head 25%
+   Layers 14-20, Boost 2.5/6.0, Head 25%
+   ✓ Baseline: 0.8600 → SRF: 0.8833 (+0.0233) [6.0min]
+
+[17/21] 
+🔬 [16] Strength 1.0/3.0, head 15%
+   Layers 14-20, Boost 1.0/3.0, Head 15%
+   ✓ Baseline: 0.8600 → SRF: 0.8767 (+0.0167) [5.9min]
+
+[18/21] 
+🔬 [17] Strength 1.0/3.0, head 20%
+   Layers 14-20, Boost 1.0/3.0, Head 20%
+   ✓ Baseline: 0.8600 → SRF: 0.8767 (+0.0167) [6.0min]
+
+[19/21] 
+🔬 [18] Strength 1.0/3.0, head 25%
+   Layers 14-20, Boost 1.0/3.0, Head 25%
+   ✓ Baseline: 0.8600 → SRF: 0.8867 (+0.0267) [5.6min]
+
+[20/21] 
+🔬 [19] Layers 14-20, fine CLIP
+   Layers 14-20, Boost 2.0/5.0, Head 20%
+   ✓ Baseline: 0.8600 → SRF: 0.8667 (+0.0067) [5.5min]
+
+[21/21] 
+🔬 [20] Layers 13-19, fine CLIP
+   Layers 13-19, Boost 2.0/5.0, Head 20%
+   ✓ Baseline: 0.8600 → SRF: 0.8667 (+0.0067) [5.7min]
+
+============================================================
+🎉 OVERNIGHT EXPERIMENTS COMPLETE
+============================================================
+Total time: 124.4 minutes (2.1 hours)
+Successful: 21/21
+
+🏆 BEST CONFIGURATION:
+   Improvement: +0.0267
+   Baseline: 0.8600 → SRF: 0.8867
+   Layers: 15-21
+   Boost/Suppress: 2.0/5.0
+   Head selection: top 20%
+
+📊 TOP 5 CONFIGURATIONS:
+   1. Layers 15-21: +0.0267 (Layers 15-21, 2.0/5.0)
+   2. Strength 1.5/4.0, head 25%: +0.0267 (Layers 14-20, 1.5/4.0)
+   3. Strength 2.0/5.0, head 25%: +0.0267 (Layers 14-20, 2.0/5.0)
+   4. Strength 1.0/3.0, head 25%: +0.0267 (Layers 14-20, 1.0/3.0)
+   5. Strength 2.5/6.0, head 25%: +0.0233 (Layers 14-20, 2.5/6.0)
+
+✅ Results saved to overnight_late_Qwen2.5-VL-7B-Instruct/

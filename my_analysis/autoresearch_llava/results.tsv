@@ -6,3 +6,4 @@ commit	accuracy	status	description
 0fc50db	0.8300	discard	CLIP top_k=0.50
 823d6ba	0.8300	discard	disable absence suppression
 2c62d4d	0.8300	crash	strong boost α=4.0 PATCH NOT WORKING
+5ab501d	0.0000	crash	DINO saliency bug: attentions=None in dino_salience.py

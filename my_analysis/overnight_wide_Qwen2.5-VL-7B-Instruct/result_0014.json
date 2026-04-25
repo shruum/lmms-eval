@@ -1,0 +1,98 @@
+{
+  "model": "Qwen/Qwen2.5-VL-7B-Instruct",
+  "arch": "qwen",
+  "n_per_split": 100,
+  "suppress_thresh": 0.253173828125,
+  "srf_config": {
+    "clip_coarse_grid": 7,
+    "clip_top_k_pct": 0.3,
+    "clip_use_soft": true,
+    "boost_alpha": 2.5,
+    "suppress_alpha": 6.0,
+    "head_top_k_pct": 0.25,
+    "sys_beta": 0.1,
+    "background_eps": 0.0,
+    "n_calib_samples": 20,
+    "calib_seed": 0,
+    "exp_id": 14,
+    "priority": 2,
+    "layer_start": 6,
+    "layer_end": 12,
+    "saliency_method": "clip",
+    "description": "Strength 2.5/6.0, head 25%"
+  },
+  "metrics": {
+    "adversarial": {
+      "baseline": {
+        "accuracy": 0.85,
+        "precision": 0.9512195121951219,
+        "recall": 0.75,
+        "f1": 0.8387096774193549,
+        "yes_rate": 0.41,
+        "tp": 39,
+        "fp": 2,
+        "tn": 46,
+        "fn": 13
+      },
+      "srf": {
+        "accuracy": 0.86,
+        "precision": 0.9523809523809523,
+        "recall": 0.7692307692307693,
+        "f1": 0.8510638297872339,
+        "yes_rate": 0.42,
+        "tp": 40,
+        "fp": 2,
+        "tn": 46,
+        "fn": 12
+      }
+    },
+    "popular": {
+      "baseline": {
+        "accuracy": 0.86,
+        "precision": 0.975,
+        "recall": 0.75,
+        "f1": 0.8478260869565216,
+        "yes_rate": 0.4,
+        "tp": 39,
+        "fp": 1,
+        "tn": 47,
+        "fn": 13
+      },
+      "srf": {
+        "accuracy": 0.87,
+        "precision": 0.975609756097561,
+        "recall": 0.7692307692307693,
+        "f1": 0.860215053763441,
+        "yes_rate": 0.41,
+        "tp": 40,
+        "fp": 1,
+        "tn": 47,
+        "fn": 12
+      }
+    },
+    "random": {
+      "baseline": {
+        "accuracy": 0.87,
+        "precision": 1.0,
+        "recall": 0.75,
+        "f1": 0.8571428571428571,
+        "yes_rate": 0.39,
+        "tp": 39,
+        "fp": 0,
+        "tn": 48,
+        "fn": 13
+      },
+      "srf": {
+        "accuracy": 0.88,
+        "precision": 1.0,
+        "recall": 0.7692307692307693,
+        "f1": 0.8695652173913044,
+        "yes_rate": 0.4,
+        "tp": 40,
+        "fp": 0,
+        "tn": 48,
+        "fn": 12
+      }
+    }
+  }
+}

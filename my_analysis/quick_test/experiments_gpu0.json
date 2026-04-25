@@ -1,0 +1,78 @@
+{
+  "gpu_id": 0,
+  "total_gpus": 1,
+  "experiments": [
+    {
+      "exp_id": 0,
+      "layer_start": 8,
+      "layer_end": 12,
+      "boost_alpha": 1.5,
+      "suppress_alpha": 3.0,
+      "head_top_k_pct": 0.15,
+      "saliency_config": {
+        "method": "clip",
+        "clip_coarse_grid": 7,
+        "clip_top_k_pct": 0.3,
+        "clip_use_soft": true
+      },
+      "model_config": {
+        "arch": "llava",
+        "model_id": "llava-hf/llava-1.5-7b-hf",
+        "n_samples": 100,
+        "mode": "both",
+        "splits": [
+          "adversarial",
+          "popular"
+        ]
+      }
+    },
+    {
+      "exp_id": 1,
+      "layer_start": 8,
+      "layer_end": 12,
+      "boost_alpha": 1.5,
+      "suppress_alpha": 3.0,
+      "head_top_k_pct": 0.2,
+      "saliency_config": {
+        "method": "clip",
+        "clip_coarse_grid": 7,
+        "clip_top_k_pct": 0.3,
+        "clip_use_soft": true
+      },
+      "model_config": {
+        "arch": "llava",
+        "model_id": "llava-hf/llava-1.5-7b-hf",
+        "n_samples": 100,
+        "mode": "both",
+        "splits": [
+          "adversarial",
+          "popular"
+        ]
+      }
+    },
+    {
+      "exp_id": 2,
+      "layer_start": 8,
+      "layer_end": 12,
+      "boost_alpha": 1.5,
+      "suppress_alpha": 3.0,
+      "head_top_k_pct": 0.25,
+      "saliency_config": {
+        "method": "clip",
+        "clip_coarse_grid": 7,
+        "clip_top_k_pct": 0.3,
+        "clip_use_soft": true
+      },
+      "model_config": {
+        "arch": "llava",
+        "model_id": "llava-hf/llava-1.5-7b-hf",
+        "n_samples": 100,
+        "mode": "both",
+        "splits": [
+          "adversarial",
+          "popular"
+        ]
+      }
+    }
+  ]
+}

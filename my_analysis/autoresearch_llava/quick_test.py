@@ -1,20 +1,22 @@
 #!/usr/bin/env python3
+"""Quick test of POPE evaluation with LLava SRF patch."""
 from __future__ import annotations
-import os, pathlib, random, sys, time, torch
+import os, pathlib, sys, time, torch
 os.environ["HF_HOME"] = "/home/anna2/.cache/huggingface"
 os.environ.setdefault("CUDA_VISIBLE_DEVICES", "2")
 SCRIPT_DIR = pathlib.Path(__file__).parent
-sys.path.insert(0, str(SCRIPT_DIR))
+sys.path.insert(0, str(SCRIPT_DIR.parent))
 from datasets import load_dataset as hf_load
 from transformers import AutoProcessor, LlavaForConditionalGeneration
 import srf
 
 MODEL_ID = "llava-hf/llava-1.5-7b-hf"
-SPLIT, N_SAMPLES, SEED = "adversarial", 100, 42
+SPLIT, N_SAMPLES, SEED = "adversarial", 10, 42  # Small sample for quick test
 GEN_KWARGS = dict(max_new_tokens=10, do_sample=False)
 
 def load_pope(n: int, seed: int = SEED) -> list[dict]:
     print(f"  Loading POPE ({SPLIT}, n={n}, seed={seed})…")
+    import random
     ds = hf_load("lmms-lab/POPE", split="test")
     rows = [r for r in ds if str(r.get("category", "")).strip().lower() == SPLIT]
     random.Random(seed).shuffle(rows)
@@ -35,11 +37,11 @@ def run() -> float:
     print(f"\n  Running evaluation ({total} samples)…")
     t = time.time()
     for idx, sample in enumerate(samples, 1):
-        if idx % 20 == 0 or idx == 1:
+        if idx % 5 == 0 or idx == 1:
             print(f"    [{idx}/{total}] ETA: {(time.time()-t)/idx*(total-idx+1):.0f}s…", flush=True)
         prompt = processor.apply_chat_template([{"role": "user", "content": [{"type": "image"}, {"type": "text", "text": sample["question"]}]}], add_generation_prompt=True)
         inputs = processor(images=sample["image"], text=prompt, return_tensors="pt").to(model.device)
-        # Compute image token range for LLaVA
+        import llava_attn_patch as patch
         img_start, img_end = patch.get_image_token_range(inputs, model)
         srf.prepare_sample(inputs, img_start, img_end, sample["image"], prompt, model, processor)
         with torch.no_grad():

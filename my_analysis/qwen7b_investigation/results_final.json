@@ -1,0 +1,292 @@
+{
+  "elapsed_time": 52.86597180366516,
+  "experiments": [
+    {
+      "exp_id": 0,
+      "hypothesis": "layer_shift_6_12",
+      "layer_start": 6,
+      "layer_end": 12,
+      "boost_alpha": 2.0,
+      "suppress_alpha": 5.0,
+      "head_top_k_pct": 0.2,
+      "saliency_config": {
+        "clip_coarse_grid": 7,
+        "clip_top_k_pct": 0.3,
+        "clip_use_soft": true,
+        "method": "clip"
+      },
+      "model_config": {
+        "arch": "qwen",
+        "model_id": "Qwen/Qwen2.5-VL-7B-Instruct",
+        "n_samples": 200,
+        "mode": "both",
+        "splits": [
+          "adversarial",
+          "popular"
+        ]
+      },
+      "status": "failed"
+    },
+    {
+      "exp_id": 1,
+      "hypothesis": "layer_shift_10_16",
+      "layer_start": 10,
+      "layer_end": 16,
+      "boost_alpha": 2.0,
+      "suppress_alpha": 5.0,
+      "head_top_k_pct": 0.2,
+      "saliency_config": {
+        "clip_coarse_grid": 7,
+        "clip_top_k_pct": 0.3,
+        "clip_use_soft": true,
+        "method": "clip"
+      },
+      "model_config": {
+        "arch": "qwen",
+        "model_id": "Qwen/Qwen2.5-VL-7B-Instruct",
+        "n_samples": 200,
+        "mode": "both",
+        "splits": [
+          "adversarial",
+          "popular"
+        ]
+      },
+      "status": "failed"
+    },
+    {
+      "exp_id": 2,
+      "hypothesis": "layer_shift_14_20",
+      "layer_start": 14,
+      "layer_end": 20,
+      "boost_alpha": 2.0,
+      "suppress_alpha": 5.0,
+      "head_top_k_pct": 0.2,
+      "saliency_config": {
+        "clip_coarse_grid": 7,
+        "clip_top_k_pct": 0.3,
+        "clip_use_soft": true,
+        "method": "clip"
+      },
+      "model_config": {
+        "arch": "qwen",
+        "model_id": "Qwen/Qwen2.5-VL-7B-Instruct",
+        "n_samples": 200,
+        "mode": "both",
+        "splits": [
+          "adversarial",
+          "popular"
+        ]
+      },
+      "status": "failed"
+    },
+    {
+      "exp_id": 3,
+      "hypothesis": "layer_shift_8_16",
+      "layer_start": 8,
+      "layer_end": 16,
+      "boost_alpha": 2.0,
+      "suppress_alpha": 5.0,
+      "head_top_k_pct": 0.2,
+      "saliency_config": {
+        "clip_coarse_grid": 7,
+        "clip_top_k_pct": 0.3,
+        "clip_use_soft": true,
+        "method": "clip"
+      },
+      "model_config": {
+        "arch": "qwen",
+        "model_id": "Qwen/Qwen2.5-VL-7B-Instruct",
+        "n_samples": 200,
+        "mode": "both",
+        "splits": [
+          "adversarial",
+          "popular"
+        ]
+      },
+      "status": "failed"
+    },
+    {
+      "exp_id": 4,
+      "hypothesis": "strength_1.0_3.0",
+      "layer_start": 8,
+      "layer_end": 14,
+      "boost_alpha": 1.0,
+      "suppress_alpha": 3.0,
+      "head_top_k_pct": 0.2,
+      "saliency_config": {
+        "clip_coarse_grid": 7,
+        "clip_top_k_pct": 0.3,
+        "clip_use_soft": true,
+        "method": "clip"
+      },
+      "model_config": {
+        "arch": "qwen",
+        "model_id": "Qwen/Qwen2.5-VL-7B-Instruct",
+        "n_samples": 200,
+        "mode": "both",
+        "splits": [
+          "adversarial",
+          "popular"
+        ]
+      },
+      "status": "failed"
+    },
+    {
+      "exp_id": 5,
+      "hypothesis": "strength_2.0_5.0",
+      "layer_start": 8,
+      "layer_end": 14,
+      "boost_alpha": 2.0,
+      "suppress_alpha": 5.0,
+      "head_top_k_pct": 0.2,
+      "saliency_config": {
+        "clip_coarse_grid": 7,
+        "clip_top_k_pct": 0.3,
+        "clip_use_soft": true,
+        "method": "clip"
+      },
+      "model_config": {
+        "arch": "qwen",
+        "model_id": "Qwen/Qwen2.5-VL-7B-Instruct",
+        "n_samples": 200,
+        "mode": "both",
+        "splits": [
+          "adversarial",
+          "popular"
+        ]
+      },
+      "status": "failed"
+    },
+    {
+      "exp_id": 6,
+      "hypothesis": "strength_3.0_7.0",
+      "layer_start": 8,
+      "layer_end": 14,
+      "boost_alpha": 3.0,
+      "suppress_alpha": 7.0,
+      "head_top_k_pct": 0.2,
+      "saliency_config": {
+        "clip_coarse_grid": 7,
+        "clip_top_k_pct": 0.3,
+        "clip_use_soft": true,
+        "method": "clip"
+      },
+      "model_config": {
+        "arch": "qwen",
+        "model_id": "Qwen/Qwen2.5-VL-7B-Instruct",
+        "n_samples": 200,
+        "mode": "both",
+        "splits": [
+          "adversarial",
+          "popular"
+        ]
+      },
+      "status": "failed"
+    },
+    {
+      "exp_id": 7,
+      "hypothesis": "strength_1.5_4.0",
+      "layer_start": 8,
+      "layer_end": 14,
+      "boost_alpha": 1.5,
+      "suppress_alpha": 4.0,
+      "head_top_k_pct": 0.2,
+      "saliency_config": {
+        "clip_coarse_grid": 7,
+        "clip_top_k_pct": 0.3,
+        "clip_use_soft": true,
+        "method": "clip"
+      },
+      "model_config": {
+        "arch": "qwen",
+        "model_id": "Qwen/Qwen2.5-VL-7B-Instruct",
+        "n_samples": 200,
+        "mode": "both",
+        "splits": [
+          "adversarial",
+          "popular"
+        ]
+      },
+      "status": "failed"
+    },
+    {
+      "exp_id": 8,
+      "hypothesis": "head_selection_10",
+      "layer_start": 8,
+      "layer_end": 14,
+      "boost_alpha": 2.0,
+      "suppress_alpha": 5.0,
+      "head_top_k_pct": 0.1,
+      "saliency_config": {
+        "clip_coarse_grid": 7,
+        "clip_top_k_pct": 0.3,
+        "clip_use_soft": true,
+        "method": "clip"
+      },
+      "model_config": {
+        "arch": "qwen",
+        "model_id": "Qwen/Qwen2.5-VL-7B-Instruct",
+        "n_samples": 200,
+        "mode": "both",
+        "splits": [
+          "adversarial",
+          "popular"
+        ]
+      },
+      "status": "failed"
+    },
+    {
+      "exp_id": 9,
+      "hypothesis": "head_selection_20",
+      "layer_start": 8,
+      "layer_end": 14,
+      "boost_alpha": 2.0,
+      "suppress_alpha": 5.0,
+      "head_top_k_pct": 0.2,
+      "saliency_config": {
+        "clip_coarse_grid": 7,
+        "clip_top_k_pct": 0.3,
+        "clip_use_soft": true,
+        "method": "clip"
+      },
+      "model_config": {
+        "arch": "qwen",
+        "model_id": "Qwen/Qwen2.5-VL-7B-Instruct",
+        "n_samples": 200,
+        "mode": "both",
+        "splits": [
+          "adversarial",
+          "popular"
+        ]
+      },
+      "status": "failed"
+    },
+    {
+      "exp_id": 10,
+      "hypothesis": "head_selection_30",
+      "layer_start": 8,
+      "layer_end": 14,
+      "boost_alpha": 2.0,
+      "suppress_alpha": 5.0,
+      "head_top_k_pct": 0.3,
+      "saliency_config": {
+        "clip_coarse_grid": 7,
+        "clip_top_k_pct": 0.3,
+        "clip_use_soft": true,
+        "method": "clip"
+      },
+      "model_config": {
+        "arch": "qwen",
+        "model_id": "Qwen/Qwen2.5-VL-7B-Instruct",
+        "n_samples": 200,
+        "mode": "both",
+        "splits": [
+          "adversarial",
+          "popular"
+        ]
+      },
+      "status": "failed"
+    }
+  ],
+  "successful": 0
+}

@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import pathlib
 import random
-import re
 import sys
 
 _ANALYSIS_DIR = pathlib.Path(__file__).parent.parent
@@ -25,6 +24,7 @@ sys.path.insert(0, str(_ANALYSIS_DIR))
 import torch
 import qwen_attn_patch as patch
 import clip_salience   as clip_sal
+from noun_extract import extract_clip_noun
 
 # Warmstart: VLM Bias best (alpha=8.0, eps=0.5, generation-only, layers 8-14, head_top_k=0.20)
 # Adjusted for 7B (32 layers): layer_end → 15 to stay in same relative range.
@@ -57,57 +57,7 @@ _spatial = 2
 
 
 def _extract_noun(question: str) -> str:
-    """Extract the main visual subject from an MMVP question.
-
-    MMVP questions test fine-grained visual attributes of a specific object.
-    We want the SUBJECT OBJECT (for CLIP), not the attribute being tested.
-
-    Examples:
-        "Are the butterfly's wings closer to being open or closed?" → "butterfly"
-        "Is the flame of the match more round or thin?"             → "flame"
-        "Is this escalator going up or down?"                       → "escalator"
-        "Is the person sitting or standing?"                        → "person"
-        "Is the text mirrored or not?"                              → "text"
-        "Are the scissors open or closed?"                          → "scissors"
-    """
-    q = question.strip().lower().rstrip("?")
-
-    # Priority 1: possessive — "the X's Y" → X (the object that HAS the attribute)
-    m = re.search(r"(?:the|this|an?)\s+(\w+(?:\s+\w+)?)'s\b", q)
-    if m:
-        return m.group(1).strip()
-
-    # Priority 2: "of the X" following attribute noun — "flame of the match" → "match"
-    m = re.search(r"\bof (?:the|this|an?) (\w+(?:\s+\w+)?)\b", q)
-    if m:
-        return m.group(1).strip()
-
-    # Priority 3: "Is this [noun] going/facing/pointing..."
-    m = re.search(r"\bis this (?:an? )?(\w+(?:\s+\w+)?)\s+(?:going|facing|pointing|showing|more|look)", q)
-    if m:
-        return m.group(1).strip()
-
-    # Priority 4: "Is the [noun] ..." — noun before verb/adjective
-    m = re.search(r"\bis (?:the|this) (\w+(?:\s+\w+)?)\s+(?:more|going|facing|rotated|pointing|sit|stand|open|close|rais|low|bend|stretch|look|wear|hold|face)", q)
-    if m:
-        return m.group(1).strip()
-
-    # Priority 5: "Are the [noun] ..." (plural)
-    m = re.search(r"\bare (?:the|these) (\w+(?:\s+\w+)?)\s+", q)
-    if m:
-        return m.group(1).strip()
-
-    # Priority 6: "Is the [noun]" with no following match (simpler)
-    m = re.search(r"\bis (?:the|this|an?) (\w+(?:\s+\w+)?)\b", q)
-    if m:
-        noun = m.group(1).strip()
-        _skip = {"answer", "image", "picture", "photo", "text"}
-        if noun not in _skip:
-            return noun
-
-    # Fallback: first meaningful word
-    words = re.findall(r'\b[a-z]{4,}\b', q)
-    return words[0] if words else "object"
+    return extract_clip_noun(question, mode="mmvp")
 
 
 def setup(model, processor) -> None:

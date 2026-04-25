@@ -194,13 +194,11 @@ def load_mmvp(groups_filter: Optional[List[str]], n_samples: int) -> List[Dict]:
     import pandas as pd
     from datasets import load_dataset as hf_load
 
-    QUESTIONS_CSV = "/volumes2/hugging_face_cache/mmvp_questions/Questions.csv"
-    if not os.path.exists(QUESTIONS_CSV):
-        from huggingface_hub import hf_hub_download
-        QUESTIONS_CSV = hf_hub_download(
-            "MMVP/MMVP", "Questions.csv", repo_type="dataset",
-            local_dir="/volumes2/hugging_face_cache/mmvp_questions",
-        )
+    import pathlib as _pathlib
+    import sys as _sys
+    _sys.path.insert(0, str(_pathlib.Path(__file__).parent))
+    import config as _CFG
+    QUESTIONS_CSV = _CFG.MMVP_CSV
 
     print("  Loading MMVP (MMVP/MMVP)…")
     df     = pd.read_csv(QUESTIONS_CSV)
@@ -288,6 +286,46 @@ def load_hallusionbench(groups_filter: Optional[List[str]], n_samples: int) -> L
     return out
 
 
+def load_mme(groups_filter: Optional[List[str]], n_samples: int) -> List[Dict]:
+    """MME — lmms-lab/MME, 2374 Yes/No questions across 14 categories.
+
+    Each image appears twice (one Yes question + one No question).
+    groups_filter accepts category names (e.g. "existence", "count", "artwork").
+    The "group" key is the category name — used for per-category breakdown.
+    The "pair_id" key (= question_id / image filename) is stored in group for pair acc.
+    """
+    from datasets import load_dataset as hf_load
+
+    print("  Loading MME (lmms-lab/MME)…")
+    ds = hf_load("lmms-lab/MME", split="test")
+
+    by_group: Dict[str, List[Dict]] = defaultdict(list)
+    for row in ds:
+        cat = str(row.get("category", "unknown")).strip()
+        if groups_filter and cat not in groups_filter:
+            continue
+        # Questions in MME already contain "Please answer yes or no."
+        prompt = str(row.get("question", "")).strip()
+        gt     = str(row.get("answer", "")).strip()   # "Yes" or "No"
+        img    = row.get("image")
+        if img is None:
+            continue
+        by_group[cat].append({
+            "image":        img.convert("RGB"),
+            "prompt":       prompt,
+            "ground_truth": gt,
+            "group":        cat,
+            "pair_id":      str(row.get("question_id", "")),  # same for both questions per image
+        })
+
+    rng = random.Random(SEED)
+    out = []
+    for cat, items in sorted(by_group.items()):
+        out.extend(rng.sample(items, min(n_samples, len(items))) if n_samples > 0 else items)
+    print(f"  → {len(out)} samples, {len(by_group)} categories")
+    return out
+
+
 # ---------------------------------------------------------------------------
 # Registry — maps dataset name → loader function
 # ---------------------------------------------------------------------------
@@ -299,4 +337,5 @@ LOADERS: Dict[str, Any] = {
     "cv_bench":        load_cv_bench,
     "mmvp":            load_mmvp,
     "hallusionbench":  load_hallusionbench,
+    "mme":             load_mme,
 }

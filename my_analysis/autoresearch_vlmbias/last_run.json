@@ -1,0 +1,771 @@
+{
+  "accuracy": 0.21904761904761905,
+  "n": 105,
+  "per_category": {
+    "Animals": {
+      "correct": 0,
+      "total": 15
+    },
+    "Chess Pieces": {
+      "correct": 0,
+      "total": 15
+    },
+    "Flags": {
+      "correct": 8,
+      "total": 15
+    },
+    "Game Boards": {
+      "correct": 1,
+      "total": 15
+    },
+    "Logos": {
+      "correct": 2,
+      "total": 15
+    },
+    "Optical Illusion": {
+      "correct": 9,
+      "total": 15
+    },
+    "Patterned Grid": {
+      "correct": 3,
+      "total": 15
+    }
+  },
+  "samples": [
+    {
+      "gt": "no",
+      "pred": "no",
+      "correct": true,
+      "category": "Optical Illusion",
+      "response": "{No}"
+    },
+    {
+      "gt": "no",
+      "pred": "no",
+      "correct": true,
+      "category": "Optical Illusion",
+      "response": "{No}"
+    },
+    {
+      "gt": "6",
+      "pred": "6",
+      "correct": true,
+      "category": "Flags",
+      "response": "{6}"
+    },
+    {
+      "gt": "2",
+      "pred": "3",
+      "correct": false,
+      "category": "Logos",
+      "response": "{3}"
+    },
+    {
+      "gt": "no",
+      "pred": "no",
+      "correct": true,
+      "category": "Optical Illusion",
+      "response": "{No}"
+    },
+    {
+      "gt": "4",
+      "pred": "4",
+      "correct": true,
+      "category": "Flags",
+      "response": "{4}"
+    },
+    {
+      "gt": "5",
+      "pred": "5",
+      "correct": true,
+      "category": "Patterned Grid",
+      "response": "{5}"
+    },
+    {
+      "gt": "4",
+      "pred": "4",
+      "correct": true,
+      "category": "Flags",
+      "response": "{4}"
+    },
+    {
+      "gt": "5",
+      "pred": "4",
+      "correct": false,
+      "category": "Animals",
+      "response": "{4}"
+    },
+    {
+      "gt": "yes",
+      "pred": "no",
+      "correct": false,
+      "category": "Optical Illusion",
+      "response": "{No}"
+    },
+    {
+      "gt": "2",
+      "pred": "3",
+      "correct": false,
+      "category": "Logos",
+      "response": "{3}"
+    },
+    {
+      "gt": "18",
+      "pred": "15",
+      "correct": false,
+      "category": "Game Boards",
+      "response": "{15}"
+    },
+    {
+      "gt": "4",
+      "pred": "3",
+      "correct": false,
+      "category": "Logos",
+      "response": "{3}"
+    },
+    {
+      "gt": "5",
+      "pred": "4",
+      "correct": false,
+      "category": "Animals",
+      "response": "{4}"
+    },
+    {
+      "gt": "10",
+      "pred": "12",
+      "correct": false,
+      "category": "Flags",
+      "response": "{12}"
+    },
+    {
+      "gt": "8",
+      "pred": "6",
+      "correct": false,
+      "category": "Game Boards",
+      "response": "{6}"
+    },
+    {
+      "gt": "5",
+      "pred": "4",
+      "correct": false,
+      "category": "Animals",
+      "response": "{4}"
+    },
+    {
+      "gt": "yes",
+      "pred": "no",
+      "correct": false,
+      "category": "Optical Illusion",
+      "response": "{No}"
+    },
+    {
+      "gt": "5",
+      "pred": "5",
+      "correct": true,
+      "category": "Flags",
+      "response": "{5}"
+    },
+    {
+      "gt": "5",
+      "pred": "4",
+      "correct": false,
+      "category": "Animals",
+      "response": "{4}"
+    },
+    {
+      "gt": "18",
+      "pred": "19",
+      "correct": false,
+      "category": "Game Boards",
+      "response": "{19}"
+    },
+    {
+      "gt": "3",
+      "pred": "10",
+      "correct": false,
+      "category": "Patterned Grid",
+      "response": "{10}"
+    },
+    {
+      "gt": "4",
+      "pred": "8",
+      "correct": false,
+      "category": "Logos",
+      "response": "{8}"
+    },
+    {
+      "gt": "4",
+      "pred": "12",
+      "correct": false,
+      "category": "Logos",
+      "response": "{12}"
+    },
+    {
+      "gt": "yes",
+      "pred": "no",
+      "correct": false,
+      "category": "Optical Illusion",
+      "response": "{No}"
+    },
+    {
+      "gt": "9",
+      "pred": "8",
+      "correct": false,
+      "category": "Game Boards",
+      "response": "{8}"
+    },
+    {
+      "gt": "yes",
+      "pred": "yes",
+      "correct": true,
+      "category": "Optical Illusion",
+      "response": "{Yes}"
+    },
+    {
+      "gt": "yes",
+      "pred": "yes",
+      "correct": true,
+      "category": "Optical Illusion",
+      "response": "{Yes}"
+    },
+    {
+      "gt": "4",
+      "pred": "4",
+      "correct": true,
+      "category": "Flags",
+      "response": "{4}"
+    },
+    {
+      "gt": "5",
+      "pred": "4",
+      "correct": false,
+      "category": "Animals",
+      "response": "{4}"
+    },
+    {
+      "gt": "5",
+      "pred": "4",
+      "correct": false,
+      "category": "Animals",
+      "response": "{4}"
+    },
+    {
+      "gt": "no",
+      "pred": "no",
+      "correct": true,
+      "category": "Optical Illusion",
+      "response": "{No}"
+    },
+    {
+      "gt": "3",
+      "pred": "10",
+      "correct": false,
+      "category": "Patterned Grid",
+      "response": "{10}"
+    },
+    {
+      "gt": "31",
+      "pred": "16",
+      "correct": false,
+      "category": "Chess Pieces",
+      "response": "{16}"
+    },
+    {
+      "gt": "5",
+      "pred": "8",
+      "correct": false,
+      "category": "Logos",
+      "response": "{8}"
+    },
+    {
+      "gt": "3",
+      "pred": "2",
+      "correct": false,
+      "category": "Chess Pieces",
+      "response": "{2}"
+    },
+    {
+      "gt": "no",
+      "pred": "yes",
+      "correct": false,
+      "category": "Optical Illusion",
+      "response": "{Yes}"
+    },
+    {
+      "gt": "31",
+      "pred": "20",
+      "correct": false,
+      "category": "Chess Pieces",
+      "response": "{20}"
+    },
+    {
+      "gt": "5",
+      "pred": "4",
+      "correct": false,
+      "category": "Logos",
+      "response": "{4}"
+    },
+    {
+      "gt": "3",
+      "pred": "10",
+      "correct": false,
+      "category": "Patterned Grid",
+      "response": "{10}"
+    },
+    {
+      "gt": "31",
+      "pred": "16",
+      "correct": false,
+      "category": "Chess Pieces",
+      "response": "{16}"
+    },
+    {
+      "gt": "2",
+      "pred": "2",
+      "correct": true,
+      "category": "Flags",
+      "response": "{2}"
+    },
+    {
+      "gt": "9",
+      "pred": "8",
+      "correct": false,
+      "category": "Game Boards",
+      "response": "{8}"
+    },
+    {
+      "gt": "5",
+      "pred": "1",
+      "correct": false,
+      "category": "Chess Pieces",
+      "response": "{1}"
+    },
+    {
+      "gt": "2",
+      "pred": "3",
+      "correct": false,
+      "category": "Patterned Grid",
+      "response": "{3}"
+    },
+    {
+      "gt": "10",
+      "pred": "9",
+      "correct": false,
+      "category": "Game Boards",
+      "response": "{9}"
+    },
+    {
+      "gt": "2",
+      "pred": "4",
+      "correct": false,
+      "category": "Patterned Grid",
+      "response": "{4}"
+    },
+    {
+      "gt": "11",
+      "pred": "10",
+      "correct": false,
+      "category": "Flags",
+      "response": "{10}"
+    },
+    {
+      "gt": "5",
+      "pred": "2",
+      "correct": false,
+      "category": "Chess Pieces",
+      "response": "{2}"
+    },
+    {
+      "gt": "2",
+      "pred": "2",
+      "correct": true,
+      "category": "Logos",
+      "response": "{2}"
+    },
+    {
+      "gt": "no",
+      "pred": "no",
+      "correct": true,
+      "category": "Optical Illusion",
+      "response": "{No}"
+    },
+    {
+      "gt": "yes",
+      "pred": "no",
+      "correct": false,
+      "category": "Optical Illusion",
+      "response": "{No}"
+    },
+    {
+      "gt": "yes",
+      "pred": "no",
+      "correct": false,
+      "category": "Optical Illusion",
+      "response": "{No}"
+    },
+    {
+      "gt": "4",
+      "pred": "12",
+      "correct": false,
+      "category": "Logos",
+      "response": "{12}"
+    },
+    {
+      "gt": "5",
+      "pred": "4",
+      "correct": false,
+      "category": "Animals",
+      "response": "{4}"
+    },
+    {
+      "gt": "4",
+      "pred": "16",
+      "correct": false,
+      "category": "Logos",
+      "response": "{16}"
+    },
+    {
+      "gt": "5",
+      "pred": "4",
+      "correct": false,
+      "category": "Animals",
+      "response": "{4}"
+    },
+    {
+      "gt": "3",
+      "pred": "10",
+      "correct": false,
+      "category": "Patterned Grid",
+      "response": "{10}"
+    },
+    {
+      "gt": "3",
+      "pred": "1",
+      "correct": false,
+      "category": "Chess Pieces",
+      "response": "{1}"
+    },
+    {
+      "gt": "8",
+      "pred": "8",
+      "correct": true,
+      "category": "Game Boards",
+      "response": "{8}"
+    },
+    {
+      "gt": "10",
+      "pred": "15",
+      "correct": false,
+      "category": "Game Boards",
+      "response": "{15}"
+    },
+    {
+      "gt": "5",
+      "pred": "4",
+      "correct": false,
+      "category": "Animals",
+      "response": "{4}"
+    },
+    {
+      "gt": "5",
+      "pred": "6",
+      "correct": false,
+      "category": "Patterned Grid",
+      "response": "{6}"
+    },
+    {
+      "gt": "31",
+      "pred": "16",
+      "correct": false,
+      "category": "Chess Pieces",
+      "response": "{16}"
+    },
+    {
+      "gt": "2",
+      "pred": "3",
+      "correct": false,
+      "category": "Logos",
+      "response": "{3}"
+    },
+    {
+      "gt": "3",
+      "pred": "2",
+      "correct": false,
+      "category": "Animals",
+      "response": "{2}"
+    },
+    {
+      "gt": "5",
+      "pred": "4",
+      "correct": false,
+      "category": "Animals",
+      "response": "{4}"
+    },
+    {
+      "gt": "3",
+      "pred": "5",
+      "correct": false,
+      "category": "Patterned Grid",
+      "response": "{5}"
+    },
+    {
+      "gt": "7",
+      "pred": "6",
+      "correct": false,
+      "category": "Flags",
+      "response": "{6}"
+    },
+    {
+      "gt": "5",
+      "pred": "4",
+      "correct": false,
+      "category": "Animals",
+      "response": "{4}"
+    },
+    {
+      "gt": "31",
+      "pred": "20",
+      "correct": false,
+      "category": "Chess Pieces",
+      "response": "{20}"
+    },
+    {
+      "gt": "2",
+      "pred": "2",
+      "correct": true,
+      "category": "Patterned Grid",
+      "response": "{2}"
+    },
+    {
+      "gt": "5",
+      "pred": "4",
+      "correct": false,
+      "category": "Animals",
+      "response": "{4}"
+    },
+    {
+      "gt": "9",
+      "pred": "10",
+      "correct": false,
+      "category": "Game Boards",
+      "response": "{10}"
+    },
+    {
+      "gt": "8",
+      "pred": "6",
+      "correct": false,
+      "category": "Game Boards",
+      "response": "{6}"
+    },
+    {
+      "gt": "3",
+      "pred": "2",
+      "correct": false,
+      "category": "Animals",
+      "response": "{2}"
+    },
+    {
+      "gt": "6",
+      "pred": "6",
+      "correct": true,
+      "category": "Flags",
+      "response": "{6}"
+    },
+    {
+      "gt": "5",
+      "pred": "2",
+      "correct": false,
+      "category": "Chess Pieces",
+      "response": "{2}"
+    },
+    {
+      "gt": "13",
+      "pred": "12",
+      "correct": false,
+      "category": "Flags",
+      "response": "{12}"
+    },
+    {
+      "gt": "9",
+      "pred": "6",
+      "correct": false,
+      "category": "Flags",
+      "response": "{6}"
+    },
+    {
+      "gt": "10",
+      "pred": "9",
+      "correct": false,
+      "category": "Game Boards",
+      "response": "{9}"
+    },
+    {
+      "gt": "3",
+      "pred": "2",
+      "correct": false,
+      "category": "Chess Pieces",
+      "response": "{2}"
+    },
+    {
+      "gt": "3",
+      "pred": "10",
+      "correct": false,
+      "category": "Patterned Grid",
+      "response": "{10}"
+    },
+    {
+      "gt": "no",
+      "pred": "no",
+      "correct": true,
+      "category": "Optical Illusion",
+      "response": "{No}"
+    },
+    {
+      "gt": "5",
+      "pred": "6",
+      "correct": false,
+      "category": "Patterned Grid",
+      "response": "{6}"
+    },
+    {
+      "gt": "3",
+      "pred": "10",
+      "correct": false,
+      "category": "Patterned Grid",
+      "response": "{10}"
+    },
+    {
+      "gt": "2",
+      "pred": "2",
+      "correct": true,
+      "category": "Logos",
+      "response": "{2}"
+    },
+    {
+      "gt": "3",
+      "pred": "2",
+      "correct": false,
+      "category": "Animals",
+      "response": "{2}"
+    },
+    {
+      "gt": "9",
+      "pred": "8",
+      "correct": false,
+      "category": "Game Boards",
+      "response": "{8}"
+    },
+    {
+      "gt": "31",
+      "pred": "32",
+      "correct": false,
+      "category": "Chess Pieces",
+      "response": "{32}"
+    },
+    {
+      "gt": "2",
+      "pred": "2",
+      "correct": true,
+      "category": "Patterned Grid",
+      "response": "{2}"
+    },
+    {
+      "gt": "5",
+      "pred": "0",
+      "correct": false,
+      "category": "Chess Pieces",
+      "response": "{0}"
+    },
+    {
+      "gt": "3",
+      "pred": "3",
+      "correct": true,
+      "category": "Flags",
+      "response": "{3}"
+    },
+    {
+      "gt": "5",
+      "pred": "3",
+      "correct": false,
+      "category": "Logos",
+      "response": "{3}"
+    },
+    {
+      "gt": "4",
+      "pred": "12",
+      "correct": false,
+      "category": "Logos",
+      "response": "{12}"
+    },
+    {
+      "gt": "3",
+      "pred": "1",
+      "correct": false,
+      "category": "Chess Pieces",
+      "response": "{1}"
+    },
+    {
+      "gt": "8",
+      "pred": "10",
+      "correct": false,
+      "category": "Game Boards",
+      "response": "{10}"
+    },
+    {
+      "gt": "11",
+      "pred": "7",
+      "correct": false,
+      "category": "Flags",
+      "response": "{7}"
+    },
+    {
+      "gt": "31",
+      "pred": "16",
+      "correct": false,
+      "category": "Chess Pieces",
+      "response": "{16}"
+    },
+    {
+      "gt": "20",
+      "pred": "19",
+      "correct": false,
+      "category": "Game Boards",
+      "response": "{19}"
+    },
+    {
+      "gt": "9",
+      "pred": "8",
+      "correct": false,
+      "category": "Game Boards",
+      "response": "{8}"
+    },
+    {
+      "gt": "no",
+      "pred": "no",
+      "correct": true,
+      "category": "Optical Illusion",
+      "response": "{No}"
+    },
+    {
+      "gt": "5",
+      "pred": "4",
+      "correct": false,
+      "category": "Flags",
+      "response": "{4}"
+    },
+    {
+      "gt": "5",
+      "pred": "3",
+      "correct": false,
+      "category": "Logos",
+      "response": "{3}"
+    },
+    {
+      "gt": "3",
+      "pred": "5",
+      "correct": false,
+      "category": "Patterned Grid",
+      "response": "{5}"
+    }
+  ]
+}

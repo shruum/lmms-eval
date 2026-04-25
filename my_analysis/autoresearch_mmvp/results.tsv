@@ -20,3 +20,4 @@ c8a803d1	0.4333	0.7000	discard	clip_top_k_pct=0.20 — identical (65 pairs); sal
 f790f299	0.4333	0.7000	discard	clip_fallback_thresh=0.10 — same (65 pairs); threshold not sensitive
 c397b72b	0.4333	0.6967	discard	alpha=5.0 — same (65 pairs); alpha=4.0-5.0 are equivalent ceiling
 0a4a3a2b	0.4200	0.6867	discard	sys_beta=0.0 — slightly worse (63 pairs); small sys suppression (0.10) is helpful
+e642c0d0	0.4400	0.7067	keep	noun_extract.py refactor — 23 bad MMVP noun extractions → 1; +0.007 pair acc (66 pairs)

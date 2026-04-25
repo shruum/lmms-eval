@@ -1,6 +1,6 @@
 {
-  "pair_accuracy": 0.3933333333333333,
-  "image_accuracy": 0.68,
+  "pair_accuracy": 0.44,
+  "image_accuracy": 0.7066666666666667,
   "n_pairs": 150,
   "n_images": 300,
   "samples": [
@@ -112,9 +112,9 @@
       "csv_1idx": 14,
       "pair_id": 6,
       "gt": "B",
-      "pred": "A",
-      "correct": false,
-      "response": "A."
+      "pred": "B",
+      "correct": true,
+      "response": "B."
     },
     {
       "csv_1idx": 15,
@@ -184,9 +184,9 @@
       "csv_1idx": 23,
       "pair_id": 11,
       "gt": "A",
-      "pred": "B",
-      "correct": false,
-      "response": "B."
+      "pred": "A",
+      "correct": true,
+      "response": "A."
     },
     {
       "csv_1idx": 24,
@@ -298,7 +298,7 @@
       "gt": "A",
       "pred": "A",
       "correct": true,
-      "response": "A."
+      "response": "A"
     },
     {
       "csv_1idx": 38,
@@ -360,17 +360,17 @@
       "csv_1idx": 45,
       "pair_id": 22,
       "gt": "A",
-      "pred": "A",
-      "correct": true,
-      "response": "A."
+      "pred": "B",
+      "correct": false,
+      "response": "B."
     },
     {
       "csv_1idx": 46,
       "pair_id": 22,
       "gt": "B",
-      "pred": "A",
-      "correct": false,
-      "response": "A."
+      "pred": "B",
+      "correct": true,
+      "response": "B."
     },
     {
       "csv_1idx": 47,
@@ -504,17 +504,17 @@
       "csv_1idx": 63,
       "pair_id": 31,
       "gt": "A",
-      "pred": "A",
-      "correct": true,
-      "response": "A."
+      "pred": "B",
+      "correct": false,
+      "response": "B."
     },
     {
       "csv_1idx": 64,
       "pair_id": 31,
       "gt": "B",
-      "pred": "A",
-      "correct": false,
-      "response": "A."
+      "pred": "B",
+      "correct": true,
+      "response": "B."
     },
     {
       "csv_1idx": 65,
@@ -608,9 +608,9 @@
       "csv_1idx": 76,
       "pair_id": 37,
       "gt": "B",
-      "pred": "A",
-      "correct": false,
-      "response": "A."
+      "pred": "B",
+      "correct": true,
+      "response": "B."
     },
     {
       "csv_1idx": 77,
@@ -736,9 +736,9 @@
       "csv_1idx": 92,
       "pair_id": 45,
       "gt": "B",
-      "pred": "A",
-      "correct": false,
-      "response": "A."
+      "pred": "B",
+      "correct": true,
+      "response": "B."
     },
     {
       "csv_1idx": 93,
@@ -1032,17 +1032,17 @@
       "csv_1idx": 129,
       "pair_id": 64,
       "gt": "A",
-      "pred": "A",
-      "correct": true,
-      "response": "A."
+      "pred": "B",
+      "correct": false,
+      "response": "B."
     },
     {
       "csv_1idx": 130,
       "pair_id": 64,
       "gt": "B",
-      "pred": "A",
-      "correct": false,
-      "response": "A."
+      "pred": "B",
+      "correct": true,
+      "response": "B."
     },
     {
       "csv_1idx": 131,
@@ -1112,9 +1112,9 @@
       "csv_1idx": 139,
       "pair_id": 69,
       "gt": "A",
-      "pred": "A",
-      "correct": true,
-      "response": "A."
+      "pred": "B",
+      "correct": false,
+      "response": "B."
     },
     {
       "csv_1idx": 140,
@@ -1216,9 +1216,9 @@
       "csv_1idx": 152,
       "pair_id": 75,
       "gt": "B",
-      "pred": "B",
-      "correct": true,
-      "response": "B."
+      "pred": "A",
+      "correct": false,
+      "response": "A."
     },
     {
       "csv_1idx": 153,
@@ -1328,9 +1328,9 @@
       "csv_1idx": 166,
       "pair_id": 82,
       "gt": "B",
-      "pred": "A",
-      "correct": false,
-      "response": "A."
+      "pred": "B",
+      "correct": true,
+      "response": "B."
     },
     {
       "csv_1idx": 167,
@@ -1584,9 +1584,9 @@
       "csv_1idx": 198,
       "pair_id": 98,
       "gt": "B",
-      "pred": "A",
-      "correct": false,
-      "response": "A."
+      "pred": "B",
+      "correct": true,
+      "response": "B."
     },
     {
       "csv_1idx": 199,
@@ -1610,7 +1610,7 @@
       "gt": "A",
       "pred": "A",
       "correct": true,
-      "response": "A."
+      "response": "A"
     },
     {
       "csv_1idx": 202,
@@ -1688,9 +1688,9 @@
       "csv_1idx": 211,
       "pair_id": 105,
       "gt": "A",
-      "pred": "B",
-      "correct": false,
-      "response": "B."
+      "pred": "A",
+      "correct": true,
+      "response": "A."
     },
     {
       "csv_1idx": 212,
@@ -1792,9 +1792,9 @@
       "csv_1idx": 224,
       "pair_id": 111,
       "gt": "B",
-      "pred": "A",
-      "correct": false,
-      "response": "A."
+      "pred": "B",
+      "correct": true,
+      "response": "B."
     },
     {
       "csv_1idx": 225,
@@ -1832,9 +1832,9 @@
       "csv_1idx": 229,
       "pair_id": 114,
       "gt": "A",
-      "pred": "B",
-      "correct": false,
-      "response": "B."
+      "pred": "A",
+      "correct": true,
+      "response": "A."
     },
     {
       "csv_1idx": 230,
@@ -2072,9 +2072,9 @@
       "csv_1idx": 259,
       "pair_id": 129,
       "gt": "A",
-      "pred": "B",
-      "correct": false,
-      "response": "B."
+      "pred": "A",
+      "correct": true,
+      "response": "A."
     },
     {
       "csv_1idx": 260,
@@ -2344,17 +2344,17 @@
       "csv_1idx": 293,
       "pair_id": 146,
       "gt": "A",
-      "pred": "A",
-      "correct": true,
-      "response": "A."
+      "pred": "B",
+      "correct": false,
+      "response": "B."
     },
     {
       "csv_1idx": 294,
       "pair_id": 146,
       "gt": "B",
-      "pred": "A",
-      "correct": false,
-      "response": "A."
+      "pred": "B",
+      "correct": true,
+      "response": "B."
     },
     {
       "csv_1idx": 295,

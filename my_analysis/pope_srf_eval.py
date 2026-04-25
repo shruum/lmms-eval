@@ -38,17 +38,15 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import os
 import pathlib
 import random
 import re
 import sys
 import time
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 import torch
-import torch.nn.functional as F
 
 os.environ["HF_HOME"] = "/volumes2/hugging_face_cache"
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
@@ -58,7 +56,7 @@ sys.path.insert(0, str(ANALYSIS_DIR))
 sys.path.insert(0, str(ANALYSIS_DIR / "autoresearch"))
 
 import qwen_attn_patch as patch
-import clip_salience as clip_sal
+from srf.saliency import clip_salience as clip_sal
 
 # ---------------------------------------------------------------------------
 # Architecture defaults

@@ -38,7 +38,7 @@ os.environ["HF_HOME"] = "/volumes2/hugging_face_cache"
 os.environ.setdefault("CUDA_VISIBLE_DEVICES", "0")
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
-import clip_salience as clip_sal
+from srf.saliency import clip_salience as clip_sal
 from hssa_salience import compute_hssa_salience
 import qwen_attn_patch as patch
 

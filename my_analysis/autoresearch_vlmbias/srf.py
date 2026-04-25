@@ -14,7 +14,6 @@ from __future__ import annotations
 
 import pathlib
 import random
-import re
 import sys
 
 _ANALYSIS_DIR = pathlib.Path(__file__).parent.parent
@@ -23,6 +22,7 @@ sys.path.insert(0, str(_ANALYSIS_DIR))
 import torch
 import qwen_attn_patch as patch
 import clip_salience   as clip_sal
+from noun_extract import extract_clip_noun
 
 SALIENCY = {
     "clip_coarse_grid":     7,
@@ -55,33 +55,8 @@ _spatial = 2
 _vis_count = 0
 
 
-_GENERIC_NOUNS = {"thing", "things", "item", "items", "object", "objects", "image", "picture", "photo"}
-
 def _extract_noun(question: str) -> str:
-    """Extract the most CLIP-queryable noun from a VLM Bias question.
-
-    Priority: specific counted object > scene container > fallback.
-    E.g. 'How many logos are on this image?' → 'logos' (not 'image').
-    """
-    q = question.split("Answer")[0].strip().lower()
-    # Priority 1: the specific thing being counted — best CLIP target
-    m = re.search(r'how many (\w+(?:\s+\w+)?) (?:are|is|have|does)', q)
-    if m:
-        noun = m.group(1).strip()
-        if noun not in _GENERIC_NOUNS:
-            return noun
-    m = re.search(r'count the (\w+(?:\s+\w+)?) (?:pieces|on|in)', q)
-    if m: return m.group(1).strip()
-    # Priority 2: scene/container (less specific but better than nothing)
-    m = re.search(r'(?:on|in) this (\w+(?:\s+\w+)?)', q)
-    if m:
-        noun = m.group(1).strip()
-        if noun not in _GENERIC_NOUNS:
-            return noun
-    m = re.search(r'(?:on|in) the (\w+)', q)
-    if m: return m.group(1).strip()
-    words = re.findall(r'\b[a-z]{4,}\b', q)
-    return words[0] if words else "object"
+    return extract_clip_noun(question, mode="vlmbias")
 
 
 def setup(model, processor) -> None:

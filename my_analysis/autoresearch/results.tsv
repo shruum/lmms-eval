@@ -1,0 +1,103 @@
+commit	accuracy	status	description
+6f3a6af2	0.8600	keep	baseline: no intervention adversarial n=50
+6f3a6af2	0.8600	keep	SRF start: prob_interp λ=0.5 clip-7x7 top30% layers 8-15 h50% beta=0.1
+0395c585	0.8600	keep	prob_interp λ=0.3 tie with baseline
+f3b9b09f	0.8600	keep	prob_interp λ=0.7 tie with baseline
+5fcc0179	0.8600	keep	prob_interp λ=1.0 tie with baseline
+6858c49f	0.8800	keep	baseline: no intervention adversarial n=100
+ef86a2e1	0.8700	discard	CLIP additive_logit alpha=3.0 fixed-formula — hurt by 0.01 (CLIP boosts wrong region)
+cf528aad	0.8600	discard	HSSA-L8 additive_logit alpha=3.0 — 14 wrong (10FN+4FP) vs baseline 12, boost too strong
+086f61cc	0.8800	discard	HSSA-L8 additive_logit alpha=1.0 — tie with baseline
+27c6fbf2	0.8700	discard	HSSA-L8 additive_logit alpha=2.0 — still hurt, boost disrupts correct cases
+078d4580	0.8700	discard	HSSA-L8 additive_logit alpha=1.0 eps=0.5 — relative contrast still hurts
+b7898617	0.8500	discard	global_redistribute img_scale=1.5 HSSA-L8 — takes from text→image too aggressively
+2239eba2	0.8700	discard	attn_floor prob_floor=0.005 HSSA-L8 — still worse, any attn redistribution hurts
+4d1ff9b3	0.8700	discard	late layers 28-35 additive_logit alpha=1.0 — late layers more sensitive, still hurts
+540876f6	0.8800	discard	alpha=1.5 head20% HSSA-L8 — neutral, narrower heads allow higher alpha
+9b01571b	0.8700	discard	alpha=2.0 head20% HSSA-L8 — alpha=1.5 was neutral ceiling for 20% heads
+73350e64	0.8800	discard	alpha=3.0 layers 10-12 head20% HSSA-L8 — neutral, minimal range allows strong alpha
+ce70b859	0.8700	discard	alpha=5.0 layers 10-12 head20% — saliency unreliable, any effective boost hurts
+ceb466a3	0.8800	discard	suppress-only alpha=0 eps=1.5 HSSA-L8 head20% — neutral
+ca82247c	0.8700	discard	suppress-only alpha=0 eps=3.0 — eps=1.5 neutral ceiling, eps=3.0 hurts
+36a52ed6	0.8800	discard	CLIP thresh=0.248 alpha=2.0 head20% — threshold fixed hurt! Now neutral not 0.87
+66e0f6df	0.8800	discard	CLIP thresh=0.248 alpha=3.0 head20% — neutral, threshold prevents hurt
+91dd601e	0.8700	discard	CLIP thresh=0.248 alpha=2.0 head50% — threshold doesn't help with 50% heads
+7cd1bb54	0.8800	discard	asymmetric boost=1.0 suppress=3.0 thresh=0.248 — neutral, interventions cancel out
+2fceb50e	0.8800	discard	thresh=0.243 boost=1.0 suppress=3.0 — still neutral, alphas too weak to flip predictions
+29b1151b	0.8900	keep	CLIP thresh=0.248 boost=2.0 suppress=5.0 head20% layers 8-15 — +0.01 FIRST IMPROVEMENT
+92e5b64a	0.8800	discard	suppress=8.0 — too strong, broke correct TN cases
+bb2401ad	0.8900	discard	boost=3.0 suppress=5.0 — same 0.89, try higher boost
+a8750279	0.8900	discard	boost=5.0 suppress=5.0 — plateau at 0.89 for alpha sweep; best is boost=2 suppress=5
+487a7390	0.8800	discard	5x5 grid — threshold recalibration needed, 7x7 better
+20e67706	0.8900	discard	clip_top_k=0.20 — same result, mask tightness not the bottleneck
+3be5326b	0.8800	discard	background_eps=0.5 — sharper boost breaks correct TN cases
+d266fa8d	0.8800	discard	suppress-only boost=0 — both boost+suppress needed together for the 0.89 gain
+50f4cc67	0.8600	discard	head30% — head20% is critical limit, adding heads breaks it
+4cf54ec4	0.8900	discard	thresh=0.246 — same 0.89, threshold not the limiting factor
+cfacd1da	0.8800	discard	thresh=0.250 — threshold opt range 0.246-0.248
+a6aeea90	0.8700	discard	clip_hssa ensemble — HSSA noise hurts, pure CLIP is better
+1329e3b5	0.8800	discard	layers 6-15 — earlier layers add noise
+b911b18c	0.8700	discard	layers 8-19 — later layers hurt, 8-15 is optimal
+fa018ace	0.8900	discard	sys_beta=0.05 — same 0.89, sys_beta not the limiting factor
+84d50c1a	0.8900	discard	sys_beta=0 — sys_beta completely insensitive at this config
+a390af02	0.8800	discard	binary mask — soft gradient better than hard binary
+54de64fe	0.8800	discard	suppress=6.0 — optimal is exactly 5.0, range 5-5.0
+d8767c23	0.8900	discard	clip_top_k=0.15 — same 0.89, mask tightness irrelevant
+4fc9afa8	0.8700	discard	boost=10.0 — extreme boost breaks TP cases, sweet spot is boost<=5.0
+29b1151b	0.8933	keep	VALIDATION all3splits: adv=0.89 pop=0.89 rnd=0.90 avg=0.8933 — SRF CLIP abs-aware strategy
+0193377a	0.8600	discard	clip_coarse_grid=9 — finer grid degrades threshold calibration (-0.03)
+3c657560	0.8900	discard	all-head suppress for absent — neutral same as 20% heads
+82c27b6c	0.8900	discard	prob_scale mode abs-aware — identical result to additive_logit form irrelevant
+2c599088	0.8900	discard	full-img CLIP thresh=0.193 (sep=0.031 vs 0.005) — threshold not the bottleneck
+5ea0c544	0.8700	discard	absent background_eps=1.0 — over-suppresses breaks TN cases
+35fd3ed5	0.8700	discard	absent=boost-background inverted sal+positive alpha — background boost breaks TN cases
+e38fae63	0.8800	discard	absent=no-intervention boost-only — suppress needed for gain
+99009b71	0.8800	discard	suppress-only (present=no-interv absent=-5) — boost+suppress synergy needed
+31eee80e	0.8800	discard	suppress layers 8-20 — late layers still hurt suppress
+fab311cc	0.8800	discard	suppress layers 10-15 — differential layer range doesn't help
+5ff37444	0.8800	discard	boost=2.5 suppress=4.5 — fine-grained alpha plateau confirmed
+ead97952	0.8800	discard	present=global_redistribute absent=additive_logit — mixed modes no gain
+5d0cec48	0.8800	discard	head105d0cec48	0.8800	discard	head10% -- head20% is optimal ceiling
+38bbf5b3	0.8800	discard	layers 9-14 -- (8,15) is optimal range
+8a991340	0.8800	discard	present=attn_floor absent=additive_logit -- both components need same mode
+666c8177	0.8900	discard	calibration seed=1 -- same 0.89 head selection robust to calib samples
+b5356dec	0.8900	discard	clip_absence_thresh=0.25 -- same 0.89 uniform vs directed suppress not bottleneck
+157ca777	0.8900	discard	40-sample calib -- same 0.89 head mask robust to calib size
+354dea69	0.8900	discard	noun suppress beta=0.05 head20% -- no gain; vision heads not language-prior heads
+01779338	0.8900	discard	noun suppress beta=0.20 head20% -- same; need all-heads not vision heads
+2b0b7639	0.8900	discard	noun suppress beta=0.10 all-heads -- same 0.89 distributed repr bypass suppression
+2b96220b	0.8900	discard	boost=1.5 -- same 0.89 boost plateau from 1.5 to 5.0
+5ca6baca	0.8900	discard	present=prob_interp absent=additive_logit -- same 0.89 mechanism irrelevant for absent-suppress
+876c7145	0.8900	discard	question_beta=0.05 -- same 0.89 language prior in hidden states not attention
+8a64b08e	0.8900	discard	question_beta=0.20 -- same 0.89 text-prior not accessible via attention weights
+42515621	0.8800	discard	V-proj scale=2.0 for present — disrupts synergy lost 1 case
+f6bb86bc	0.8700	discard	generation-only bias skip prefill — prefill essential -0.02 from best
+9606ce0d	0.8900	keep	prefill-only bias — same 0.89 with simpler config; gen-time bias redundant
+287fffa5	0.8900	discard	prefill-only boost=5.0 — same plateau boost level irrelevant in prefill-only
+e998b2ad	0.8800	discard	text-query-only prefill — img self-attn boost also needed for synergy
+6121f7c5	0.8900	discard	clip_absence_thresh=0.25 proper (bug fixed) — same 0.89 uniform vs spatial suppress same
+cc8221bd	0.8900	discard	clip_absence_thresh=0.15 — same 0.89 focused suppress for very-absent no diff
+9078f4bf	0.8900	discard	clip_absence_thresh=0.30 — same; 0.15/0.20/0.25/0.30 all identical
+7765a1b9	0.8600	discard	ViT-L/14 CLIP — sep=0.009 worse than B/32 sep; B/32 is better discriminator
+5fb44ed8	0.8700	discard	CLIP internal ViT patch features — threshold mismatch + visual_proj not per-patch calibrated
+17aa4233	0.8900	discard	sal_gamma=2.0 present-only — neutral same 0.89 simplicity criterion
+823ec15e	0.7900	discard	lm_head logit_adj=1.0 — hook interferes with internal compute -0.10
+729c7885	0.8800	discard	CLIP prompt 'a photo of a {noun}' — threshold miscalibrated for new sim scale
+b40629a4	0.8900	discard	hssa_clip_thresh L8 — neutral HSSA saliency same as CLIP; simpler is better
+1e6182f3	0.8800	discard	multi-scale max(7x7,9x9) — 9x9 noise dominates max-pool
+d3ee695c	0.8800	discard	contrastive CLIP sim(noun)-sim('a photo') natural zero threshold — no gain
+89aaa077	0.8800	discard	clip_hssa ensemble hssa_layer=16 — HSSA still adds noise at any layer
+5d0cbe98	0.8900	discard	lm_head last-pos adj=1.0 — neutral same errors as best; direct logit redundant with attn
+6b65c4e0	0.8900	discard	lm_head last-pos adj=2.0 — same 11 errors as adj=1.0; plateau confirmed
+24be08b2	0.8700	discard	per-layer head calibration — locally optimal heads lack global synergy hurts -0.02
+60ecd596	0.8900	discard	absent_use_hssa HSSA spatial for absent-case suppress — neutral same 11 errors
+a113ccdd	0.8900	keep	layer_end=14 layers 8-14 — same 0.89 L15 not load-bearing; simpler config
+78ec0b52	0.8800	discard	layer_end=13 L14 is load-bearing; optimal is 8-14
+0fb8ea7f	0.8700	discard	adaptive_alpha both directions — boost hurts correct-NO cases with wrong-CLIP; -0.02
+2a8529b1	0.8800	discard	adaptive_suppress — mc<0 cases ambiguous (correct-YES with wrong CLIP also mc<0); -0.01
+01d17c22	0.8900	discard	thresh=0.245 targeted clock[96] to boost — boost=2.0 still insufficient
+c074fd3e	0.8800	discard	single layer L8 only — not sufficient alone
+5b23dedf	0.8700	discard	coarse_grid=6 — worse than 7; 5<6<7
+c60e2eec	0.8700	discard	coarse_grid=8 — worse than 7; 6<7>8 pattern confirmed
+69eaada2	0.8800	discard	background_eps=0.1 — any eps hurts; 0.0 is optimal
+3ce569fb	0.8700	discard	binary top10% boost=5.0 — focused binary hurt; soft+top30%+boost=2.0 superior

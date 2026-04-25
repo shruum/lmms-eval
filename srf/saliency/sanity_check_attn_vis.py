@@ -73,7 +73,7 @@ def check(name: str, fn, skip: bool = False) -> bool:
 # ── import module under test ──────────────────────────────────────────────────
 
 sys.path.insert(0, os.path.dirname(__file__))
-import attention_map_vis as V  # noqa: E402
+from srf.saliency import attention_map_vis as V
 
 
 # ── individual checks ─────────────────────────────────────────────────────────
@@ -128,7 +128,6 @@ def check_perturbations():
 
 
 def check_build_heatmap():
-    from PIL import Image as PILImage
     grid_h, grid_w = 8, 10
     n = grid_h * grid_w
     attn = np.random.rand(n).astype(np.float32)

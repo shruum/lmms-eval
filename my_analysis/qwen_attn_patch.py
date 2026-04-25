@@ -91,12 +91,19 @@ _STATE: dict = {
     "srf_text_beta":         0.0,   # strength; 0.0 = disabled
     "srf_text_layer_start":  20,    # deep layers where language priors form
     "srf_text_layer_end":    27,
+    # ---- SRF-V2: per-layer alpha override (drift-adaptive alpha) ----
+    # None → use global "value"; dict[int, float] → per-layer override used by srf_v2.py
+    "srf_layer_alphas": None,
     # ---- internal captures (not part of public API) ----
     "_capture":          False,   # CHECK 3: capture one 4-D softmax output
     "_captured":         None,    # CHECK 3: last captured (n_heads, q_len, kv_len) on CPU
     "_calibrate_heads":  False,   # VHR calibration mode
     "_calib_head_acc":   None,    # running sum of per-head vision scores (n_heads,)
     "_calib_head_count": 0,       # number of accumulation steps
+    # ---- SRF-V2: per-layer visual attention calibration ----
+    "_calibrate_layer_attn": False,   # enable per-layer visual attention capture
+    "_calib_layer_acc":      {},      # dict[layer_idx, float] accumulated visual attn
+    "_calib_layer_count":    0,
     # ---- attention salience capture (attn_salience two-pass) ----
     "_capture_salience":  False,  # enable per-token attention accumulation
     "_salience_acc":      None,   # float tensor (n_img_tokens,) accumulated scores
@@ -278,9 +285,13 @@ def _patched_softmax(
                 )
                 if bias_mode == "additive_logit" and _phase_ok:
                     # Use boost_alpha directly as logit addition (same convention as vaf).
-                    # boost_alpha=3 → add 3 to salient token logits → exp(3)≈20× attention.
-                    # Previously used log(alpha), which was ~13× too weak.
-                    alpha_val = float(value)
+                    # SRF-V2: if per-layer alphas are set, use them (drift-adaptive alpha).
+                    _layer_alphas = _STATE.get("srf_layer_alphas")
+                    alpha_val = (
+                        float(_layer_alphas[current_layer])
+                        if (_layer_alphas and current_layer in _layer_alphas)
+                        else float(value)
+                    )
                     if sal is not None:
                         sal_dev  = sal.to(device=input.device, dtype=input.dtype)
                         bias_row = alpha_val * sal_dev - eps * (1.0 - sal_dev)
@@ -338,6 +349,23 @@ def _patched_softmax(
             acc = _STATE["_calib_head_acc"]
             _STATE["_calib_head_acc"]   = img_score if acc is None else acc + img_score
             _STATE["_calib_head_count"] = _STATE["_calib_head_count"] + 1
+
+    # SRF-V2: per-layer visual attention calibration — mean attn to img tokens per layer
+    if _STATE["_calibrate_layer_attn"] and _STATE["in_decoder"] and result.dim() == 4:
+        s2 = _STATE["img_start"]
+        e2 = _STATE["img_end"]
+        cl = _STATE["current_layer"]
+        if s2 is not None and e2 is not None and cl >= 0:
+            text_q_start = e2 + 1
+            q_len_       = result.shape[2]
+            if text_q_start < q_len_:
+                img_attn_ = result[0, :, text_q_start:, s2 : e2 + 1]
+            else:
+                img_attn_ = result[0, :, :, s2 : e2 + 1]
+            layer_score = img_attn_.float().mean().item()
+            acc_ = _STATE["_calib_layer_acc"]
+            acc_[cl] = acc_.get(cl, 0.0) + layer_score
+            _STATE["_calib_layer_count"] += 1
 
     # Attention salience capture — accumulate per-image-token attention scores
     # from text query positions → image key positions (vision-aware heads only).

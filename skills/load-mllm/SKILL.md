@@ -1,7 +1,7 @@
 ---
 name: load-mllm
-version: v1.0
-description: Loads full project context for the MLLM/SRF NeurIPS research project. Reads all key files and produces a structured briefing. Invoke at the start of any session working on /volumes2/mllm/lmms-eval or the PhD research. Use /load-mllm.
+version: v2.0
+description: Loads full project context for the MLLM/SRF NeurIPS research project. Reads all key files and produces a structured briefing. Invoke at the start of any session working on this repo. Use /load-mllm.
 ---
 
 # load-mllm — Session Briefing for MLLM / SRF Research
@@ -18,37 +18,37 @@ Read all files in this sequence. Use parallel reads where possible (groups A, B,
 
 | File | What it tells you |
 |------|------------------|
-| `/volumes1/shruum_vault/PhD/mllm/Research Status.md` | Current experiment status, best numbers, open tasks, 12-day schedule |
-| `/volumes1/shruum_vault/PhD/mllm/NeurIPS plan/Research Plan.md` | Full paper structure, datasets, method algorithm, success criteria |
-| `/volumes1/shruum_vault/PhD/mllm/NeurIPS plan/Results and Findings.md` | All experiment tables, sweep details, analysis plots |
+| `/volumes1/shruum_vault/PhD/mllm/Research Status.md` | Current experiment status, best numbers, open tasks |
+| `/volumes1/shruum_vault/PhD/mllm/NeurIPS plan/Results and Findings.md` | All experiment tables, sweep details |
+| `/volumes1/shruum_vault/PhD/mllm/NeurIPS plan/Repo.md` | Definitive repo structure, file map, CLI reference, current results table |
 
 ### Group B — Method & Architecture (read in parallel with Group A)
 
 | File | What it tells you |
 |------|------------------|
-| `/volumes1/shruum_vault/PhD/mllm/NeurIPS plan/Methods.md` | Every inference-time method: code, hyperparams, verdict |
-| `/volumes1/shruum_vault/PhD/mllm/NeurIPS plan/VLM_Attention_Deep_Dive.md` | Why methods work architecturally (token sequence, head specialization) |
-| `/volumes1/shruum_vault/PhD/mllm/NeurIPS plan/NextSteps_Ideas.md` | Ideas to try next (VISTA, CRG, AdaptVis, multi-resolution) |
+| `/volumes1/shruum_vault/PhD/mllm/NeurIPS plan/Methods.md` | SRF and SRF-E algorithm details, hyperparams, verdicts |
+| `/volumes1/shruum_vault/PhD/mllm/NeurIPS plan/VLM_Attention_Deep_Dive.md` | Why methods work architecturally |
+| `/volumes1/shruum_vault/PhD/mllm/NeurIPS plan/NextSteps_Ideas.md` | Ideas to try next |
 
-### Group C — Repo & Data (read after A and B)
+### Group C — Repo code (read after A and B)
 
 | File | What it tells you |
 |------|------------------|
-| `/volumes2/mllm/lmms-eval/CLAUDE.md` | Repo conventions: uv, Black, isort, commit style, error resolution |
-| `/volumes2/mllm/lmms-eval/skills/lmms-eval-guide/SKILL.md` | Full lmms-eval codebase map, evaluation pipeline, registration |
-| `/volumes1/shruum_vault/PhD/mllm/Research/VLMs Are Biased.md` | Dataset schema (anvo25/vlms-are-biased), experimental conditions |
+| `/volumes2/mllm/lmms-eval/srf/config.py` | Single source of truth: all hyperparams (SRF_DEFAULTS, SRF_DATASET_PARAMS, SRF_ARCH_PARAMS) |
+| `/volumes2/mllm/lmms-eval/srf/eval.py` | Unified eval CLI — method dispatch, dataset runners, all CLI args |
+| `/volumes2/mllm/lmms-eval/srf/srf.py` | SRF base implementation: setup, reset_for_dataset, prepare_sample |
 
 ### Optional — read only if the task requires it
 
 | File | When to read |
 |------|-------------|
+| `/volumes2/mllm/lmms-eval/srf/srf_e.py` | Modifying SRF-E (contrastive two-pass) |
+| `/volumes2/mllm/lmms-eval/srf/eval_datasets.py` | Adding/modifying dataset loaders |
+| `/volumes2/mllm/lmms-eval/srf/noun_extract.py` | Modifying CLIP noun extraction |
+| `/volumes2/mllm/lmms-eval/srf/saliency/clip_salience.py` | Modifying CLIP saliency computation |
+| `/volumes2/mllm/lmms-eval/my_analysis/qwen_attn_patch.py` | Modifying attention patching engine |
+| `/volumes1/shruum_vault/PhD/mllm/NeurIPS plan/Research Plan.md` | Full paper structure and deadlines |
 | `/volumes1/shruum_vault/PhD/mllm/NeurIPS plan/Literature.md` | Writing related work, comparing to prior papers |
-| `/volumes1/shruum_vault/PhD/mllm/NeurIPS plan/Datasets.md` | Adding a new dataset or checking evaluation splits |
-| `/volumes2/mllm/lmms-eval/my_analysis/run_qwen_eval.py` | Modifying the eval loop or adding a new method |
-| `/volumes2/mllm/lmms-eval/my_analysis/qwen_attn_patch.py` | Modifying attention patching logic |
-| `/volumes2/mllm/lmms-eval/my_analysis/clip_salience.py` | Modifying SRF-CLIP |
-| `/volumes2/mllm/lmms-eval/my_analysis/hssa_salience.py` | Modifying SRF-HSSA |
-| `/volumes2/mllm/lmms-eval/skills/autoresearch/SKILL.md` | Running autonomous overnight experiments |
 
 ---
 
@@ -62,16 +62,16 @@ After reading, output a structured briefing in this exact format:
 
 **Paper:** Semantic Re-Focus (SRF) — query-conditioned visual token boosting for VLM hallucination/bias reduction
 **Target:** NeurIPS 2026 | **Deadline:** 2026-05-05 | **Days remaining:** [compute from today's date]
-**Primary model:** Qwen2.5-VL-3B-Instruct | **Secondary:** LLaVA-1.5-7B (not yet ported)
-**Repo:** `/volumes2/mllm/lmms-eval` | **Analysis scripts:** `my_analysis/`
+**Primary model:** Qwen2.5-VL-3B-Instruct | **Secondary:** Qwen2.5-VL-7B (not yet ported), LLaVA-1.5-7B (not yet ported)
+**Repo:** `/volumes2/mllm/lmms-eval` | **Method package:** `srf/`
 
 ---
 
 **Current best results** (fill from Results and Findings):
-- VLM Bias: [best method + score]
-- POPE (adversarial): [best method + score]
-- MMBench: [best method + score]
-- MMVP: [status]
+- MMVP pair acc:   baseline=? | SRF=? | SRF-E=?
+- POPE (all splits): baseline=? | SRF=? | SRF-E=?
+- MME score:        baseline=? | SRF=? | SRF-E=?
+- VLM Bias:         baseline=? | SRF=?
 
 **What's done:**
 [List implemented methods and completed experiments from Research Status]
@@ -84,18 +84,49 @@ After reading, output a structured briefing in this exact format:
 
 **Key paths:**
 ```
-Analysis:   /volumes2/mllm/lmms-eval/my_analysis/run_qwen_eval.py
-Results:    /volumes2/mllm/lmms-eval/results/qwen_all/
-Vault:      /volumes1/shruum_vault/PhD/mllm/
-HF cache:   /volumes2/hugging_face_cache
+Method package: /volumes2/mllm/lmms-eval/srf/
+  config.py           ← ALL hyperparams (single source of truth)
+  eval.py             ← unified eval CLI
+  srf.py              ← SRF base
+  srf_e.py            ← SRF-E (contrastive)
+  eval_datasets.py    ← dataset loaders (POPE, MMVP, MME, VLM Bias, …)
+  noun_extract.py     ← CLIP noun extraction
+  saliency/           ← clip_salience.py, hssa_salience.py
+
+Patching engine: /volumes2/mllm/lmms-eval/my_analysis/qwen_attn_patch.py
+Results:         /volumes2/mllm/lmms-eval/results/
+Vault:           /volumes1/shruum_vault/PhD/mllm/
+HF cache:        /volumes2/hugging_face_cache
 ```
 
-**Quick eval command:**
+**Quick eval commands:**
 ```bash
 cd /volumes2/mllm/lmms-eval
-python my_analysis/run_qwen_eval.py \
-  --dataset all --method vaf --sweep 1.5 --n_samples 50 \
-  --output_dir results/qwen_all/<run_name>/
+
+# SRF base — MMVP + POPE (all splits) + MME
+conda run -n mllm python srf/eval.py \
+  --method srf \
+  --datasets mmvp pope mme \
+  --output results/srf_3b/
+
+# SRF-E — sweep β
+conda run -n mllm python srf/eval.py \
+  --method srfe \
+  --datasets mmvp pope \
+  --beta 0.5 1.0 2.0 \
+  --output results/srfe_3b/
+
+# Sweep hyperparams for a new model (override arch config)
+conda run -n mllm python srf/eval.py \
+  --method srf --datasets pope \
+  --pope_splits adversarial \
+  --layer_start 9 --layer_end 17 \
+  --alpha 4.0 --eps 0.2
+
+# POPE adversarial only (fast check)
+conda run -n mllm python srf/eval.py \
+  --method srf --datasets pope \
+  --pope_splits adversarial
 ```
 
 ---
@@ -103,83 +134,103 @@ python my_analysis/run_qwen_eval.py \
 ## Project Architecture (invariant — no need to re-read each session)
 
 ```
-/volumes2/mllm/
-├── lmms-eval/                   # lmms-eval eval framework (main repo)
-│   ├── lmms_eval/               # Framework source
-│   │   ├── __main__.py          # CLI: python -m lmms_eval
-│   │   ├── evaluator.py         # Core eval loop
-│   │   ├── api/                 # model.py, task.py, registry.py
-│   │   ├── models/chat/         # Chat models (Qwen, OpenAI, vLLM...)
-│   │   ├── models/simple/       # Legacy models (LLaVA-1.5, InstructBLIP...)
-│   │   └── tasks/               # 230 task dirs, 1377 YAML configs
-│   ├── my_analysis/             # PhD research scripts (NOT framework code)
-│   │   ├── run_qwen_eval.py     # Main eval: all methods × datasets × sweeps
-│   │   ├── qwen_attn_patch.py   # Attention patching (baseline, vhr, vaf, vcd, icd)
-│   │   ├── clip_salience.py     # SRF-CLIP: CLIP ViT-L/14, 7×7 grid
-│   │   ├── hssa_salience.py     # SRF-HSSA: layer-12 hidden state cosine sim
-│   │   ├── visualize_salience.py# Side-by-side CLIP vs HSSA heatmaps
-│   │   └── compare_methods.py   # Cross-method comparison plots
-│   ├── results/                 # Experiment outputs
-│   │   ├── qwen_all/            # Per-method result dirs (results.json, summary.csv)
-│   │   ├── salience_vis/        # Heatmap visualizations
-│   │   └── attention/           # Attention analysis outputs
-│   ├── skills/                  # Claude Code skills
-│   │   ├── load-mllm/           # This skill
-│   │   ├── autoresearch/        # Autonomous overnight loop
-│   │   └── lmms-eval-guide/     # Codebase navigation guide
-│   └── CLAUDE.md                # Repo conventions
+/volumes2/mllm/lmms-eval/
 │
-└── LLaVA/                       # LLaVA model repo (secondary)
+├── srf/                            ← METHOD PACKAGE (all paper-critical code)
+│   ├── config.py                   ← SINGLE SOURCE OF TRUTH for all hyperparams
+│   │     SRF_DEFAULTS{}            ← shared tunables (sys_beta, calib_n, …)
+│   │     SRF_DATASET_PARAMS{}      ← per-dataset: phase, alpha, eps
+│   │     SRF_ARCH_PARAMS{}         ← per-arch: layer_start/end, head_top_k_pct, CLIP params
+│   │     get_arch(model_id)        ← helper; falls back to SRF_ARCH_FALLBACK
+│   │
+│   ├── srf.py                      ← SRF base
+│   │     setup(model, processor, calib_dataset)
+│   │     reset_for_dataset(dataset, *, phase, alpha, eps, layer_start, layer_end,
+│   │                        head_top_k_pct, clip_coarse_grid, clip_top_k_pct,
+│   │                        clip_fallback_thresh)   ← all kwargs override config
+│   │     prepare_sample(inputs, img_start, img_end, image, question, model, processor)
+│   │     cleanup()
+│   │
+│   ├── srf_e.py                    ← SRF-E (two-pass contrastive)
+│   │     get_contrastive_logits(model, inp, beta, mode) → Tensor [1, vocab]
+│   │     generate_contrastive(model, inp, processor, beta, mode, max_new_tokens)
+│   │
+│   ├── eval.py                     ← UNIFIED EVAL SCRIPT
+│   │     --method  srf | srfe
+│   │     --datasets mmvp pope vlmbias mme
+│   │     --pope_splits adversarial popular random   (default: all 3)
+│   │     --beta    (SRF-E only)
+│   │     --layer_start / --layer_end / --head_top_k_pct   (arch overrides)
+│   │     --alpha / --eps / --phase                         (dataset overrides)
+│   │     --clip_coarse_grid / --clip_top_k_pct / --clip_fallback_thresh
+│   │     --output  results/run_name/
+│   │
+│   ├── eval_datasets.py            ← dataset loaders
+│   │     LOADERS{pope, mmvp, vlmbias, mme, mmbench, cv_bench, hallusionbench}
+│   │
+│   ├── noun_extract.py             ← CLIP query noun extraction
+│   │     extract_clip_noun(question, mode)  mode ∈ {mmvp, pope, vlmbias}
+│   │
+│   └── saliency/
+│       ├── clip_salience.py        ← CLIP patch saliency (cross-modal encoder)
+│       └── hssa_salience.py        ← hidden-state saliency (internal)
+│
+├── my_analysis/                    ← ANALYSIS & LEGACY (not modified for paper)
+│   ├── qwen_attn_patch.py          ← attention patching engine (shared by srf/)
+│   │     patch_model / identify_visual_heads / update_sample / _STATE{}
+│   ├── autoresearch/               ← POPE autoresearch loop (completed)
+│   ├── autoresearch_mmvp/          ← MMVP autoresearch loop (completed)
+│   └── autoresearch_vlmbias/       ← VLM Bias autoresearch loop (completed)
+│
+└── results/                        ← eval output (JSON per dataset + summary)
 
-/volumes1/shruum_vault/PhD/mllm/ # Obsidian vault (research notes)
-├── MLLM Project MOC.md          # Map of content — start here
-├── Research Status.md           # LIVE: current numbers + open tasks
-├── NeurIPS plan/                # Paper planning notes
-│   ├── Research Plan.md         # Full outline + schedule
-│   ├── Methods.md               # All methods documented
-│   ├── Results and Findings.md  # All experiment data
-│   ├── VLM_Attention_Deep_Dive.md # Architecture deep-dive
-│   ├── NextSteps_Ideas.md       # Future ideas + literature
-│   ├── Literature.md            # Paper summaries
-│   └── Datasets.md              # Dataset details
-└── Research/
-    ├── VLMs Are Biased.md       # Dataset: anvo25/vlms-are-biased
-    └── Analysis Scripts.md      # Script reference
-
-/volumes2/hugging_face_cache     # HF model + dataset cache (HF_HOME)
+/volumes1/shruum_vault/PhD/mllm/    ← Obsidian research vault
 ```
 
-## Method Cheat Sheet (SRF paper)
+## Method Summary (SRF paper)
 
 ```
-Selectivity hierarchy:
-  vision_boost   → ALL heads + ALL layers + ALL img tokens    → collateral damage
-  vhr_boost      → VIS heads + ALL layers + ALL img tokens    → better, some damage
-  vaf            → VIS heads + layers 8-15 + ALL img tokens   → surgical, stable
-  SRF-CLIP       → VIS heads + layers 8-15 + CLIP-salient tokens  ← paper contribution
-  SRF-HSSA       → VIS heads + layers 8-15 + HSSA-salient tokens  ← paper contribution
+Two finalised methods:
 
-VIS heads = top-50% by text→image attention during 20-sample calibration
-Layers 8–15 = cross-modal fusion zone (Qwen2.5-VL-3B, 28 layers total)
-SRF-CLIP  = CLIP ViT-L/14, 7×7 grid, top-30% tokens, absence fallback at sim<0.2
-SRF-HSSA  = cosine(h_img, h_txt) at decoder layer 12, top-30% tokens, single pass
+SRF (base):
+  - Identify vision-aware heads via calibration (top head_top_k_pct by text→image attn)
+  - Per sample: compute CLIP saliency (noun extracted from question, coarse grid)
+  - During forward pass: boost attention logits for salient image tokens in those heads
+  - Applied in layers [layer_start, layer_end] (cross-modal fusion zone)
+  - Phase: prefill / generation / both (dataset-tuned)
+
+SRF-E (evidence-amplified):
+  - Two forward passes: full input + no-vision input (pixel_values zeroed)
+  - logits_final = logits_full + β * (logits_full - logits_noval)
+  - Amplifies visual evidence, suppresses language prior
+
+Hyperparameter priority: CLI args > SRF_ARCH_PARAMS[model_id] > SRF_DATASET_PARAMS[dataset] > SRF_DEFAULTS
+
+Supported datasets: MMVP, POPE (adversarial/popular/random), MME, VLM Bias
+Supported models:   Qwen/Qwen2.5-VL-3B-Instruct (tuned)
+                    Qwen/Qwen2.5-VL-7B-Instruct  (proportional starting point)
+                    llava-hf/llava-1.5-7b-hf      (proportional starting point)
 ```
 
-## Environment Setup
+## Environment
 
 ```bash
-cd /volumes2/mllm/lmms-eval
+# Conda env: mllm
 export HF_HOME=/volumes2/hugging_face_cache
 export CUDA_VISIBLE_DEVICES=0
+cd /volumes2/mllm/lmms-eval
 
-# Framework
-uv sync && pre-commit install
-python -m lmms_eval --model qwen2_5_vl \
-  --model_args pretrained=Qwen/Qwen2.5-VL-3B-Instruct \
-  --tasks mme --batch_size 1 --limit 8
+# Run eval
+conda run -n mllm python srf/eval.py --method srf --datasets pope --pope_splits adversarial
+```
 
-# Research scripts (no uv needed — uses installed packages)
-python my_analysis/run_qwen_eval.py --help
+## Git
+
+```
+Branch: autoresearch/mmvp-srf   ← all SRF work here
+Main:   main                    ← lmms-eval upstream (do not touch)
+
+All paper files in srf/ and my_analysis/ — untracked, safe from upstream merges.
 ```
 
 ---

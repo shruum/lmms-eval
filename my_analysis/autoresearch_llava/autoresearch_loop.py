@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Autoresearch loop for POPE × LLaVA-1.5-7B using SRF.
+Autoresearch loop for POPE × LLaVA-1.5-7B using SRF (ClearSight VAF).
 
 Follows Karpathy's autoresearch principles:
 - Single file modification (srf.py)
@@ -19,25 +19,20 @@ CONFIG_FILE = SCRIPT_DIR / "best_config.json"
 BASELINE_ACC = 0.83  # Measured baseline accuracy
 
 # =============================================================================
-# PARAMETER SWEEP RANGES
+# PARAMETER SWEEP RANGES (ClearSight VAF parameters)
 # =============================================================================
 PARAM_RANGES = {
     # Layer ranges (ClearSight: 9-14 works well for LLaVA)
     "layer_start": [8, 9, 10],
     "layer_end": [14, 15, 16],
 
-    # Bias mode
-    "bias_mode": ["additive_logit", "prob_interp", "prob_scale"],
+    # VAF parameters (ClearSight: enh=1.15, sup=0.95)
+    "enh_para": [1.05, 1.10, 1.15, 1.20, 1.25, 1.30],
+    "sup_para": [0.85, 0.90, 0.95, 1.00],
 
-    # Boost strength
-    "boost_alpha": [1.0, 1.5, 2.0, 2.5, 3.0],
-
-    # CLIP saliency
+    # CLIP saliency (for future per-token scaling)
     "clip_top_k_pct": [0.20, 0.30, 0.40],
     "clip_coarse_grid": [5, 7, 9],
-
-    # System suppression
-    "sys_beta": [0.0, 0.05, 0.10, 0.15],
 }
 
 # =============================================================================
@@ -47,18 +42,14 @@ PARAM_RANGES = {
 class Config:
     layer_start: int
     layer_end: int
-    bias_mode: str
-    boost_alpha: float
-    clip_top_k_pct: float
-    clip_coarse_grid: int
-    sys_beta: float
-    head_top_k_pct: float = 0.0  # Apply to all heads for now
-    srf_background_eps: float = 0.0
+    enh_para: float
+    sup_para: float
+    clip_top_k_pct: float = 0.20
+    clip_coarse_grid: int = 9
 
     def __str__(self):
-        return (f"L{self.layer_start}-{self.layer_end}_{self.bias_mode}_"
-                f"a{self.boost_alpha}_top{int(self.clip_top_k_pct*100)}_"
-                f"grid{self.clip_coarse_grid}_beta{self.sys_beta}")
+        return (f"L{self.layer_start}-{self.layer_end}_"
+                f"enh{self.enh_para}_sup{self.sup_para}")
 
     def to_dict(self):
         return asdict(self)
@@ -73,17 +64,23 @@ def load_results() -> List[tuple]:
     results = []
     with open(RESULTS_FILE) as f:
         for line in f:
-            if line.strip() and not line.startswith("commit"):
+            if line.strip() and not line.startswith("#"):
                 parts = line.strip().split("\t")
                 if len(parts) >= 3:
-                    acc = float(parts[1])
-                    results.append(acc)
+                    try:
+                        acc = float(parts[1])
+                        results.append((acc, parts[2], parts[3] if len(parts) > 3 else ""))
+                    except ValueError:
+                        pass
     return results
 
 def save_result(config: Config, accuracy: float, description: str, status: str = "keep"):
     """Save result to results.tsv."""
-    commit = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"],
-                                    text=True).strip()
+    try:
+        commit = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"],
+                                        text=True).strip()
+    except:
+        commit = "unknown"
     with open(RESULTS_FILE, "a") as f:
         f.write(f"{commit}\t{accuracy:.4f}\t{status}\t{description}\n")
     print(f"  [{status.upper()}] {accuracy:.4f} — {description}")
@@ -94,36 +91,34 @@ def update_srf_config(config: Config):
     with open(srf_path) as f:
         content = f.read()
 
-    # Update SALIENCY section
+    # Update layer range
     content = content.replace(
-        '"clip_top_k_pct": 0.30',
-        f'"clip_top_k_pct": {config.clip_top_k_pct}'
-    )
-    content = content.replace(
-        '"clip_coarse_grid": 7',
-        f'"clip_coarse_grid": {config.clip_coarse_grid}'
-    )
-
-    # Update BIAS section
-    content = content.replace(
-        '"layer_start": 8',
+        f'"layer_start": 9',
         f'"layer_start": {config.layer_start}'
     )
     content = content.replace(
-        '"layer_end": 15',
+        f'"layer_end": 14',
         f'"layer_end": {config.layer_end}'
     )
+
+    # Update VAF parameters
     content = content.replace(
-        '"bias_mode": "additive_logit"',
-        f'"bias_mode": "{config.bias_mode}"'
+        f'"enh_para": 1.15',
+        f'"enh_para": {config.enh_para}'
     )
     content = content.replace(
-        '"boost_alpha": 2.0',
-        f'"boost_alpha": {config.boost_alpha}'
+        f'"sup_para": 0.95',
+        f'"sup_para": {config.sup_para}'
+    )
+
+    # Update CLIP saliency
+    content = content.replace(
+        f'"clip_top_k_pct": 0.2',
+        f'"clip_top_k_pct": {config.clip_top_k_pct}'
     )
     content = content.replace(
-        '"sys_beta": 0.10',
-        f'"sys_beta": {config.sys_beta}'
+        f'"clip_coarse_grid": 9',
+        f'"clip_coarse_grid": {config.clip_coarse_grid}'
     )
 
     with open(srf_path, "w") as f:
@@ -160,11 +155,10 @@ def generate_configs(n_configs: int = 100) -> List[Config]:
         config = Config(
             layer_start=random.choice(PARAM_RANGES["layer_start"]),
             layer_end=random.choice(PARAM_RANGES["layer_end"]),
-            bias_mode=random.choice(PARAM_RANGES["bias_mode"]),
-            boost_alpha=random.choice(PARAM_RANGES["boost_alpha"]),
+            enh_para=random.choice(PARAM_RANGES["enh_para"]),
+            sup_para=random.choice(PARAM_RANGES["sup_para"]),
             clip_top_k_pct=random.choice(PARAM_RANGES["clip_top_k_pct"]),
             clip_coarse_grid=random.choice(PARAM_RANGES["clip_coarse_grid"]),
-            sys_beta=random.choice(PARAM_RANGES["sys_beta"]),
         )
         # Ensure layer_end > layer_start
         if config.layer_end <= config.layer_start:
@@ -175,7 +169,7 @@ def generate_configs(n_configs: int = 100) -> List[Config]:
 def main():
     """Run autoresearch loop."""
     print("="*60)
-    print("AUTORESEARCH LOOP: POPE × LLaVA-1.5-7B")
+    print("AUTORESEARCH LOOP: POPE × LLaVA-1.5-7B (ClearSight VAF)")
     print(f"Baseline: {BASELINE_ACC:.4f}")
     print(f"GPU: 2")
     print(f"Time budget: 4 hours")

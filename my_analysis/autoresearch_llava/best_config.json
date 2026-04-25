@@ -1,0 +1,8 @@
+{
+  "layer_start": 8,
+  "layer_end": 14,
+  "enh_para": 1.15,
+  "sup_para": 0.85,
+  "clip_top_k_pct": 0.3,
+  "clip_coarse_grid": 9
+}

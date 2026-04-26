@@ -1,0 +1,9 @@
+commit	score	base	status	description
+1b66a679	177/200	177/200	keep	baseline: no SRF intervention (method=baseline)
+1b66a679	174/200	177/200	discard	default SRF: additive_logit alpha=2.0 clip-7x7 top30% layers8-14 head20% no-suppress — hurts -1.5%
+13498dae	175/200	177/200	discard	prob_interp lambda=1.0 CLIP clip-7x7 top30% — redistribution hurts artwork(-2) net -1.0%; artwork n=39 mainly hurts
+f53bb145	175/200	177/200	discard	prob_interp lambda=1.0 HSSA layer=16 — EXACT same as CLIP; redistribution mode is problem not saliency; discard
+ce403696	175/200	177/200	discard	CLIP additive_logit boost=2.0 suppress=5.0 thresh=0.248 (POPE best config — absence-aware) — artwork(-1) landmark(-1) hurts -1.0%
+07497ba2	174/200	177/200	discard	boost_alpha=0.0 sys_beta=0.10 pure sys suppression no image boost — WORST -1.5%; sys_beta itself is the problem
+3787eaca	173/200	177/200	discard	sys_beta=0.0 boost_alpha=0.5 CLIP no-suppress — -2.0%; zero positive flips; saliency guidance disrupts global context
+f1211999	173/200	177/200	discard	uniform-sal global_redistribute img_scale=1.05 — -2.0%; homogenizing within-img attn destroys artwork(-3); any redistribution hurts

@@ -117,16 +117,16 @@ SALIENCY = {
 # =============================================================================
 
 BIAS = {
-    "layer_start":      8,
-    "layer_end":        14,
+    "layer_start":      32,
+    "layer_end":        35,            # last 4 layers (Qwen 3B has 36 total, 0-35)
     "head_top_k_pct":   0.20,          # top-20% vision-aware heads
-    "sys_beta":         0.10,          # system prompt suppression (all modes)
+    "sys_beta":         0.0,           # 0 = no sys suppression
 
     # Bias mode — pick one:
     "bias_mode":        "additive_logit",
 
     # additive_logit params:
-    "boost_alpha":      2.0,
+    "boost_alpha":      1.0,   # moderate; late layers may be less sensitive
     "background_eps":   0.0,
 
     # prob_interp params:

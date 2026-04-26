@@ -52,24 +52,31 @@ import srf
 
 
 def load_mme_perception(n: int, seed: int = SEED) -> list[dict]:
-    print(f"  Loading MME perception (n={n}, seed={seed})…")
-    ds    = hf_load("lmms-lab/MME", split="test")
-    rows  = [r for r in ds
-             if str(r.get("category", "")).strip().lower() not in _MME_COGNITION]
-    rng   = random.Random(seed)
-    rng.shuffle(rows)
-    rows  = rows[:n]
-    out   = []
-    for r in rows:
-        gt = str(r["answer"]).strip().lower()   # "yes" or "no"
-        q  = str(r["question"]).strip()
+    print(f"  Loading MME perception (n={n}, seed={seed})…", flush=True)
+    ds = hf_load("lmms-lab/MME", split="test")
+    ds_meta = ds.remove_columns(["image"])
+    meta = [
+        {"idx": i,
+         "category": str(r.get("category", "")).strip().lower(),
+         "question": str(r["question"]).strip(),
+         "gt":       str(r["answer"]).strip().lower()}
+        for i, r in enumerate(ds_meta)
+        if str(r.get("category", "")).strip().lower() not in _MME_COGNITION
+    ]
+    rng = random.Random(seed)
+    rng.shuffle(meta)
+    meta = meta[:n]
+    print(f"  Decoding {n} selected images…", flush=True)
+    out = []
+    for m in meta:
+        r = ds[m["idx"]]
         out.append({
             "image":    r["image"].convert("RGB"),
-            "question": q,
-            "gt":       gt,
-            "category": str(r.get("category", "unknown")).strip(),
+            "question": m["question"],
+            "gt":       m["gt"],
+            "category": m["category"],
         })
-    print(f"  → {len(out)} perception samples loaded")
+    print(f"  → {len(out)} perception samples loaded", flush=True)
     return out
 
 

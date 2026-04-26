@@ -6,4 +6,13 @@ f53bb145	175/200	177/200	discard	prob_interp lambda=1.0 HSSA layer=16 — EXACT 
 ce403696	175/200	177/200	discard	CLIP additive_logit boost=2.0 suppress=5.0 thresh=0.248 (POPE best config — absence-aware) — artwork(-1) landmark(-1) hurts -1.0%
 07497ba2	174/200	177/200	discard	boost_alpha=0.0 sys_beta=0.10 pure sys suppression no image boost — WORST -1.5%; sys_beta itself is the problem
 3787eaca	173/200	177/200	discard	sys_beta=0.0 boost_alpha=0.5 CLIP no-suppress — -2.0%; zero positive flips; saliency guidance disrupts global context
-f1211999	173/200	177/200	discard	uniform-sal global_redistribute img_scale=1.05 — -2.0%; homogenizing within-img attn destroys artwork(-3); any redistribution hurts
+f1211999	173/200	177/200	discard	uniform-sal global_redistribute img_scale=1.05 layers8-14 — -2.0%; homogenizing within-img attn destroys artwork(-3)
+961ce652	176/200	177/200	BEST	BEST: late-layer 32-35 alpha=1.0 CLIP sys_beta=0.0 — only landmark(-1); artwork/scene/celebrity all 0; -0.5%
+b7625c9d	176/200	177/200	discard	late-layer 32-35 alpha=0.3 CLIP — artwork(-1) not landmark; alpha changes which boundary sample flips; same net -1
+d7b0ce6c	176/200	177/200	discard	uniform-sal global_redistribute img_scale=1.05 late-layers 32-35 — landmark(-1); late layers prevent scene+1 from exp6
+de74c2b6	173/200	177/200	discard	uniform-sal global_redistribute img_scale=1.01 layers8-14 — artwork(-3) existence(-1) scene(+1) = -4; middle-layer homogenization structural
+
+CONCLUSION: SRF cannot improve MME beyond baseline (177/200 = 88.5%). Best: 176/200 (-0.5%).
+Root cause: MME 77% holistic categories (artwork/scene/celebrity/landmark) require global context;
+mid-layer biasing (8-14) destroys this; late-layer biasing (32-35) is least harmful (-0.5%).
+SRF designed for existence grounding (POPE +5.7%) does not transfer to holistic recognition.

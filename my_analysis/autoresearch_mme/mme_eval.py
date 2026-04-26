@@ -104,13 +104,15 @@ def run() -> tuple[int, int]:
 
     srf.setup(model, processor)
 
-    # SRF-e contrastive beta: logits_final = logits_full + β*(logits_full - logits_noval)
-    SRFE_BETA = 1.0
+    # SRF-e contrastive beta sweep: logits_final = logits_full + β*(logits_full - logits_noval)
+    # β=1.0 was too noisy (zero-pixel ViT gives garbage features, not clean language prior)
+    # Testing smaller β to find signal-to-noise threshold
+    SRFE_BETAS = [0.3, 0.5]   # two variants per sample
 
     correct_base  = 0
     correct_srf   = 0
-    correct_e     = 0    # pure-E: baseline + β*(baseline - noval)
-    correct_srfe  = 0    # SRF-E:  srf     + β*(srf     - noval)
+    correct_e  = [0] * len(SRFE_BETAS)    # pure-E per β
+    correct_srfe = [0] * len(SRFE_BETAS)  # SRF-E per β
     results       = []
 
     for i, s in enumerate(samples):
@@ -152,54 +154,48 @@ def run() -> tuple[int, int]:
         with torch.inference_mode():
             logits_noval = model(**inp_noval).logits[:, -1, :].float()
 
-        # ── Pure-E: baseline + β*(baseline − noval) ───────────────────────────
-        logits_e     = logits_base + SRFE_BETA * (logits_base - logits_noval)
-        pred_e       = "yes" if logits_e[0, yes_id] >= logits_e[0, no_id] else "no"
-        ok_e         = (pred_e == s["gt"])
-        if ok_e:
-            correct_e += 1
-
-        # ── SRF-E: srf + β*(srf − noval) ─────────────────────────────────────
-        logits_srfe  = logits_srf + SRFE_BETA * (logits_srf - logits_noval)
-        pred_srfe    = "yes" if logits_srfe[0, yes_id] >= logits_srfe[0, no_id] else "no"
-        ok_srfe      = (pred_srfe == s["gt"])
-        if ok_srfe:
-            correct_srfe += 1
-
-        results.append({
+        # ── Contrastive variants across β values ──────────────────────────────
+        sample_res = {
             "gt": s["gt"], "cat": s["category"],
             "base": pred_base, "srf": pred_srf,
-            "pure_e": pred_e, "srfe": pred_srfe,
             "ok_base": ok_base, "ok_srf": ok_srf,
-            "ok_e": ok_e, "ok_srfe": ok_srfe,
-        })
+        }
+        for bi, beta in enumerate(SRFE_BETAS):
+            # Pure-E
+            lg_e  = logits_base + beta * (logits_base - logits_noval)
+            ok_e  = ((lg_e[0, yes_id] >= lg_e[0, no_id]) == (s["gt"] == "yes"))
+            if ok_e: correct_e[bi] += 1
+            # SRF-E
+            lg_se = logits_srf  + beta * (logits_srf  - logits_noval)
+            ok_se = ((lg_se[0, yes_id] >= lg_se[0, no_id]) == (s["gt"] == "yes"))
+            if ok_se: correct_srfe[bi] += 1
+            sample_res[f"ok_e_{beta}"]  = ok_e
+            sample_res[f"ok_se_{beta}"] = ok_se
+
+        results.append(sample_res)
 
         if (i + 1) % 20 == 0:
-            print(f"  [{i+1:3d}/{N_SAMPLES}] "
-                  f"base={correct_base/(i+1):.4f}  "
-                  f"srf={correct_srf/(i+1):.4f}  "
-                  f"pure-E={correct_e/(i+1):.4f}  "
-                  f"srf-E={correct_srfe/(i+1):.4f}", flush=True)
+            e_str  = "  ".join(f"E{b}={correct_e[bi]/(i+1):.3f}"
+                               for bi, b in enumerate(SRFE_BETAS))
+            se_str = "  ".join(f"SE{b}={correct_srfe[bi]/(i+1):.3f}"
+                                for bi, b in enumerate(SRFE_BETAS))
+            print(f"  [{i+1:3d}/{N_SAMPLES}] base={correct_base/(i+1):.4f}  "
+                  f"srf={correct_srf/(i+1):.4f}  {e_str}  {se_str}", flush=True)
 
     out_path = SCRIPT_DIR / "last_run.json"
     with open(out_path, "w") as f:
         json.dump({
             "base": correct_base, "srf": correct_srf,
             "pure_e": correct_e, "srfe": correct_srfe,
-            "n": N_SAMPLES, "srfe_beta": SRFE_BETA,
-            "base_acc":  correct_base  / N_SAMPLES,
-            "srf_acc":   correct_srf   / N_SAMPLES,
-            "pure_e_acc": correct_e    / N_SAMPLES,
-            "srfe_acc":  correct_srfe  / N_SAMPLES,
-            "samples":   results,
+            "betas": SRFE_BETAS, "n": N_SAMPLES,
+            "samples": results,
         }, f)
 
     print(f"\n{'='*50}")
-    print(f"MME score: {correct_srf}/{N_SAMPLES}  baseline={correct_base}/{N_SAMPLES}  "
-          f"pure-E={correct_e}/{N_SAMPLES}  srf-E={correct_srfe}/{N_SAMPLES}")
-    print(f"Deltas: srf={correct_srf-correct_base:+d}  "
-          f"pure-E={correct_e-correct_base:+d}  "
-          f"srf-E={correct_srfe-correct_base:+d}")
+    print(f"MME baseline={correct_base}/{N_SAMPLES}  srf={correct_srf}/{N_SAMPLES}")
+    for bi, beta in enumerate(SRFE_BETAS):
+        print(f"  β={beta}  pure-E={correct_e[bi]}/{N_SAMPLES} ({correct_e[bi]-correct_base:+d})  "
+              f"srf-E={correct_srfe[bi]}/{N_SAMPLES} ({correct_srfe[bi]-correct_base:+d})")
     return correct_srf, correct_base
 
 

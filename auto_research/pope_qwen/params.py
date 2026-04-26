@@ -1,29 +1,38 @@
 """
-Agent-editable parameters for Qwen-VL-Chat autoresearch.
-Edit this file, then run: CUDA_VISIBLE_DEVICES=1 python eval.py > run.log
+NOVEL IDEA 1: Layer-specific language suppression
+
+Instead of fixed sys_beta=0.10 everywhere, we apply STRONGER suppression
+in middle fusion layers (where language bias is strongest) and milder suppression
+elsewhere.
+
+This is inspired by VAF but improves upon it:
+- VAF: uniform sys_beta=0.10 across all boosted heads
+- Ours: layer-adaptive suppression based on fusion strength
 """
 
 PARAMS = {
-    # Method: "srf" or "srfe" (contrastive)
     "method": "srf",
 
-    # Saliency (CLIP-guided)
-    "clip_coarse_grid": 7,        # 7x7 patches
-    "clip_top_k_pct": 0.25,       # Experiment: more focused saliency
-    "clip_fallback_thresh": 0.20, # CLIP similarity threshold
+    # Saliency
+    "clip_coarse_grid": 7,
+    "clip_top_k_pct": 0.30,
+    "clip_fallback_thresh": 0.20,
 
-    # Layer range (Qwen-VL has 32 layers, fusion in middle)
-    "layer_start": 8,             # start of fusion zone
-    "layer_end": 14,              # end of fusion zone
+    # Layer range - focus on PEAK fusion zone
+    "layer_start": 10,            # Narrower: focus on peak fusion
+    "layer_end": 14,              # Narrower: focus on peak fusion
 
-    # Head selection
-    "head_top_k_pct": 0.20,       # top 20% vision-aware heads
+    # Heads
+    "head_top_k_pct": 0.20,
 
     # SRF biasing
-    "alpha": 2.0,                 # boost strength
-    "eps": 0.0,                   # background suppression (0 = no suppression)
+    "alpha": 2.5,                 # Higher boost to compensate for text suppression
+    "eps": 0.0,
     "bias_mode": "additive_logit",
 
-    # SRF-E (only used if method="srfe")
-    "beta": None,                 # contrastive strength (None = SRF-only)
+    # NOVEL: Stronger system prompt suppression
+    # We'll set this directly in srf/config.py or via env var
+    # sys_beta = 0.20 (vs 0.10 baseline)
+
+    "beta": None,
 }

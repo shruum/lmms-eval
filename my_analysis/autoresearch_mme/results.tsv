@@ -12,7 +12,6 @@ b7625c9d	176/200	177/200	discard	late-layer 32-35 alpha=0.3 CLIP — artwork(-1)
 d7b0ce6c	176/200	177/200	discard	uniform-sal global_redistribute img_scale=1.05 late-layers 32-35 — landmark(-1); late layers prevent scene+1 from exp6
 de74c2b6	173/200	177/200	discard	uniform-sal global_redistribute img_scale=1.01 layers8-14 — artwork(-3) existence(-1) scene(+1) = -4; middle-layer homogenization structural
 
-CONCLUSION: SRF cannot improve MME beyond baseline (177/200 = 88.5%). Best: 176/200 (-0.5%).
-Root cause: MME 77% holistic categories (artwork/scene/celebrity/landmark) require global context;
-mid-layer biasing (8-14) destroys this; late-layer biasing (32-35) is least harmful (-0.5%).
-SRF designed for existence grounding (POPE +5.7%) does not transfer to holistic recognition.
+CONCLUSION (attn-biasing only): SRF cannot improve MME beyond baseline. Best attn-bias: 176/200 (-0.5%).
+Root cause: MME 77% holistic categories require global context; any attention redistribution hurts.
+--- SRF-e (contrastive) experiments follow below ---

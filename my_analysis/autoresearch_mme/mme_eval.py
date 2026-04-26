@@ -104,9 +104,14 @@ def run() -> tuple[int, int]:
 
     srf.setup(model, processor)
 
-    correct_base = 0
-    correct_srf  = 0
-    results      = []
+    # SRF-e contrastive beta: logits_final = logits_full + β*(logits_full - logits_noval)
+    SRFE_BETA = 1.0
+
+    correct_base  = 0
+    correct_srf   = 0
+    correct_e     = 0    # pure-E: baseline + β*(baseline - noval)
+    correct_srfe  = 0    # SRF-E:  srf     + β*(srf     - noval)
+    results       = []
 
     for i, s in enumerate(samples):
         msgs = [{"role": "user", "content": [
@@ -139,30 +144,62 @@ def run() -> tuple[int, int]:
             correct_srf += 1
         srf.cleanup()
 
+        # ── No-visual pass (shared by both SRF-e variants) ────────────────────
+        # Zero pixel_values → ViT sees black image → language-prior-only logits.
+        inp_noval = {k: (torch.zeros_like(v) if k == "pixel_values" else v)
+                     for k, v in inputs.items()}
+        patch._STATE["method"] = "baseline"
+        with torch.inference_mode():
+            logits_noval = model(**inp_noval).logits[:, -1, :].float()
+
+        # ── Pure-E: baseline + β*(baseline − noval) ───────────────────────────
+        logits_e     = logits_base + SRFE_BETA * (logits_base - logits_noval)
+        pred_e       = "yes" if logits_e[0, yes_id] >= logits_e[0, no_id] else "no"
+        ok_e         = (pred_e == s["gt"])
+        if ok_e:
+            correct_e += 1
+
+        # ── SRF-E: srf + β*(srf − noval) ─────────────────────────────────────
+        logits_srfe  = logits_srf + SRFE_BETA * (logits_srf - logits_noval)
+        pred_srfe    = "yes" if logits_srfe[0, yes_id] >= logits_srfe[0, no_id] else "no"
+        ok_srfe      = (pred_srfe == s["gt"])
+        if ok_srfe:
+            correct_srfe += 1
+
         results.append({
             "gt": s["gt"], "cat": s["category"],
             "base": pred_base, "srf": pred_srf,
+            "pure_e": pred_e, "srfe": pred_srfe,
             "ok_base": ok_base, "ok_srf": ok_srf,
+            "ok_e": ok_e, "ok_srfe": ok_srfe,
         })
 
         if (i + 1) % 20 == 0:
             print(f"  [{i+1:3d}/{N_SAMPLES}] "
                   f"base={correct_base/(i+1):.4f}  "
-                  f"srf={correct_srf/(i+1):.4f}")
+                  f"srf={correct_srf/(i+1):.4f}  "
+                  f"pure-E={correct_e/(i+1):.4f}  "
+                  f"srf-E={correct_srfe/(i+1):.4f}", flush=True)
 
     out_path = SCRIPT_DIR / "last_run.json"
     with open(out_path, "w") as f:
         json.dump({
-            "base": correct_base, "srf": correct_srf, "n": N_SAMPLES,
-            "base_acc": correct_base / N_SAMPLES,
-            "srf_acc":  correct_srf  / N_SAMPLES,
-            "samples":  results,
+            "base": correct_base, "srf": correct_srf,
+            "pure_e": correct_e, "srfe": correct_srfe,
+            "n": N_SAMPLES, "srfe_beta": SRFE_BETA,
+            "base_acc":  correct_base  / N_SAMPLES,
+            "srf_acc":   correct_srf   / N_SAMPLES,
+            "pure_e_acc": correct_e    / N_SAMPLES,
+            "srfe_acc":  correct_srfe  / N_SAMPLES,
+            "samples":   results,
         }, f)
 
     print(f"\n{'='*50}")
-    print(f"MME score: {correct_srf}/{N_SAMPLES}  baseline={correct_base}/{N_SAMPLES}")
-    print(f"SRF acc={correct_srf/N_SAMPLES:.4f}  baseline acc={correct_base/N_SAMPLES:.4f}")
-    print(f"Delta: {(correct_srf - correct_base)/N_SAMPLES:+.4f}")
+    print(f"MME score: {correct_srf}/{N_SAMPLES}  baseline={correct_base}/{N_SAMPLES}  "
+          f"pure-E={correct_e}/{N_SAMPLES}  srf-E={correct_srfe}/{N_SAMPLES}")
+    print(f"Deltas: srf={correct_srf-correct_base:+d}  "
+          f"pure-E={correct_e-correct_base:+d}  "
+          f"srf-E={correct_srfe-correct_base:+d}")
     return correct_srf, correct_base
 
 

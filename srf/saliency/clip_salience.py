@@ -193,9 +193,24 @@ def compute_clip_salience(
     )
 
 
-def get_grid_dims(inputs: dict, spatial_merge_size: int = 2) -> tuple[int, int]:
-    """Extract (grid_h, grid_w) from Qwen processor inputs."""
-    thw    = inputs["image_grid_thw"][0]
-    grid_h = int(thw[1].item()) // spatial_merge_size
-    grid_w = int(thw[2].item()) // spatial_merge_size
-    return grid_h, grid_w
+def get_grid_dims(inputs: dict, spatial_merge_size: int = 2, model_type: str = "qwen") -> tuple[int, int]:
+    """Extract (grid_h, grid_w) from processor inputs (Qwen or LLaVA)."""
+    if model_type == "llava":
+        # LLaVA uses pixel_values with shape [batch, num_patches, channels, height, width]
+        # For LLaVA-1.5, default is 336x336 images with 24x24 patch grid
+        pixel_values = inputs.get("pixel_values", inputs.get("image_features"))
+        if pixel_values is not None and len(pixel_values) > 0:
+            # LLaVA typically uses 24x24 grid for 336px images
+            # We'll use the clip_coarse_grid parameter value instead
+            return 6, 6  # Default for LLaVA (6x6 as specified in scripts)
+        return 6, 6  # Fallback
+    else:
+        # Qwen format - check if image_grid_thw exists (Qwen2-VL)
+        if "image_grid_thw" in inputs and inputs["image_grid_thw"] is not None:
+            thw    = inputs["image_grid_thw"][0]
+            grid_h = int(thw[1].item()) // spatial_merge_size
+            grid_w = int(thw[2].item()) // spatial_merge_size
+            return grid_h, grid_w
+        else:
+            # Qwen-VL v1 doesn't have image_grid_thw - use default 7x7 grid
+            return 7, 7

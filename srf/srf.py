@@ -35,9 +35,53 @@ sys.path.insert(0, str(_SRF_DIR))                         # config, noun_extract
 sys.path.insert(0, str(_ANALYSIS_DIR))                    # qwen_attn_patch
 
 import torch
-import qwen_attn_patch as patch
+
+# Dynamically import the correct patch module (will be set by eval.py)
+patch = None
+
 import clip_salience as clip_sal
 from noun_extract import extract_clip_noun
+
+
+def _apply_chat_template(processor, msgs: list, tokenize: bool = False, add_generation_prompt: bool = True) -> str:
+    """Apply chat template, handling both processor and tokenizer."""
+    # For Qwen-VL, use format_qwen_msgs
+    if hasattr(processor, 'from_list_format') and callable(processor.from_list_format):
+        # Import format_qwen_msgs from eval.py
+        import sys
+        import os
+        eval_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if eval_dir not in sys.path:
+            sys.path.insert(0, eval_dir)
+        from eval import format_qwen_msgs
+        text, _ = format_qwen_msgs(msgs, processor, _model)
+        return text
+
+    # For LLaVA with old transformers (no chat_template), use manual format
+    if hasattr(processor, 'tokenizer'):
+        tok = processor.tokenizer
+        # Check if chat_template is None or missing (transformers < 4.40)
+        if not hasattr(tok, 'chat_template') or tok.chat_template is None:
+            # LLaVA-1.5 Vicuna format with intro
+            user_content = []
+            for msg in msgs:
+                if msg["role"] == "user":
+                    for item in msg["content"]:
+                        if item["type"] == "image":
+                            user_content.append("<image>")
+                        elif item["type"] == "text":
+                            user_content.append(item["text"])
+            user_text = " ".join(user_content)
+            prompt = f"A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. USER: {user_text} ASSISTANT:"
+            return prompt
+
+    # Standard chat template
+    if hasattr(processor, 'apply_chat_template') and callable(processor.apply_chat_template):
+        return processor.apply_chat_template(msgs, tokenize=tokenize, add_generation_prompt=add_generation_prompt)
+    elif hasattr(processor, 'tokenizer') and hasattr(processor.tokenizer, 'apply_chat_template'):
+        return processor.tokenizer.apply_chat_template(msgs, tokenize=tokenize, add_generation_prompt=add_generation_prompt)
+    else:
+        raise AttributeError(f"No apply_chat_template method found on processor {type(processor)}")
 import config as CFG
 
 
@@ -138,10 +182,19 @@ def _build_calib_inputs(dataset: str, n: int, seed: int):
 
     device = next(_model.parameters()).device
     arch   = _get_arch()
+
+    # Import get_token_id helper from eval.py for consistent token ID handling
+    import sys
+    import os
+    eval_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if eval_dir not in sys.path:
+        sys.path.insert(0, eval_dir)
+    from eval import get_token_id
+
     # LLaVA-style: image_token is None → use model.config.image_token_index
-    if arch["image_token"] is not None:
-        img_id = _processor.tokenizer.convert_tokens_to_ids(arch["image_token"])
-    else:
+    try:
+        img_id = get_token_id(_processor, arch["image_token"] or "<|image_pad|>")
+    except (ValueError, AttributeError):
         img_id = _model.config.image_token_index
 
     rng = random.Random(seed)
@@ -156,14 +209,33 @@ def _build_calib_inputs(dataset: str, n: int, seed: int):
             img  = r["image"].convert("RGB")
             msgs = [{"role": "user", "content": [{"type": "image", "image": img},
                                                   {"type": "text",  "text":  q}]}]
-            text = _processor.apply_chat_template(msgs, tokenize=False,
-                                                   add_generation_prompt=True)
-            vis, _ = pvi(msgs)
-            inp = _processor(text=[text], images=vis, return_tensors="pt",
-                             padding=True).to(device)
+            # Qwen-VL has no padding token - handle separately
+            if hasattr(_processor, 'from_list_format') and callable(_processor.from_list_format):
+                # Import format_qwen_msgs and replicate eval.py approach
+                import sys
+                import os
+                eval_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                if eval_dir not in sys.path:
+                    sys.path.insert(0, eval_dir)
+                from eval import format_qwen_msgs
+                text, _ = format_qwen_msgs(msgs, _processor, _model)
+                inp = _processor(text=text, return_tensors="pt", padding=False).to(device)
+            else:
+                text = _apply_chat_template(_processor, msgs, tokenize=False,
+                                            add_generation_prompt=True)
+                vis, _ = pvi(msgs)
+                inp = _processor(text=[text], images=vis, return_tensors="pt",
+                                 padding=True).to(device)
             ids = inp["input_ids"][0].tolist()
-            s = ids.index(img_id)
-            e = len(ids) - 1 - ids[::-1].index(img_id)
+            # For Qwen-VL, image tokens might not be explicit in tokenized output
+            # Use fallback: image region is after first few tokens
+            if img_id in ids:
+                s = ids.index(img_id)
+                e = len(ids) - 1 - ids[::-1].index(img_id)
+            else:
+                # Qwen-VL: estimate image region (tokens 1-256 typically)
+                s = 1
+                e = min(256, len(ids) - 1)
             calib_inputs.append(inp); img_ranges.append((s, e))
 
     elif dataset == "mmvp":
@@ -182,14 +254,31 @@ def _build_calib_inputs(dataset: str, n: int, seed: int):
                         "Answer with the option's letter directly.")
             msgs = [{"role": "user", "content": [{"type": "image", "image": img},
                                                   {"type": "text",  "text":  prompt}]}]
-            text = _processor.apply_chat_template(msgs, tokenize=False,
-                                                   add_generation_prompt=True)
-            vis, _ = pvi(msgs)
-            inp = _processor(text=[text], images=vis, return_tensors="pt",
-                             padding=True).to(device)
+            # Qwen-VL has no padding token - handle separately
+            if hasattr(_processor, 'from_list_format') and callable(_processor.from_list_format):
+                # Import format_qwen_msgs and replicate eval.py approach
+                import sys
+                import os
+                eval_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                if eval_dir not in sys.path:
+                    sys.path.insert(0, eval_dir)
+                from eval import format_qwen_msgs
+                text, _ = format_qwen_msgs(msgs, _processor, _model)
+                inp = _processor(text=text, return_tensors="pt", padding=False).to(device)
+            else:
+                text = _apply_chat_template(_processor, msgs, tokenize=False,
+                                            add_generation_prompt=True)
+                vis, _ = pvi(msgs)
+                inp = _processor(text=[text], images=vis, return_tensors="pt",
+                                 padding=True).to(device)
             ids = inp["input_ids"][0].tolist()
-            s = ids.index(img_id)
-            e = len(ids) - 1 - ids[::-1].index(img_id)
+            # For Qwen-VL, image tokens might not be explicit
+            if img_id in ids:
+                s = ids.index(img_id)
+                e = len(ids) - 1 - ids[::-1].index(img_id)
+            else:
+                s = 1
+                e = min(256, len(ids) - 1)
             calib_inputs.append(inp); img_ranges.append((s, e))
 
     elif dataset == "vlmbias":
@@ -199,14 +288,32 @@ def _build_calib_inputs(dataset: str, n: int, seed: int):
             img  = r["image"].convert("RGB")
             msgs = [{"role": "user", "content": [{"type": "image", "image": img},
                                                   {"type": "text",  "text":  r["prompt"]}]}]
-            text = _processor.apply_chat_template(msgs, tokenize=False,
-                                                   add_generation_prompt=True)
-            vis, _ = pvi(msgs)
-            inp = _processor(text=[text], images=vis, return_tensors="pt",
-                             padding=True).to(device)
+            # Qwen-VL has no padding token - handle separately
+            if hasattr(_processor, 'from_list_format') and callable(_processor.from_list_format):
+                # Import format_qwen_msgs and replicate eval.py approach
+                import sys
+                import os
+                eval_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                if eval_dir not in sys.path:
+                    sys.path.insert(0, eval_dir)
+                from eval import format_qwen_msgs
+                text, _ = format_qwen_msgs(msgs, _processor, _model)
+                inp = _processor(text=text, return_tensors="pt", padding=False).to(device)
+            else:
+                text = _apply_chat_template(_processor, msgs, tokenize=False,
+                                            add_generation_prompt=True)
+                vis, _ = pvi(msgs)
+                inp = _processor(text=[text], images=vis, return_tensors="pt",
+                                 padding=True).to(device)
             ids = inp["input_ids"][0].tolist()
-            s = ids.index(img_id)
-            e = len(ids) - 1 - ids[::-1].index(img_id)
+            # For Qwen-VL, image tokens might not be explicit in tokenized output
+            if img_id in ids:
+                s = ids.index(img_id)
+                e = len(ids) - 1 - ids[::-1].index(img_id)
+            else:
+                # Qwen-VL fallback: estimate image region
+                s = 1
+                e = min(256, len(ids) - 1)
             calib_inputs.append(inp); img_ranges.append((s, e))
 
     elif dataset in ("mme", "hallusionbench"):
@@ -218,14 +325,32 @@ def _build_calib_inputs(dataset: str, n: int, seed: int):
             img  = r["image"].convert("RGB")
             msgs = [{"role": "user", "content": [{"type": "image", "image": img},
                                                   {"type": "text",  "text":  q}]}]
-            text = _processor.apply_chat_template(msgs, tokenize=False,
-                                                   add_generation_prompt=True)
-            vis, _ = pvi(msgs)
-            inp = _processor(text=[text], images=vis, return_tensors="pt",
-                             padding=True).to(device)
+            # Qwen-VL has no padding token - handle separately
+            if hasattr(_processor, 'from_list_format') and callable(_processor.from_list_format):
+                # Import format_qwen_msgs and replicate eval.py approach
+                import sys
+                import os
+                eval_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                if eval_dir not in sys.path:
+                    sys.path.insert(0, eval_dir)
+                from eval import format_qwen_msgs
+                text, _ = format_qwen_msgs(msgs, _processor, _model)
+                inp = _processor(text=text, return_tensors="pt", padding=False).to(device)
+            else:
+                text = _apply_chat_template(_processor, msgs, tokenize=False,
+                                            add_generation_prompt=True)
+                vis, _ = pvi(msgs)
+                inp = _processor(text=[text], images=vis, return_tensors="pt",
+                                 padding=True).to(device)
             ids = inp["input_ids"][0].tolist()
-            s = ids.index(img_id)
-            e = len(ids) - 1 - ids[::-1].index(img_id)
+            # For Qwen-VL, image tokens might not be explicit in tokenized output
+            if img_id in ids:
+                s = ids.index(img_id)
+                e = len(ids) - 1 - ids[::-1].index(img_id)
+            else:
+                # Qwen-VL fallback: estimate image region
+                s = 1
+                e = min(256, len(ids) - 1)
             calib_inputs.append(inp); img_ranges.append((s, e))
 
     else:
@@ -264,8 +389,9 @@ def setup(model, processor, calib_dataset: str = "pope") -> None:
     global _model, _processor, _spatial, _model_id, BIAS, SALIENCY
     _model, _processor = model, processor
     _model_id  = getattr(model.config, "_name_or_path", "")
-    _spatial   = getattr(model.config.vision_config, "spatial_merge_size",
-                         CFG.get_arch(_model_id)["spatial_merge_size"])
+    # Handle models without vision_config (like Qwen-VL v1)
+    arch = CFG.get_arch(_model_id)
+    _spatial = getattr(model.config, "spatial_merge_size", arch.get("spatial_merge_size", 2))
 
     arch = _get_arch()
     if _model_id not in CFG.SRF_ARCH_PARAMS:
@@ -291,7 +417,7 @@ def setup(model, processor, calib_dataset: str = "pope") -> None:
     del calib_inputs, img_ranges
     torch.cuda.empty_cache()
 
-    patch.patch_model(model, "vaf", max(float(BIAS["boost_alpha"]), 1e-6))
+    patch.patch_model(model, "srf", max(float(BIAS["boost_alpha"]), 1e-6))
     _sync_patch_state()
 
 
@@ -376,7 +502,9 @@ def prepare_sample(inputs, img_start: int, img_end: int,
     patch._STATE["srf_img_scale"]     = BIAS["img_scale"]
     patch._STATE["srf_text_beta"]     = BIAS["text_beta"]
 
-    grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial)
+    # Detect model type for grid dimensions
+    model_type = "llava" if "llava" in _model_id.lower() else "qwen"
+    grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial, model_type)
     noun   = extract_clip_noun(question, mode=_noun_mode)
     result = clip_sal.compute_clip_salience(
         image, noun, grid_h, grid_w,

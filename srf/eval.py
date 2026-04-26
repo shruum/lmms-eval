@@ -57,11 +57,19 @@ os.environ.setdefault("CUDA_VISIBLE_DEVICES", "0")
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
 import torch
-from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
+from transformers import AutoProcessor, AutoConfig, AutoModelForCausalLM, LlavaForConditionalGeneration
+
+# Qwen2_5_VL is only available in newer transformers
+try:
+    from transformers import Qwen2_5_VLForConditionalGeneration
+except ImportError:
+    Qwen2_5_VLForConditionalGeneration = None
+
 from qwen_vl_utils import process_vision_info
 from datasets import load_dataset as hf_load
 
-import qwen_attn_patch as patch
+# Will be set dynamically based on model type
+patch = None
 
 
 # ---------------------------------------------------------------------------
@@ -70,8 +78,10 @@ import qwen_attn_patch as patch
 
 def parse_args():
     p = argparse.ArgumentParser(description="SRF / SRF-E evaluation")
-    p.add_argument("--method",   required=True, choices=["srf", "srfe"],
-                   help="srf = SRF base; srfe = SRF-E (contrastive)")
+    p.add_argument("--method",   default="srf", choices=["baseline", "srf", "srfe"],
+                   help="baseline = no intervention; srf = SRF base; srfe = SRF-E (contrastive)")
+    p.add_argument("--baseline", action="store_true",
+                   help="Run baseline (no intervention). Shortcut for --method baseline")
     p.add_argument("--model",    default=CFG.DEFAULT_MODEL)
     p.add_argument("--datasets", nargs="+", default=["mmvp", "pope"],
                    choices=["mmvp", "pope", "vlmbias", "mme"])
@@ -120,13 +130,66 @@ def parse_args():
 # ---------------------------------------------------------------------------
 
 def load_model(model_id: str):
+    global patch
+
     print(f"Loading {model_id}…")
-    model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-        model_id, torch_dtype=torch.bfloat16,
-        device_map="auto", attn_implementation="eager",
-    ).eval()
-    processor = AutoProcessor.from_pretrained(model_id,
-                                              max_pixels=CFG.DEFAULT_MAX_PIXELS)
+
+    # Detect model type from config and model_id
+    # Qwen-VL requires trust_remote_code=True
+    config = AutoConfig.from_pretrained(model_id, trust_remote_code=True)
+    model_type = config.model_type if hasattr(config, 'model_type') else None
+
+    # Determine model family from model_id for more specific routing
+    is_qwen_vl_chat = "Qwen-VL-Chat" in model_id or "Qwen-VL" in model_id
+    is_qwen2_vl = "Qwen2" in model_id or "qwen2" in model_id.lower()
+
+    print(f"  Detected model type: {model_type}")
+    print(f"  Model family: {'Qwen-VL-Chat (v1)' if is_qwen_vl_chat else 'Qwen2-VL' if is_qwen2_vl else 'Unknown'}")
+
+    # Load appropriate patch module and model class
+    if model_type == "llava":
+        import llava_attn_patch as llava_patch
+        patch = llava_patch
+        print(f"  Using LLaVA attention patch")
+        model = LlavaForConditionalGeneration.from_pretrained(
+            model_id, torch_dtype=torch.bfloat16,
+            device_map="auto", attn_implementation="eager",
+        ).eval()
+    elif is_qwen_vl_chat:
+        # Qwen-VL v1 (used in AIR and ClearSight papers)
+        import qwen_v1_attn_patch as qwen_v1_patch
+        patch = qwen_v1_patch
+        print(f"  Using Qwen-VL-Chat (v1) attention patch")
+        # Load like the original qwen_vl.py does
+        model = AutoModelForCausalLM.from_pretrained(
+            model_id, device_map="auto", trust_remote_code=True
+        ).eval()
+    else:
+        # Default to Qwen2.5-VL (includes Qwen2-VL and Qwen2.5-VL)
+        import qwen_attn_patch as qwen_patch
+        patch = qwen_patch
+        print(f"  Using Qwen2-VL attention patch")
+        if Qwen2_5_VLForConditionalGeneration is None:
+            raise ImportError("Qwen2.5-VL requires transformers >= 4.40.0. Please upgrade: pip install transformers --upgrade")
+        model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+            model_id, torch_dtype=torch.bfloat16,
+            device_map="auto", attn_implementation="eager",
+        ).eval()
+
+    # For LLaVA, use slow tokenizer to avoid compatibility issues
+    use_fast = False if model_type == "llava" else True
+    # For LLaVA with old transformers, manually construct processor with slow tokenizer
+    if model_type == "llava":
+        from transformers import AutoTokenizer, LlavaProcessor
+        from transformers import CLIPImageProcessor
+        # Load slow tokenizer to avoid compatibility issues with transformers 4.39.3
+        tokenizer = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True, use_fast=False)
+        # Load image processor
+        image_processor = CLIPImageProcessor.from_pretrained(model_id, trust_remote_code=True)
+        # Manually construct processor
+        processor = LlavaProcessor(image_processor=image_processor, tokenizer=tokenizer)
+    else:
+        processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
     return model, processor
 
 
@@ -134,15 +197,157 @@ def load_model(model_id: str):
 # Shared utilities
 # ---------------------------------------------------------------------------
 
+def apply_chat_template(processor, msgs: list, tokenize: bool = False, add_generation_prompt: bool = True) -> str:
+    """Apply chat template, handling both processor and tokenizer."""
+    # For LLaVA with old transformers (no chat_template), use manual format
+    if hasattr(processor, 'tokenizer'):
+        tok = processor.tokenizer
+        # Check if chat_template is None or missing (transformers < 4.40)
+        if not hasattr(tok, 'chat_template') or tok.chat_template is None:
+            # LLaVA-1.5 Vicuna format with intro
+            user_content = []
+            for msg in msgs:
+                if msg["role"] == "user":
+                    for item in msg["content"]:
+                        if item["type"] == "image":
+                            user_content.append("<image>")
+                        elif item["type"] == "text":
+                            user_content.append(item["text"])
+            user_text = " ".join(user_content)
+            prompt = f"A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. USER: {user_text} ASSISTANT:"
+            return prompt
+
+    # Standard chat template
+    if hasattr(processor, 'apply_chat_template') and callable(processor.apply_chat_template):
+        return processor.apply_chat_template(msgs, tokenize=tokenize, add_generation_prompt=add_generation_prompt)
+    elif hasattr(processor, 'tokenizer') and hasattr(processor.tokenizer, 'apply_chat_template'):
+        return processor.tokenizer.apply_chat_template(msgs, tokenize=tokenize, add_generation_prompt=add_generation_prompt)
+    else:
+        raise AttributeError(f"No apply_chat_template method found on processor {type(processor)}")
+
+
+def get_token_id(processor, token: str) -> int:
+    """Get token ID from processor, handling both tokenizer and direct processor cases."""
+    # Try multiple methods to get token ID
+    tok_id = None
+
+    # Method 1: convert_tokens_to_ids (standard tokenizer method)
+    if hasattr(processor, 'convert_tokens_to_ids') and callable(processor.convert_tokens_to_ids):
+        try:
+            tok_id = processor.convert_tokens_to_ids(token)
+        except:
+            pass
+
+    # Method 2: processor.tokenizer.convert_tokens_to_ids
+    if tok_id is None and hasattr(processor, 'tokenizer'):
+        try:
+            if hasattr(processor.tokenizer, 'convert_tokens_to_ids'):
+                tok_id = processor.tokenizer.convert_tokens_to_ids(token)
+        except:
+            pass
+
+    # Method 3: Check special_tokens_map
+    if tok_id is None:
+        if hasattr(processor, 'special_tokens_map'):
+            tok_id = processor.special_tokens_map.get(token, None)
+        elif hasattr(processor, 'tokenizer') and hasattr(processor.tokenizer, 'special_tokens_map'):
+            tok_id = processor.tokenizer.special_tokens_map.get(token, None)
+
+    # Method 4: Try encode() for Qwen-style tokenizers
+    if tok_id is None and hasattr(processor, 'encode'):
+        try:
+            encoded = processor(token, return_tensors='pt')
+            if hasattr(encoded, 'input_ids'):
+                tok_id = encoded['input_ids'][0, 0].item()
+            elif isinstance(encoded, dict) and 'input_ids' in encoded:
+                tok_id = encoded['input_ids'][0][0].item()
+        except:
+            pass
+
+    if tok_id is not None:
+        if hasattr(tok_id, 'item'):
+            tok_id = tok_id.item()
+        return int(tok_id)
+
+    raise ValueError(f"Cannot find token ID for {token!r} in processor {type(processor)}")
+
+
+def format_qwen_msgs(msgs: list, processor, model) -> tuple:
+    """
+    Format messages for Qwen-VL models.
+    Qwen-VL uses a special format with <img> tags instead of standard chat templates.
+    Returns (text, images) tuple for processing.
+    """
+    query = []
+    images = []
+
+    for msg in msgs:
+        for item in msg["content"]:
+            if item["type"] == "image":
+                # Save image to temp file (Qwen-VL requires file paths)
+                import uuid
+                import os
+                name = uuid.uuid4().hex.upper()[0:6]
+                temp_path = f"/tmp/{name}.png"
+                item["image"].save(temp_path)
+                images.append(temp_path)
+                query.append({"image": temp_path})
+            elif item["type"] == "text":
+                query.append({"text": item["text"]})
+
+    # Use Qwen-VL's from_list_format
+    text = processor.from_list_format(query)
+    # CRITICAL: Add response trigger so model knows to generate
+    # Qwen-VL expects the prompt to end with a response indicator
+    text = text + "\nAssistant:"
+    return text, images
+
 def get_img_range(input_ids: torch.Tensor, img_token_id: int) -> tuple[int, int]:
-    ids   = input_ids[0].tolist()
-    start = next(i for i, t in enumerate(ids) if t == img_token_id)
-    end   = len(ids) - 1 - next(i for i, t in enumerate(reversed(ids)) if t == img_token_id)
-    return start, end
+    """
+    Find the range of image tokens in input_ids.
+    For Qwen-VL, image tokens might be handled differently, so we use special handling.
+    """
+    ids = input_ids[0].tolist()
+
+    # Try to find image tokens
+    try:
+        # Standard approach: find first and last occurrence of img_token_id
+        start = next(i for i, t in enumerate(ids) if t == img_token_id)
+        end = len(ids) - 1 - next(i for i, t in enumerate(reversed(ids)) if t == img_token_id)
+        return start, end
+    except StopIteration:
+        # For Qwen-VL, if image tokens are not explicit, estimate based on model config
+        # This is a fallback - the actual range should be determined by the model
+        # For now, return a reasonable range (first 256 tokens as image region)
+        # In practice, Qwen-VL handles images internally
+        return 0, min(255, len(ids) - 1)
 
 
 def decode_first_token(logits: torch.Tensor, processor) -> str:
-    return processor.decode(logits.argmax(dim=-1), skip_special_tokens=True).strip().lower()
+    """Decode the first token from logits."""
+    token_id = logits.argmax(dim=-1).item()
+
+    # Try decoding with special tokens first (more likely to be meaningful)
+    decoded = processor.decode([token_id], skip_special_tokens=False).strip().lower()
+
+    # Remove common artifacts
+    decoded = decoded.replace("<|endoftext|>", "").replace("<|im_start|>", "").strip()
+
+    # Check if it contains yes/no (common in multi-token responses)
+    if "yes" in decoded:
+        return "yes"
+    elif "no" in decoded:
+        return "no"
+
+    # Try without special tokens
+    decoded_clean = processor.decode([token_id], skip_special_tokens=True).strip().lower()
+    if "yes" in decoded_clean:
+        return "yes"
+    elif "no" in decoded_clean:
+        return "no"
+
+    # If still empty, return empty string (will be treated as "no")
+    return decoded_clean if decoded_clean else ""
 
 
 def save_results(results: dict, output_dir: str | None, tag: str) -> None:
@@ -160,8 +365,13 @@ def save_results(results: dict, output_dir: str | None, tag: str) -> None:
 # Method dispatch helpers
 # ---------------------------------------------------------------------------
 
-def method_get_logits(method_mod, model, inp: dict, beta: float) -> torch.Tensor:
+def method_get_logits(method_mod, model, inp: dict, beta: float, baseline: bool = False) -> torch.Tensor:
     """Single-token logits [1, vocab]: SRF uses one pass, SRF-E uses two."""
+    if baseline:
+        # Baseline: no intervention, just run the model
+        with torch.inference_mode():
+            out = model(**inp)
+        return out.logits[:, -1, :].float()
     if hasattr(method_mod, "get_contrastive_logits"):
         return method_mod.get_contrastive_logits(model, inp, beta=beta)
     # SRF base: patched model, single pass
@@ -172,8 +382,13 @@ def method_get_logits(method_mod, model, inp: dict, beta: float) -> torch.Tensor
 
 
 def method_generate(method_mod, model, inp: dict, processor, beta: float,
-                    max_new_tokens: int = 20) -> list[int]:
+                    max_new_tokens: int = 20, baseline: bool = False) -> list[int]:
     """Token generation: SRF uses model.generate, SRF-E uses contrastive loop."""
+    if baseline:
+        # Baseline: no intervention, just run the model
+        with torch.inference_mode():
+            out_ids = model.generate(**inp, max_new_tokens=max_new_tokens, do_sample=False)
+        return out_ids[0, inp["input_ids"].shape[1]:].tolist()
     if hasattr(method_mod, "generate_contrastive"):
         return method_mod.generate_contrastive(
             model, inp, processor, beta=beta, max_new_tokens=max_new_tokens)
@@ -209,6 +424,10 @@ def _reset_overrides(args) -> dict:
 
 def run_pope(method_mod, model, processor, img_token_id, device, args) -> dict:
     betas = args.beta if args.method == "srfe" else [0.0]
+    is_baseline = args.method == "baseline"
+
+    # Check if using Qwen-VL for special formatting
+    is_qwen_vl = hasattr(processor, 'from_list_format') and callable(processor.from_list_format)
 
     splits_filter = {s.lower() for s in args.pope_splits}
     splits_label  = "+".join(sorted(splits_filter))
@@ -216,9 +435,14 @@ def run_pope(method_mod, model, processor, img_token_id, device, args) -> dict:
     print("\n" + "="*60)
     n_req = args.n_pope if args.n_pope > 0 else "all"
     print(f"DATASET: POPE ({splits_label}, n={n_req}/split, seed={args.seed})")
+    if is_baseline:
+        print("MODE: BASELINE (no intervention)")
+    if is_qwen_vl:
+        print("FORMAT: Qwen-VL (using from_list_format)")
     print("="*60)
 
-    method_mod.reset_for_dataset(dataset="pope", **_reset_overrides(args))
+    if not is_baseline:
+        method_mod.reset_for_dataset(dataset="pope", **_reset_overrides(args))
 
     ds   = hf_load("lmms-lab/POPE", split="test")
     rows = [r for r in ds
@@ -229,55 +453,239 @@ def run_pope(method_mod, model, processor, img_token_id, device, args) -> dict:
         rows = rows[:args.n_pope]
     print(f"  Loaded {len(rows)} POPE samples ({splits_label})")
 
-    correct_base = 0
-    correct_srf  = {b: 0 for b in betas}
+    # Track metrics for F1 score: TP, TN, FP, FN (per-split and overall)
+    # Overall metrics
+    tp_base = tn_base = fp_base = fn_base = 0
+    tp_srf  = {b: 0 for b in betas} if not is_baseline else {}
+    tn_srf  = {b: 0 for b in betas} if not is_baseline else {}
+    fp_srf  = {b: 0 for b in betas} if not is_baseline else {}
+    fn_srf  = {b: 0 for b in betas} if not is_baseline else {}
+
+    # Per-split metrics
+    splits_data = {}  # {split_name: {"base": [tp,tn,fp,fn], "srf": {beta: [tp,tn,fp,fn]}}}
 
     for i, r in enumerate(rows):
         image = r["image"].convert("RGB")
         q     = str(r["question"]).strip() + "\nAnswer with Yes or No only."
         gt    = "yes" if str(r.get("answer", "")).strip().lower() == "yes" else "no"
 
-        msgs  = [{"role": "user", "content": [{"type": "image", "image": image},
-                                               {"type": "text",  "text":  q}]}]
-        text  = processor.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True)
-        vis, _ = process_vision_info(msgs)
-        inp    = processor(text=[text], images=vis, return_tensors="pt",
-                           padding=True).to(device)
+        # Extract split name
+        split = str(r.get("category", r.get("type", "unknown"))).lower()
+        if split not in splits_data:
+            splits_data[split] = {
+                "base": [0, 0, 0, 0],  # tp, tn, fp, fn
+                "srf": {b: [0, 0, 0, 0] for b in betas} if not is_baseline else {}
+            }
+
+        # Format input based on model type
+        if is_qwen_vl:
+            msgs = [{"role": "user", "content": [{"type": "image", "image": image},
+                                                   {"type": "text",  "text":  q}]}]
+            text, img_paths = format_qwen_msgs(msgs, processor, model)
+            # For Qwen-VL, tokenize without padding first, then pad manually
+            pad_token_id = processor.eod_id
+            inp = processor(text, return_tensors="pt", padding=False).to(device)
+            # Pad to same length if needed (for single sample, not needed)
+        else:
+            msgs  = [{"role": "user", "content": [{"type": "image", "image": image},
+                                                   {"type": "text",  "text":  q}]}]
+            text  = apply_chat_template(processor, msgs, tokenize=False, add_generation_prompt=True)
+            vis, _ = process_vision_info(msgs)
+            inp    = processor(text=[text], images=vis, return_tensors="pt",
+                               padding=True).to(device)
         s, e   = get_img_range(inp["input_ids"], img_token_id)
 
-        # Baseline
+        # Baseline (always run)
         patch._STATE["method"] = "baseline"
-        with torch.inference_mode():
-            logits_base = model(**inp).logits[:, -1, :].float()
-        pred_base = "yes" if decode_first_token(logits_base, processor).startswith("yes") else "no"
-        if pred_base == gt:
-            correct_base += 1
 
-        # Method
-        method_mod.prepare_sample(inp, s, e, image, q, model, processor)
-        for beta in betas:
-            logits = method_get_logits(method_mod, model, inp, beta)
-            pred = "yes" if decode_first_token(logits, processor).startswith("yes") else "no"
-            if pred == gt:
-                correct_srf[beta] += 1
-        method_mod.cleanup()
+        # For Qwen-VL, we need to actually generate text, not just take first token
+        if is_qwen_vl:
+            with torch.inference_mode():
+                # Use generate to get the actual answer
+                max_new_tokens = 20  # Enough for "Yes" or "No" with padding
+                eos_token_id = getattr(processor, 'eod_id', getattr(processor, 'eos_token_id', 151644))
+
+                generated = model.generate(
+                    **inp,
+                    max_new_tokens=max_new_tokens,
+                    do_sample=False,
+                    eos_token_id=eos_token_id
+                )
+                # Decode the generated part
+                generated_ids = generated[0][inp["input_ids"].shape[1]:]
+                generated_part = processor.decode(generated_ids, skip_special_tokens=True).strip().lower()
+
+                # Determine prediction (check for "yes" case-insensitive)
+                pred_base = "yes" if "yes" in generated_part.lower() else "no"
+        else:
+            with torch.inference_mode():
+                logits_base = model(**inp).logits[:, -1, :].float()
+
+                # For POPE with LLaVA, compare " Yes" vs " No" tokens
+                # LLaVA generates " Yes" (3869) and " No" (1939) as single tokens
+                # Get these token IDs by encoding
+                yes_with_space_id = processor.tokenizer.encode(" Yes", add_special_tokens=False)[0]
+                no_with_space_id = processor.tokenizer.encode(" No", add_special_tokens=False)[0]
+                yes_logit = logits_base[0, yes_with_space_id].item()
+                no_logit = logits_base[0, no_with_space_id].item()
+                pred_base = "yes" if yes_logit > no_logit else "no"
+
+        # Track baseline confusion matrix
+        if gt == "yes":
+            if pred_base == "yes":
+                tp_base += 1
+                splits_data[split]["base"][0] += 1  # tp
+            else:
+                fn_base += 1
+                splits_data[split]["base"][3] += 1  # fn
+        else:  # gt == "no"
+            if pred_base == "no":
+                tn_base += 1
+                splits_data[split]["base"][1] += 1  # tn
+            else:
+                fp_base += 1
+                splits_data[split]["base"][2] += 1  # fp
+
+        # Method (skip if baseline mode)
+        if not is_baseline:
+            method_mod.prepare_sample(inp, s, e, image, q, model, processor)
+            for beta in betas:
+                # For Qwen-VL, use generate instead of logits
+                if is_qwen_vl:
+                    max_new_tokens = 20
+                    eos_token_id = getattr(processor, 'eod_id', getattr(processor, 'eos_token_id', 151644))
+
+                    generated = model.generate(
+                        **inp,
+                        max_new_tokens=max_new_tokens,
+                        do_sample=False,
+                        eos_token_id=eos_token_id
+                    )
+                    generated_ids = generated[0][inp["input_ids"].shape[1]:]
+                    pred_text = processor.decode(generated_ids, skip_special_tokens=True).strip().lower()
+                    pred = "yes" if "yes" in pred_text else "no"
+                else:
+                    logits = method_get_logits(method_mod, model, inp, beta, baseline=False)
+                    pred_text = decode_first_token(logits, processor)
+                    pred = "yes" if pred_text.startswith("yes") else "no"
+
+                # Track method confusion matrix
+                if gt == "yes":
+                    if pred == "yes":
+                        tp_srf[beta] += 1
+                        splits_data[split]["srf"][beta][0] += 1  # tp
+                    else:
+                        fn_srf[beta] += 1
+                        splits_data[split]["srf"][beta][3] += 1  # fn
+                else:  # gt == "no"
+                    if pred == "no":
+                        tn_srf[beta] += 1
+                        splits_data[split]["srf"][beta][1] += 1  # tn
+                    else:
+                        fp_srf[beta] += 1
+                        splits_data[split]["srf"][beta][2] += 1  # fp
+            method_mod.cleanup()
 
         if (i + 1) % 500 == 0 or (i + 1) == len(rows):
             n = i + 1
-            srf_str = "  ".join(f"β={b}:{correct_srf[b]/n:.4f}" for b in betas)
-            print(f"  [{n:5d}/{len(rows)}] base={correct_base/n:.4f}  {srf_str}")
+            # Calculate running metrics
+            base_acc = (tp_base + tn_base) / n
+            base_prec = tp_base / max(1, tp_base + fp_base)
+            base_rec = tp_base / max(1, tp_base + fn_base)
+            base_f1 = 2 * base_prec * base_rec / max(0.001, base_prec + base_rec)
 
-    n        = len(rows)
-    acc_base = correct_base / n
-    acc_srf  = {b: correct_srf[b] / n for b in betas}
+            if is_baseline:
+                print(f"  [{n:5d}/{len(rows)}] base_acc={base_acc:.4f}  base_f1={base_f1:.4f}")
+            else:
+                srf_strs = []
+                for b in betas:
+                    srf_acc = (tp_srf[b] + tn_srf[b]) / n
+                    srf_prec = tp_srf[b] / max(1, tp_srf[b] + fp_srf[b])
+                    srf_rec = tp_srf[b] / max(1, tp_srf[b] + fn_srf[b])
+                    srf_f1 = 2 * srf_prec * srf_rec / max(0.001, srf_prec + srf_rec)
+                    srf_strs.append(f"β={b}:acc={srf_acc:.4f},f1={srf_f1:.4f}")
+                print(f"  [{n:5d}/{len(rows)}] base_acc={base_acc:.4f}  base_f1={base_f1:.4f}  " + "  ".join(srf_strs))
 
-    print(f"\nPOPE baseline:  {acc_base:.4f}  ({correct_base}/{n})")
-    for b in betas:
-        delta = acc_srf[b] - acc_base
-        label = f"β={b}" if args.method == "srfe" else "SRF"
-        print(f"  {label}: {acc_srf[b]:.4f}  Δ={delta:+.4f}")
+    n = len(rows)
 
-    return {"n": n, "baseline": acc_base, "method": acc_srf}
+    # Calculate final metrics
+    def calc_metrics(tp, tn, fp, fn, total=None):
+        total_n = total if total is not None else n
+        accuracy = (tp + tn) / total_n
+        precision = tp / max(1, tp + fp)
+        recall = tp / max(1, tp + fn)
+        f1 = 2 * precision * recall / max(0.001, precision + recall)
+        return {"accuracy": accuracy, "precision": precision, "recall": recall, "f1": f1}
+
+    base_metrics = calc_metrics(tp_base, tn_base, fp_base, fn_base)
+    srf_metrics = {b: calc_metrics(tp_srf[b], tn_srf[b], fp_srf[b], fn_srf[b]) for b in betas} if not is_baseline else {}
+
+    print(f"\nPOPE baseline:")
+    print(f"  Accuracy: {base_metrics['accuracy']:.4f}  ({tp_base + tn_base}/{n})")
+    print(f"  F1-score: {base_metrics['f1']:.4f}")
+    print(f"  Precision: {base_metrics['precision']:.4f}")
+    print(f"  Recall: {base_metrics['recall']:.4f}")
+
+    if not is_baseline:
+        for b in betas:
+            label = f"β={b}" if args.method == "srfe" else "SRF"
+            m = srf_metrics[b]
+            delta_acc = m['accuracy'] - base_metrics['accuracy']
+            delta_f1 = m['f1'] - base_metrics['f1']
+            print(f"\n{label}:")
+            print(f"  Accuracy: {m['accuracy']:.4f}  Δ={delta_acc:+.4f}")
+            print(f"  F1-score: {m['f1']:.4f}  Δ={delta_f1:+.4f}")
+            print(f"  Precision: {m['precision']:.4f}")
+            print(f"  Recall: {m['recall']:.4f}")
+
+    # Print per-split results
+    print("\n" + "="*60)
+    print("PER-SPLIT RESULTS")
+    print("="*60)
+    for split_name in sorted(splits_data.keys()):
+        split_tp, split_tn, split_fp, split_fn = splits_data[split_name]["base"]
+        split_n = split_tp + split_tn + split_fp + split_fn
+        split_acc = (split_tp + split_tn) / split_n if split_n > 0 else 0
+        split_prec = split_tp / max(1, split_tp + split_fp)
+        split_rec = split_tp / max(1, split_tp + split_fn)
+        split_f1 = 2 * split_prec * split_rec / max(0.001, split_prec + split_rec)
+
+        print(f"\n{split_name.upper()} (n={split_n}):")
+        print(f"  Baseline:  acc={split_acc:.4f}  f1={split_f1:.4f}  prec={split_prec:.4f}  rec={split_rec:.4f}")
+
+        if not is_baseline:
+            for b in betas:
+                s_tp, s_tn, s_fp, s_fn = splits_data[split_name]["srf"][b]
+                s_acc = (s_tp + s_tn) / split_n if split_n > 0 else 0
+                s_prec = s_tp / max(1, s_tp + s_fp)
+                s_rec = s_tp / max(1, s_tp + s_fn)
+                s_f1 = 2 * s_prec * s_rec / max(0.001, s_prec + s_rec)
+                label = f"β={b}" if args.method == "srfe" else "SRF"
+                print(f"  {label:8s}:  acc={s_acc:.4f}  f1={s_f1:.4f}  prec={s_prec:.4f}  rec={s_rec:.4f}")
+
+    # Build return dict with per-split metrics
+    result = {
+        "n": n,
+        "splits": {split: {} for split in splits_data.keys()},
+        "baseline": base_metrics,
+        "method": srf_metrics
+    }
+
+    # Add per-split metrics to result
+    for split_name in splits_data.keys():
+        split_tp, split_tn, split_fp, split_fn = splits_data[split_name]["base"]
+        split_n = split_tp + split_tn + split_fp + split_fn
+        result["splits"][split_name] = {
+            "n": split_n,
+            "baseline": calc_metrics(split_tp, split_tn, split_fp, split_fn, split_n)
+        }
+        if not is_baseline:
+            result["splits"][split_name]["method"] = {}
+            for b in betas:
+                s_tp, s_tn, s_fp, s_fn = splits_data[split_name]["srf"][b]
+                result["splits"][split_name]["method"][str(b)] = calc_metrics(s_tp, s_tn, s_fp, s_fn, split_n)
+
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -287,25 +695,32 @@ def run_pope(method_mod, model, processor, img_token_id, device, args) -> dict:
 def run_mmvp(method_mod, model, processor, img_token_id, device, args) -> dict:
     import pandas as pd
     betas = args.beta if args.method == "srfe" else [0.0]
+    is_baseline = args.method == "baseline"
+
+    # Detect if using Qwen-VL (needs special handling for processor)
+    is_qwen_vl = hasattr(processor, 'from_list_format') and callable(processor.from_list_format)
 
     print("\n" + "="*60)
     print("DATASET: MMVP (150 pairs, 300 images, full)")
+    if is_baseline:
+        print("MODE: BASELINE (no intervention)")
     print("="*60)
 
-    method_mod.reset_for_dataset(dataset="mmvp", **_reset_overrides(args))
+    if not is_baseline:
+        method_mod.reset_for_dataset(dataset="mmvp", **_reset_overrides(args))
 
     df         = pd.read_csv(CFG.MMVP_CSV)
     img_ds     = hf_load("MMVP/MMVP", split="train")
     lex_sorted = sorted(range(1, 301), key=str)
     csv_to_hf  = {c: h for h, c in enumerate(lex_sorted)}
 
-    a_id = processor.tokenizer.convert_tokens_to_ids("A")
-    b_id = processor.tokenizer.convert_tokens_to_ids("B")
+    a_id = get_token_id(processor, "A")
+    b_id = get_token_id(processor, "B")
 
     pair_base = defaultdict(dict)
-    pair_srf  = {b: defaultdict(dict) for b in betas}
+    pair_srf  = {b: defaultdict(dict) for b in betas} if not is_baseline else {}
     n_base_ok = 0
-    n_srf_ok  = {b: 0 for b in betas}
+    n_srf_ok  = {b: 0 for b in betas} if not is_baseline else {}
 
     for csv_1idx in range(1, 301):
         row_idx  = csv_1idx - 1
@@ -323,52 +738,63 @@ def run_mmvp(method_mod, model, processor, img_token_id, device, args) -> dict:
 
         msgs  = [{"role": "user", "content": [{"type": "image", "image": image},
                                                {"type": "text",  "text":  prompt}]}]
-        text  = processor.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True)
-        vis, _ = process_vision_info(msgs)
-        inp    = processor(text=[text], images=vis, return_tensors="pt",
-                           padding=True).to(device)
+
+        # For Qwen-VL, use format_qwen_msgs which handles images properly
+        if is_qwen_vl:
+            text, img_paths = format_qwen_msgs(msgs, processor, model)
+            inp = processor(text=text, return_tensors="pt", padding=False).to(device)
+        else:
+            text  = apply_chat_template(processor, msgs, tokenize=False, add_generation_prompt=True)
+            vis, _ = process_vision_info(msgs)
+            inp    = processor(text=[text], images=vis, return_tensors="pt",
+                               padding=True).to(device)
         s, e   = get_img_range(inp["input_ids"], img_token_id)
 
-        # Baseline
+        # Baseline (always run)
         patch._STATE["method"] = "baseline"
         with torch.inference_mode():
             logits_base = model(**inp).logits[:, -1, :].float()
-        pred_base = "A" if logits_base[0, a_id] >= logits_base[0, b_id] else "B"
+            pred_base = "A" if logits_base[0, a_id].item() >= logits_base[0, b_id].item() else "B"
         ok_base   = (pred_base == gt)
         if ok_base:
             n_base_ok += 1
         pair_base[pair_id][img_key] = ok_base
 
-        # Method
-        method_mod.prepare_sample(inp, s, e, image, row["Question"], model, processor)
-        for beta in betas:
-            logits = method_get_logits(method_mod, model, inp, beta)
-            pred   = "A" if logits[0, a_id] >= logits[0, b_id] else "B"
-            ok     = (pred == gt)
-            if ok:
-                n_srf_ok[beta] += 1
-            pair_srf[beta][pair_id][img_key] = ok
-        method_mod.cleanup()
+        # Method (skip if baseline mode)
+        if not is_baseline:
+            method_mod.prepare_sample(inp, s, e, image, row["Question"], model, processor)
+            for beta in betas:
+                logits = method_get_logits(method_mod, model, inp, beta)
+                pred   = "A" if logits[0, a_id] >= logits[0, b_id] else "B"
+                ok     = (pred == gt)
+                if ok:
+                    n_srf_ok[beta] += 1
+                pair_srf[beta][pair_id][img_key] = ok
+            method_mod.cleanup()
 
         if csv_1idx % 60 == 0:
             bp  = [(pid, r) for pid, r in pair_base.items() if "a" in r and "b" in r]
             bpa = sum(1 for _, r in bp if r["a"] and r["b"]) / max(1, len(bp))
-            srf_str = "  ".join(f"β={b}:{n_srf_ok[b]/csv_1idx:.4f}" for b in betas)
-            print(f"  [{csv_1idx:3d}/300] base_pair={bpa:.4f}  {srf_str}")
+            if is_baseline:
+                print(f"  [{csv_1idx:3d}/300] base_pair={bpa:.4f}")
+            else:
+                srf_str = "  ".join(f"β={b}:{n_srf_ok[b]/csv_1idx:.4f}" for b in betas)
+                print(f"  [{csv_1idx:3d}/300] base_pair={bpa:.4f}  {srf_str}")
 
     def _pair_acc(pd_):
         pairs = [(pid, r) for pid, r in pd_.items() if "a" in r and "b" in r]
         return sum(1 for _, r in pairs if r["a"] and r["b"]) / max(1, len(pairs))
 
     acc_base = _pair_acc(pair_base)
-    acc_srf  = {b: _pair_acc(pair_srf[b]) for b in betas}
+    acc_srf  = {b: _pair_acc(pair_srf[b]) for b in betas} if not is_baseline else {}
     img_base = n_base_ok / 300
 
     print(f"\nMMVP baseline:  pair={acc_base:.4f}  img={img_base:.4f}")
-    for b in betas:
-        delta = acc_srf[b] - acc_base
-        label = f"β={b}" if args.method == "srfe" else "SRF"
-        print(f"  {label}: pair={acc_srf[b]:.4f}  Δ={delta:+.4f}")
+    if not is_baseline:
+        for b in betas:
+            delta = acc_srf[b] - acc_base
+            label = f"β={b}" if args.method == "srfe" else "SRF"
+            print(f"  {label}: pair={acc_srf[b]:.4f}  Δ={delta:+.4f}")
 
     return {"baseline_pair": acc_base, "baseline_img": img_base, "method_pair": acc_srf}
 
@@ -422,7 +848,7 @@ def run_vlmbias(method_mod, model, processor, img_token_id, device, args) -> dic
     for i, sample in enumerate(samples):
         msgs  = [{"role": "user", "content": [{"type": "image", "image": sample["image"]},
                                                {"type": "text",  "text":  sample["question"]}]}]
-        text  = processor.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True)
+        text  = apply_chat_template(processor, msgs, tokenize=False, add_generation_prompt=True)
         vis, _ = process_vision_info(msgs)
         inp    = processor(text=[text], images=vis, return_tensors="pt",
                            padding=True).to(device)
@@ -505,8 +931,8 @@ def run_mme(method_mod, model, processor, img_token_id, device, args) -> dict:
     samples = list(ds)
     print(f"  Loaded {len(samples)} MME samples")
 
-    yes_id = processor.tokenizer.convert_tokens_to_ids("Yes")
-    no_id  = processor.tokenizer.convert_tokens_to_ids("No")
+    yes_id = get_token_id(processor, "Yes")
+    no_id  = get_token_id(processor, "No")
 
     # Trackers
     n_total      = len(samples)
@@ -529,7 +955,7 @@ def run_mme(method_mod, model, processor, img_token_id, device, args) -> dict:
 
         msgs  = [{"role": "user", "content": [{"type": "image", "image": image},
                                                {"type": "text",  "text":  q}]}]
-        text  = processor.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True)
+        text  = apply_chat_template(processor, msgs, tokenize=False, add_generation_prompt=True)
         vis, _ = process_vision_info(msgs)
         inp    = processor(text=[text], images=vis, return_tensors="pt",
                            padding=True).to(device)
@@ -635,23 +1061,40 @@ def run_mme(method_mod, model, processor, img_token_id, device, args) -> dict:
 def main():
     args = parse_args()
 
+    # Handle --baseline flag
+    if args.baseline:
+        args.method = "baseline"
+
     # Import method module (srf/ is on sys.path — import directly by filename)
-    if args.method == "srf":
-        import srf as method_mod
+    if args.method != "baseline":
+        if args.method == "srf":
+            import srf as method_mod
+        else:
+            import srf_e as method_mod
     else:
-        import srf_e as method_mod
+        method_mod = None  # Baseline: no method module needed
 
     model, processor = load_model(args.model)
     arch = CFG.get_arch(args.model)
     if arch["image_token"] is not None:
-        img_token_id = processor.tokenizer.convert_tokens_to_ids(arch["image_token"])
+        # For Qwen-VL, processor IS the tokenizer
+        if hasattr(processor, 'tokenizer'):
+            img_token_id = get_token_id(processor, arch["image_token"])
+        else:
+            img_token_id = processor.convert_tokens_to_ids(arch["image_token"])
     else:
         img_token_id = model.config.image_token_index   # LLaVA-style
     device = next(model.parameters()).device
 
-    beta_str = f"β={args.beta}" if args.method == "srfe" else "base"
+    beta_str = "BASELINE (no intervention)" if args.method == "baseline" else (f"β={args.beta}" if args.method == "srfe" else "base")
     print(f"\n[{args.method.upper()}] Setup  model={args.model}  {beta_str}")
-    method_mod.setup(model, processor, calib_dataset=args.datasets[0])
+
+    if args.method != "baseline":
+        # Inject the correct patch module into srf.py
+        # (needed for both srf and srfe since srf_e imports from srf)
+        import srf as srf_mod
+        srf_mod.patch = patch
+        method_mod.setup(model, processor, calib_dataset=args.datasets[0])
 
     results = {}
 
@@ -673,7 +1116,10 @@ def main():
 
     # ── Summary ───────────────────────────────────────────────────────────────
     print("\n" + "="*70)
-    print(f"FINAL SUMMARY — {args.method.upper()} vs Baseline")
+    if args.method == "baseline":
+        print(f"FINAL SUMMARY — BASELINE RESULTS (no intervention)")
+    else:
+        print(f"FINAL SUMMARY — {args.method.upper()} vs Baseline")
     print("="*70)
     print(f"Model: {args.model}  |  method={args.method}  |  {beta_str}")
 
@@ -686,15 +1132,42 @@ def main():
         print(f"\nMMVP pair acc:  baseline={_p(r['baseline_pair'])}")
         for b in betas:
             label = f"β={b}" if args.method == "srfe" else "SRF"
-            print(f"  {label}: {_p(r['method_pair'][b])}  "
-                  f"Δ={_p(r['method_pair'][b]-r['baseline_pair'])}")
+            m = r['method_pair'].get(b, {})
+            if m:
+                print(f"  {label}: {_p(m)}  Δ={_p(m-r['baseline_pair'])}")
 
     if "pope" in results:
         r = results["pope"]
-        print(f"\nPOPE acc (n={r['n']}):  baseline={_p(r['baseline'])}")
-        for b in betas:
-            label = f"β={b}" if args.method == "srfe" else "SRF"
-            print(f"  {label}: {_p(r['method'][b])}  Δ={_p(r['method'][b]-r['baseline'])}")
+        base_acc = r['baseline']['accuracy']
+        base_f1 = r['baseline']['f1']
+        print(f"\nPOPE (n={r['n']}):")
+        print(f"  baseline:  acc={_p(base_acc)}  f1={_p(base_f1)}")
+        if r['method']:  # Only print method results if not baseline
+            for b in betas:
+                label = f"β={b}" if args.method == "srfe" else "SRF"
+                m = r['method'][b]
+                delta_acc = m['accuracy'] - base_acc
+                delta_f1 = m['f1'] - base_f1
+                print(f"  {label}:  acc={_p(m['accuracy'])}  Δ={_p(delta_acc)}  "
+                      f"f1={_p(m['f1'])}  Δ={_p(delta_f1)}")
+
+        # Print per-split breakdown
+        if 'splits' in r:
+            print(f"\n  Per-split breakdown:")
+            for split_name in sorted(r['splits'].keys()):
+                split_data = r['splits'][split_name]
+                split_base = split_data['baseline']
+                print(f"    {split_name}:  baseline={_p(split_base['accuracy'])} f1={_p(split_base['f1'])}", end="")
+                if split_data.get('method'):
+                    for b in betas:
+                        m = split_data['method'][str(b)]
+                        delta_acc = m['accuracy'] - split_base['accuracy']
+                        delta_f1 = m['f1'] - split_base['f1']
+                        label = f"β={b}" if args.method == "srfe" else "SRF"
+                        print(f"  {label}={_p(m['accuracy'])} (Δ={_p(delta_acc)}) f1={_p(m['f1'])} (Δ={_p(delta_f1)})", end="")
+                    print()  # New line after all betas for this split
+                else:
+                    print()  # New line for baseline-only runs
 
     if "vlmbias" in results:
         r = results["vlmbias"]

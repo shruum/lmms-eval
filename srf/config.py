@@ -5,7 +5,7 @@ All eval scripts import from here; nothing is hardcoded in eval scripts.
 import os
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
-HF_HOME      = os.environ.get("HF_HOME", "/volumes2/hugging_face_cache")
+HF_HOME      = os.environ.get("HF_HOME", os.path.expanduser("~/.cache/huggingface"))
 MMVP_CSV     = os.path.join(HF_HOME, "mmvp_questions/Questions.csv")
 RESULTS_DIR  = os.path.join(os.path.dirname(__file__), "..", "results")
 
@@ -104,6 +104,20 @@ SRF_ARCH_PARAMS = {
         # ── NOT tuned — proportionally scaled from 3B ──
         "layer_start":          9,    # round(8/28 * 32)
         "layer_end":            17,   # round(15/28 * 32)
+        "head_top_k_pct":       0.20,
+        "clip_coarse_grid":     7,
+        "clip_top_k_pct":       0.30,
+        "clip_fallback_thresh": 0.20,
+        "dataset_layer_end":    {"mmvp": 17, "pope": 17, "vlmbias": 16, "mme": 17},
+    },
+    "Qwen/Qwen-VL-Chat": {
+        "n_layers":             32,
+        "spatial_merge_size":   2,
+        "image_token":          "<|image_pad|>",
+        # ── Qwen-VL v1 architecture (used in AIR and ClearSight papers) ──
+        # NOT tuned — ClearSight paper starting point (α=0.15, β=0.1)
+        "layer_start":          9,    # proportional: round(8/28 * 32)
+        "layer_end":            17,   # proportional: round(15/28 * 32)
         "head_top_k_pct":       0.20,
         "clip_coarse_grid":     7,
         "clip_top_k_pct":       0.30,

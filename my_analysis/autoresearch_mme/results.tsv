@@ -14,4 +14,12 @@ de74c2b6	173/200	177/200	discard	uniform-sal global_redistribute img_scale=1.01 
 
 CONCLUSION (attn-biasing only): SRF cannot improve MME beyond baseline. Best attn-bias: 176/200 (-0.5%).
 Root cause: MME 77% holistic categories require global context; any attention redistribution hurts.
---- SRF-e (contrastive) experiments follow below ---
+--- SRF-e (contrastive) ---
+95873994	171/200	177/200	discard	SRF-e β=1.0: pure-E=171 srf-E=171 — -3.0%; zero-pixel ViT produces noisy features not clean language prior; artwork(-2) celebrity(-2) color(-1) landmark(-1)
+3aabdc6e	174/200	177/200	discard	SRF-e β=0.3 pure-E=174 srf-E=174; β=0.5 pure-E=173 srf-E=174 — smaller β still hurts (-1.5% to -2%); noisy noval logits degrade all β values
+
+FINAL CONCLUSION: Neither SRF (attention biasing) nor SRF-e (contrastive) can improve MME.
+Best: 176/200 = -0.5% (SRF late-layer 32-35, commit 961ce652).
+Baseline 177/200 = 88.5% is effectively the ceiling for both methods.
+SRF/SRF-e are specialized for existence grounding (POPE +5.7%); MME holistic recognition is out of scope.
+

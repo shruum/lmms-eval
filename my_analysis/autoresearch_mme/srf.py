@@ -60,14 +60,10 @@ SALIENCY = {
     "clip_absence_thresh": 0.20,   # max_sim below this → object absent (uniform sal)
     "clip_use_soft":      True,    # True = soft [0,1] saliency; False = binary top-k
 
-    # Absence-aware boost/suppress strategy:
-    # suppress_thresh > 0: if max_sim < thresh → suppress (object likely absent)
-    #                      if max_sim >= thresh → boost (object likely present)
-    # Set suppress_thresh = 0.0 to always boost (simpler starting point for MME).
-    # MME has many non-existence questions (color, count, position) — suppress may
-    # hurt those. Start with 0.0, calibrate after seeing baseline.
-    "clip_suppress_thresh": 0.0,   # 0.0 = always boost (disable absence-aware logic)
-    "clip_suppress_alpha":  5.0,   # (only used when suppress_thresh > 0)
+    # suppress_thresh=0.0 for MME: objects always present (count/color/position/existence)
+    # POPE used 0.248 (calibrated on COCO absent objects) — not applicable here
+    "clip_suppress_thresh": 0.0,
+    "clip_suppress_alpha":  5.0,
 
     # HSSA params
     "hssa_layer":         8,       # decoder layer (sweep: 8,12,16,20,24 per quality vis)
@@ -117,16 +113,16 @@ SALIENCY = {
 # =============================================================================
 
 BIAS = {
-    "layer_start":      32,
-    "layer_end":        35,            # last 4 layers (Qwen 3B has 36 total, 0-35)
-    "head_top_k_pct":   0.20,          # top-20% vision-aware heads
-    "sys_beta":         0.0,           # 0 = no sys suppression
+    "layer_start":      8,
+    "layer_end":        15,            # ClearSight fusion zone — POPE-best confirmed
+    "head_top_k_pct":   0.20,          # top-20% vision-aware heads (3 heads on Qwen3B)
+    "sys_beta":         0.10,          # mild sys suppression
 
     # Bias mode — pick one:
     "bias_mode":        "additive_logit",
 
     # additive_logit params:
-    "boost_alpha":      1.0,   # moderate; late layers may be less sensitive
+    "boost_alpha":      2.0,   # POPE-best; MME exp1 confirmed no regression
     "background_eps":   0.0,
 
     # prob_interp params:

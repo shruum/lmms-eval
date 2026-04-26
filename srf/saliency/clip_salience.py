@@ -80,26 +80,71 @@ def _clip_model_to_storage() -> None:
 
 def extract_query_noun(prompt: str) -> str:
     """
-    Extract the object noun phrase from a POPE-style question.
-    "Is there a dining table in the image?" → "dining table"
-    "Is there a chair in the image?"        → "chair"
-    Falls back to the full first sentence if extraction fails.
+    Extract object noun phrase for CLIP. Handles POPE + MME question formats.
+
+    Priority order (most specific first):
+      1. POPE/MME existence  — "Is there a/an X in the/this image?"
+      2. MME count           — "Is there only one X?" / "Are there N X?"
+      3. MME position        — "Is X to the left/right of Y?" → "X and Y"
+      4. MME color/attribute — "Is the X [color]?" → "[color] X"
+      5. Generic existence   — "Is there a/an X?"
+      6. Fallback            — first sentence stripped of "?"
     """
-    # Match: "is there a/an <phrase> in the image" — captures multi-word nouns
-    m = re.search(r"is there an?\s+([\w\s]+?)\s+in\s+the\s+image", prompt, re.IGNORECASE)
+    q = prompt.split("\n")[0].strip()
+    _IN_IMG = r"in\s+(?:the|this)\s+image"
+
+    # 1 — POPE / MME existence
+    m = re.search(r"is there an?\s+([\w\s]+?)\s+" + _IN_IMG, q, re.IGNORECASE)
     if m:
         return m.group(1).lower().strip()
-    # Match: "do you see a/an <phrase> in the image"
-    m = re.search(r"do you see an?\s+([\w\s]+?)\s+in\s+the\s+image", prompt, re.IGNORECASE)
+    m = re.search(r"do you see an?\s+([\w\s]+?)\s+" + _IN_IMG, q, re.IGNORECASE)
     if m:
         return m.group(1).lower().strip()
-    # Match: "is there a/an <phrase>?" (no "in the image")
-    m = re.search(r"is there an?\s+([\w\s]+?)[\?\.!\n]", prompt, re.IGNORECASE)
+
+    # 2 — MME count
+    m = re.search(r"is there only (?:one|1)\s+([\w\s]+?)\s+" + _IN_IMG, q, re.IGNORECASE)
     if m:
         return m.group(1).lower().strip()
-    # Fallback: first sentence only
-    first = prompt.split("\n")[0].split("?")[0]
-    return first.strip()
+    m = re.search(
+        r"are there (?:only\s+)?(?:\d+|two|three|four|five|six|seven|eight|nine|ten)\s+"
+        r"([\w\s]+?)\s+" + _IN_IMG,
+        q, re.IGNORECASE,
+    )
+    if m:
+        noun = m.group(1).lower().strip()
+        if noun.endswith("s") and len(noun) > 3:
+            noun = noun[:-1]
+        return noun
+    m = re.search(r"is there only (?:one|1)\s+([\w\s]+?)[\?\.!\n]", q, re.IGNORECASE)
+    if m:
+        return m.group(1).lower().strip()
+
+    # 3 — MME position (MUST precede color to avoid greedy mismatch)
+    m = re.search(
+        r"is the\s+([\w\s]+?)\s+"
+        r"(?:to the\s+|on the\s+)?(?:left|right|above|below|on top|in front|behind|next\s+to)"
+        r"[\w\s]*?(?:of\s+the\s+|the\s+)([\w\s]+?)"
+        r"(?:\s+" + _IN_IMG + r")?\s*\?",
+        q, re.IGNORECASE,
+    )
+    if m:
+        return f"{m.group(1).lower().strip()} and {m.group(2).lower().strip()}"
+
+    # 4 — MME color/attribute: "Is the X yellow?" → "yellow X"
+    m = re.search(
+        r"^is the\s+([\w][\w\s]*?)\s+([\w]+(?:\s+and\s+[\w]+)?)\s*\?",
+        q, re.IGNORECASE,
+    )
+    if m:
+        return f"{m.group(2).lower().strip()} {m.group(1).lower().strip()}"
+
+    # 5 — Generic existence (no "in the image")
+    m = re.search(r"is there an?\s+([\w\s]+?)[\?\.!\n]", q, re.IGNORECASE)
+    if m:
+        return m.group(1).lower().strip()
+
+    # 6 — Fallback
+    return q.split("?")[0].strip()
 
 
 def compute_clip_salience(

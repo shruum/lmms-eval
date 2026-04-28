@@ -215,28 +215,65 @@ def _pope(question: str) -> str:
         if noun not in _GENERIC_NOUNS:
             return noun
 
+    # Fallback: first 4+ char word not in generic set
     words = re.findall(r'\b[a-z]{4,}\b', q)
-    return words[0] if words else "object"
+    for w in words:
+        if w not in _GENERIC_NOUNS:
+            return w
+    return "object"
 
 
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
-def extract_clip_noun(question: str, mode: str = "mmvp") -> str:
+def _singularize(noun: str) -> str:
+    """Convert plural to singular for CLIP query.
+
+    Simple heuristic rules:
+    - s → es (bus → buses): keep as is
+    - ies → y (cities → city)
+    - ses → s (classes → class)
+    - ves → f (knives → knife)
+    - Default: remove trailing 's'
+    """
+    noun = noun.strip()
+    if not noun.endswith('s'):
+        return noun
+
+    # Special cases
+    if noun.endswith('ies'):
+        return noun[:-3] + 'y'
+    elif noun.endswith('ses'):
+        return noun[:-2]
+    elif noun.endswith('ves'):
+        return noun[:-3] + 'f'
+    elif noun.endswith('ss'):
+        return noun  # "glass" stays "glass"
+    else:
+        # Default: remove trailing 's'
+        return noun[:-1]
+
+
+def extract_clip_noun(question: str, mode: str = "mmvp", singular: bool = False) -> str:
     """Return the best CLIP query noun for a VLM benchmark question.
 
     Args:
         question: Raw question string (any casing).
         mode:     Dataset mode — "mmvp", "vlmbias", or "pope".
+        singular: If True, convert plural nouns to singular for CLIP.
 
     Returns:
         A short noun string suitable for CLIP text query.
     """
     if mode == "mmvp":
-        return _mmvp(question)
+        result = _mmvp(question)
     elif mode == "vlmbias":
-        return _vlmbias(question)
+        result = _vlmbias(question)
     elif mode == "pope":
-        return _pope(question)
+        result = _pope(question)
     else:
         raise ValueError(f"Unknown mode {mode!r}. Use 'mmvp', 'vlmbias', or 'pope'.")
+
+    if singular:
+        result = _singularize(result)
+    return result

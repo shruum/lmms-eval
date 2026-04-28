@@ -110,14 +110,15 @@ def compute_clip_salience(
     top_k_pct: float = 0.3,
     coarse_n: int = COARSE_GRID,
     clip_model_name: str = _CLIP_DEFAULT_MODEL,
+    target_n_tokens: int = None,  # If set, upsample saliency to this size
 ) -> ClipSalienceResult:
     """
     Compute CLIP-based salience mask at coarse grid resolution, then upsample
-    to Qwen token grid (grid_h × grid_w).
+    to Qwen token grid (grid_h × grid_w) or target_n_tokens if specified.
 
     Returns ClipSalienceResult with:
-      .mask           : float tensor (grid_h * grid_w,), binary top-k
-      .saliency       : float tensor (grid_h * grid_w,), soft continuous [0,1]
+      .mask           : float tensor (grid_h * grid_w,) or (target_n_tokens,), binary top-k
+      .saliency       : float tensor (grid_h * grid_w,) or (target_n_tokens,), soft continuous [0,1]
       .max_sim        : float, highest patch-text similarity
       .object_present : bool, False if max_sim < ABSENCE_THRESH
       .query_noun     : str, the noun used for CLIP lookup
@@ -126,6 +127,7 @@ def compute_clip_salience(
       - Default model: ViT-L/14 (stronger than ViT-B/32)
       - Default grid: 7×7 (finer spatial resolution)
       - Now also returns .saliency for continuous heatmap visualisation
+      - Upsampling: if target_n_tokens is set, upsamples coarse saliency to match token count
     """
     model, processor = _load_clip(clip_model_name)
     noun = extract_query_noun(text)
@@ -186,6 +188,34 @@ def compute_clip_salience(
         # Object absent: uniform mask — no targeted boost
         mask     = torch.ones(n_tokens, dtype=torch.float32)
         saliency = torch.full((n_tokens,), 0.5)   # neutral when absent
+
+    # Optional upsampling to match actual token count (for models where grid != tokens)
+    if target_n_tokens is not None and target_n_tokens != n_tokens:
+        # Reshape to 2D grid for interpolation
+        saliency_2d = saliency.view(1, 1, grid_h, grid_w)
+        mask_2d = mask.view(1, 1, grid_h, grid_w)
+
+        # Compute target grid dimensions (assuming roughly square)
+        target_side = int(target_n_tokens ** 0.5)
+        if target_side * target_side < target_n_tokens:
+            target_side += 1
+
+        # Upsample using bilinear interpolation
+        saliency_up = F.interpolate(
+            saliency_2d, size=(target_side, target_side),
+            mode="bilinear", align_corners=False
+        ).flatten()[:target_n_tokens]
+
+        mask_up = F.interpolate(
+            mask_2d, size=(target_side, target_side),
+            mode="bilinear", align_corners=False
+        ).flatten()[:target_n_tokens]
+
+        # Re-binarize mask (threshold at 0.5 after upsampling)
+        mask_up = (mask_up >= 0.5).float()
+
+        saliency = saliency_up
+        mask = mask_up
 
     return ClipSalienceResult(
         mask=mask, saliency=saliency, max_sim=max_sim,

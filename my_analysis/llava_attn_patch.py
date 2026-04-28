@@ -87,14 +87,14 @@ def _patched_softmax(input: torch.Tensor, dim: int = -1, dtype: Optional[torch.d
 
                 # Image enhancement: multiply image token attention weights
                 if enh_para != 1.0:
-                    if sal is not None:
-                        # Per-token enhancement based on saliency
+                    if sal is not None and sal.numel() == (img_end - img_start + 1):
+                        # Per-token enhancement based on saliency (only if dims match)
                         sal_dev = sal.to(device=input.device, dtype=input.dtype)
                         # Create scaling factors: 1.0 + (enh_para - 1.0) * saliency
                         scaling = 1.0 + (enh_para - 1.0) * sal_dev
                         attn_weights[:, :, :, img_start : img_end + 1] *= scaling.unsqueeze(0).unsqueeze(0)
                     else:
-                        # Uniform enhancement
+                        # Uniform enhancement (saliency disabled or dimension mismatch)
                         attn_weights[:, :, :, img_start : img_end + 1] *= enh_para
 
                 # Renormalize to maintain probability distribution

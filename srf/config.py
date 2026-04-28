@@ -47,11 +47,17 @@ SRF_DEFAULTS = {
 # ── SRF per-dataset params ─────────────────────────────────────────────────────
 # Tunable per dataset, arch-agnostic.
 # layer_start / layer_end live in SRF_ARCH_PARAMS (they scale with model depth).
+#
+# Absence-aware strategy (key innovation from autoresearch):
+#   alpha (boost_alpha):          positive logit boost when object present
+#   clip_suppress_thresh:         max_sim threshold separating present/absent
+#   clip_suppress_alpha:          NEGATIVE logit to suppress all img tokens when absent
+#   eps (background_eps):         DEPRECATED - use clip_suppress_alpha instead
 SRF_DATASET_PARAMS = {
-    "mmvp":    {"phase": "both",       "alpha": 4.0, "eps": 0.2},
-    "pope":    {"phase": "both",       "alpha": 4.0, "eps": 0.2},
-    "vlmbias": {"phase": "generation", "alpha": 8.0, "eps": 0.5},
-    "mme":     {"phase": "both",       "alpha": 4.0, "eps": 0.2},
+    "mmvp":    {"phase": "both",       "alpha": 2.0, "clip_suppress_thresh": 0.248, "clip_suppress_alpha": 5.0, "eps": 0.0},
+    "pope":    {"phase": "both",       "alpha": 2.0, "clip_suppress_thresh": 0.248, "clip_suppress_alpha": 5.0, "eps": 0.0},
+    "vlmbias": {"phase": "generation", "alpha": 8.0, "clip_suppress_thresh": 0.0,   "clip_suppress_alpha": 5.0, "eps": 0.5},
+    "mme":     {"phase": "both",       "alpha": 2.0, "clip_suppress_thresh": 0.248, "clip_suppress_alpha": 5.0, "eps": 0.0},
 }
 
 # ── SRF-E (evidence amplification) defaults ────────────────────────────────────

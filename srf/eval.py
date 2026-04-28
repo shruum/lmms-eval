@@ -94,6 +94,8 @@ def parse_args():
                    help="POPE splits to run (default: all three)")
     p.add_argument("--n_pope",   type=int, default=CFG.POPE_N_FULL,
                    help="POPE samples per split (-1=all, default=-1=all)")
+    p.add_argument("--n_mme",    type=int, default=-1,
+                   help="MME samples (-1=all, default=-1=all)")
     p.add_argument("--seed",     type=int, default=CFG.POPE_SEED)
     p.add_argument("--n_vlmbias_per_cat", type=int, default=0,
                    help="VLM Bias samples per category (0=all)")
@@ -153,8 +155,9 @@ def load_model(model_id: str):
         print(f"  Using LLaVA attention patch")
         model = LlavaForConditionalGeneration.from_pretrained(
             model_id, torch_dtype=torch.bfloat16,
-            device_map="auto", attn_implementation="eager",
+            attn_implementation="eager",
         ).eval()
+        model.cuda()
     elif is_qwen_vl_chat:
         # Qwen-VL v1 (used in AIR and ClearSight papers)
         import qwen_v1_attn_patch as qwen_v1_patch
@@ -162,8 +165,9 @@ def load_model(model_id: str):
         print(f"  Using Qwen-VL-Chat (v1) attention patch")
         # Load like the original qwen_vl.py does
         model = AutoModelForCausalLM.from_pretrained(
-            model_id, device_map="auto", trust_remote_code=True
+            model_id, trust_remote_code=True
         ).eval()
+        model.cuda()
     else:
         # Default to Qwen2.5-VL (includes Qwen2-VL and Qwen2.5-VL)
         import qwen_attn_patch as qwen_patch
@@ -173,8 +177,9 @@ def load_model(model_id: str):
             raise ImportError("Qwen2.5-VL requires transformers >= 4.40.0. Please upgrade: pip install transformers --upgrade")
         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
             model_id, torch_dtype=torch.bfloat16,
-            device_map="auto", attn_implementation="eager",
+            attn_implementation="eager",
         ).eval()
+        model.cuda()
 
     # For LLaVA, use slow tokenizer to avoid compatibility issues
     use_fast = False if model_type == "llava" else True
@@ -920,30 +925,42 @@ def run_mme(method_mod, model, processor, img_token_id, device, args) -> dict:
       - Perception / Cognition sub-scores
     """
     betas = args.beta if args.method == "srfe" else [0.0]
+    is_baseline = args.method == "baseline"
+
+    # Detect if using Qwen-VL for special formatting (same as POPE)
+    is_qwen_vl = hasattr(processor, 'from_list_format') and callable(processor.from_list_format)
 
     print("\n" + "="*60)
     print("DATASET: MME (2374 Yes/No, 14 categories, full)")
+    if is_baseline:
+        print("MODE: BASELINE (no intervention)")
+    if is_qwen_vl:
+        print("FORMAT: Qwen-VL (using from_list_format)")
     print("="*60)
 
-    method_mod.reset_for_dataset(dataset="mme", **_reset_overrides(args))
+    if not is_baseline:
+        method_mod.reset_for_dataset(dataset="mme", **_reset_overrides(args))
 
     ds = hf_load("lmms-lab/MME", split="test")
     samples = list(ds)
+    if args.n_mme > 0:
+        samples = samples[:args.n_mme]
     print(f"  Loaded {len(samples)} MME samples")
 
+    # Get token IDs for answer comparison
     yes_id = get_token_id(processor, "Yes")
     no_id  = get_token_id(processor, "No")
 
     # Trackers
     n_total      = len(samples)
     correct_base = 0
-    correct_srf  = {b: 0 for b in betas}
+    correct_srf  = {b: 0 for b in betas} if not is_baseline else {}
 
     # Per-category: {cat: {"base": 0, "srf": {b: 0}, "total": 0}}
-    cat_stats: dict = defaultdict(lambda: {"base": 0, "srf": {b: 0 for b in betas}, "total": 0})
+    cat_stats: dict = defaultdict(lambda: {"base": 0, "srf": {b: 0 for b in betas} if not is_baseline else {}, "total": 0})
 
     # Pair accuracy: {pair_id: {"base": [], "srf": {b: []}}}
-    pair_stats: dict = defaultdict(lambda: {"base": [], "srf": {b: [] for b in betas}})
+    pair_stats: dict = defaultdict(lambda: {"base": [], "srf": {b: [] for b in betas} if not is_baseline else {}})
 
     for i, r in enumerate(samples):
         image    = r["image"].convert("RGB")
@@ -955,40 +972,86 @@ def run_mme(method_mod, model, processor, img_token_id, device, args) -> dict:
 
         msgs  = [{"role": "user", "content": [{"type": "image", "image": image},
                                                {"type": "text",  "text":  q}]}]
-        text  = apply_chat_template(processor, msgs, tokenize=False, add_generation_prompt=True)
-        vis, _ = process_vision_info(msgs)
-        inp    = processor(text=[text], images=vis, return_tensors="pt",
-                           padding=True).to(device)
+
+        # Format input based on model type (same pattern as POPE)
+        if is_qwen_vl:
+            text, img_paths = format_qwen_msgs(msgs, processor, model)
+            # For Qwen-VL, tokenize without padding first
+            inp = processor(text, return_tensors="pt", padding=False).to(device)
+        else:
+            text  = apply_chat_template(processor, msgs, tokenize=False, add_generation_prompt=True)
+            vis, _ = process_vision_info(msgs)
+            inp    = processor(text=[text], images=vis, return_tensors="pt",
+                               padding=True).to(device)
         s, e   = get_img_range(inp["input_ids"], img_token_id)
 
-        # ── Baseline (compare Yes vs No logit directly) ────────────────────────
+        # ── Baseline (always run) ─────────────────────────────────────────────
         patch._STATE["method"] = "baseline"
-        with torch.inference_mode():
-            logits_base = model(**inp).logits[:, -1, :].float()
-        pred_base = "yes" if logits_base[0, yes_id] >= logits_base[0, no_id] else "no"
-        ok_base   = (pred_base == gt_lower)
+
+        # For Qwen-VL, we need to generate text (same as POPE)
+        if is_qwen_vl:
+            with torch.inference_mode():
+                max_new_tokens = 20
+                eos_token_id = getattr(processor, 'eod_id', getattr(processor, 'eos_token_id', 151644))
+                generated = model.generate(
+                    **inp,
+                    max_new_tokens=max_new_tokens,
+                    do_sample=False,
+                    eos_token_id=eos_token_id
+                )
+                generated_ids = generated[0][inp["input_ids"].shape[1]:]
+                generated_part = processor.decode(generated_ids, skip_special_tokens=True).strip().lower()
+                pred_base = "yes" if "yes" in generated_part else "no"
+        else:
+            # For LLaVA, compare logits directly
+            with torch.inference_mode():
+                logits_base = model(**inp).logits[:, -1, :].float()
+                pred_base = "yes" if logits_base[0, yes_id] >= logits_base[0, no_id] else "no"
+
+        ok_base = (pred_base == gt_lower)
         if ok_base:
             correct_base += 1
         cat_stats[cat]["base"]  += int(ok_base)
         cat_stats[cat]["total"] += 1
         pair_stats[pair_id]["base"].append(ok_base)
 
-        # ── Method ────────────────────────────────────────────────────────────
-        method_mod.prepare_sample(inp, s, e, image, q, model, processor)
-        for beta in betas:
-            logits = method_get_logits(method_mod, model, inp, beta)
-            pred   = "yes" if logits[0, yes_id] >= logits[0, no_id] else "no"
-            ok     = (pred == gt_lower)
-            if ok:
-                correct_srf[beta] += 1
-            cat_stats[cat]["srf"][beta]  += int(ok)
-            pair_stats[pair_id]["srf"][beta].append(ok)
-        method_mod.cleanup()
+        # ── Method (skip if baseline mode) ─────────────────────────────────────
+        if not is_baseline:
+            method_mod.prepare_sample(inp, s, e, image, q, model, processor)
+            for beta in betas:
+                # For Qwen-VL, use generate (same as POPE)
+                if is_qwen_vl:
+                    with torch.inference_mode():
+                        max_new_tokens = 20
+                        eos_token_id = getattr(processor, 'eod_id', getattr(processor, 'eos_token_id', 151644))
+                        generated = model.generate(
+                            **inp,
+                            max_new_tokens=max_new_tokens,
+                            do_sample=False,
+                            eos_token_id=eos_token_id
+                        )
+                        generated_ids = generated[0][inp["input_ids"].shape[1]:]
+                        pred_text = processor.decode(generated_ids, skip_special_tokens=True).strip().lower()
+                        pred = "yes" if "yes" in pred_text else "no"
+                else:
+                    # For LLaVA, use logits
+                    logits = method_get_logits(method_mod, model, inp, beta)
+                    pred   = "yes" if logits[0, yes_id] >= logits[0, no_id] else "no"
+
+                ok = (pred == gt_lower)
+                if ok:
+                    correct_srf[beta] += 1
+                cat_stats[cat]["srf"][beta]  += int(ok)
+                pair_stats[pair_id]["srf"][beta].append(ok)
+            method_mod.cleanup()
 
         if (i + 1) % 500 == 0 or (i + 1) == n_total:
             n = i + 1
-            srf_str = "  ".join(f"β={b}:{correct_srf[b]/n:.4f}" for b in betas)
-            print(f"  [{n:4d}/{n_total}] base={correct_base/n:.4f}  {srf_str}")
+            if is_baseline:
+                print(f"  [{n:4d}/{n_total}] base={correct_base/n:.4f}")
+            else:
+                srf_str = "  ".join(f"β={b}:{correct_srf[b]/n:.4f}" for b in betas)
+                print(f"  [{n:4d}/{n_total}] base={correct_base/n:.4f}  {srf_str}")
 
     # ── Compute pair accuracy ──────────────────────────────────────────────────
     def _pair_acc(key, beta=None):
@@ -1000,9 +1063,9 @@ def run_mme(method_mod, model, processor, img_token_id, device, args) -> dict:
         return sum(1 for p in pairs if all(p["srf"][beta])) / len(pairs)
 
     acc_base = correct_base / n_total
-    acc_srf  = {b: correct_srf[b] / n_total for b in betas}
+    acc_srf  = {b: correct_srf[b] / n_total for b in betas} if not is_baseline else {}
     pair_base = _pair_acc("base")
-    pair_srf  = {b: _pair_acc("srf", b) for b in betas}
+    pair_srf  = {b: _pair_acc("srf", b) for b in betas} if not is_baseline else {}
 
     # ── Perception / Cognition sub-scores ─────────────────────────────────────
     def _subscores(key, beta=None):
@@ -1017,41 +1080,53 @@ def run_mme(method_mod, model, processor, img_token_id, device, args) -> dict:
 
     perc_base, cogn_base = _subscores("base")
     perc_srf = {}; cogn_srf = {}
-    for b in betas:
-        perc_srf[b], cogn_srf[b] = _subscores("srf", b)
+    if not is_baseline:
+        for b in betas:
+            perc_srf[b], cogn_srf[b] = _subscores("srf", b)
 
     # ── Print results ──────────────────────────────────────────────────────────
     print(f"\nMME baseline:  acc={acc_base:.4f}  pair={pair_base:.4f}")
     print(f"  MME score: {correct_base} / {n_total}  "
           f"(perception={perc_base}, cognition={cogn_base})")
-    for b in betas:
-        label = f"β={b}" if args.method == "srfe" else "SRF"
-        print(f"  {label}: acc={acc_srf[b]:.4f}  pair={pair_srf[b]:.4f}  "
-              f"Δ={acc_srf[b]-acc_base:+.4f}  "
-              f"score={correct_srf[b]} (perc={perc_srf[b]}, cogn={cogn_srf[b]})")
+
+    if not is_baseline:
+        for b in betas:
+            label = f"β={b}" if args.method == "srfe" else "SRF"
+            print(f"  {label}: acc={acc_srf[b]:.4f}  pair={pair_srf[b]:.4f}  "
+                  f"Δ={acc_srf[b]-acc_base:+.4f}  "
+                  f"score={correct_srf[b]} (perc={perc_srf[b]}, cogn={cogn_srf[b]})")
 
     print("\n  Per-category (baseline | SRF):")
     all_cats = sorted(cat_stats.keys())
     for cat in all_cats:
         s = cat_stats[cat]
-        srf_str = "  ".join(f"β={b}:{s['srf'][b]}" for b in betas)
+        if not is_baseline:
+            srf_str = "  ".join(f"β={b}:{s['srf'][b]}" for b in betas)
+        else:
+            srf_str = ""
         marker = "[C]" if cat in _MME_COGNITION else "[P]"
         print(f"    {marker} {cat:28s}: base={s['base']:3d}/{s['total']}  {srf_str}")
 
-    return {
+    return_dict = {
         "n": n_total,
         "baseline_acc":  acc_base,
         "baseline_pair": pair_base,
         "baseline_score": correct_base,
         "baseline_perception": perc_base,
         "baseline_cognition":  cogn_base,
-        "method_acc":   acc_srf,
-        "method_pair":  pair_srf,
-        "method_score": correct_srf,
-        "method_perception": perc_srf,
-        "method_cognition":  cogn_srf,
         "cat_stats": {k: dict(v) for k, v in cat_stats.items()},
     }
+
+    if not is_baseline:
+        return_dict.update({
+            "method_acc":   acc_srf,
+            "method_pair":  pair_srf,
+            "method_score": correct_srf,
+            "method_perception": perc_srf,
+            "method_cognition":  cogn_srf,
+        })
+
+    return return_dict
 
 
 # ---------------------------------------------------------------------------

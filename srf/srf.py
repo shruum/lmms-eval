@@ -126,29 +126,33 @@ def _make_bias(dataset: str, overrides: dict) -> dict:
     layer_end = arch["dataset_layer_end"].get(dataset, arch["layer_end"])
 
     b = {
-        "layer_start":      arch["layer_start"],
-        "layer_end":        layer_end,
-        "head_top_k_pct":   arch["head_top_k_pct"],
-        "sys_beta":         d["sys_beta"],
-        "text_beta":        d["text_beta"],
-        "text_layer_start": d["text_layer_start"],
-        "text_layer_end":   d["text_layer_end"],
-        "bias_mode":        d["bias_mode"],
-        "boost_alpha":      dp["alpha"],
-        "background_eps":   dp["eps"],
-        "interp_lambda":    d["interp_lambda"],
-        "prob_floor":       d["prob_floor"],
-        "img_scale":        d["img_scale"],
-        "srf_apply_phase":  dp["phase"],
+        "layer_start":           arch["layer_start"],
+        "layer_end":             layer_end,
+        "head_top_k_pct":        arch["head_top_k_pct"],
+        "sys_beta":              d["sys_beta"],
+        "text_beta":             d["text_beta"],
+        "text_layer_start":      d["text_layer_start"],
+        "text_layer_end":        d["text_layer_end"],
+        "bias_mode":             d["bias_mode"],
+        "boost_alpha":           dp["alpha"],
+        "background_eps":        dp["eps"],
+        "clip_suppress_thresh":  dp.get("clip_suppress_thresh", 0.0),
+        "clip_suppress_alpha":   dp.get("clip_suppress_alpha", 5.0),
+        "interp_lambda":         d["interp_lambda"],
+        "prob_floor":            d["prob_floor"],
+        "img_scale":             d["img_scale"],
+        "srf_apply_phase":       dp["phase"],
     }
 
     # Apply CLI overrides
-    if overrides.get("phase")     is not None: b["srf_apply_phase"] = overrides["phase"]
-    if overrides.get("alpha")     is not None: b["boost_alpha"]     = overrides["alpha"]
-    if overrides.get("eps")       is not None: b["background_eps"]  = overrides["eps"]
-    if overrides.get("layer_start") is not None: b["layer_start"]   = overrides["layer_start"]
-    if overrides.get("layer_end") is not None: b["layer_end"]       = overrides["layer_end"]
-    if overrides.get("head_top_k_pct") is not None: b["head_top_k_pct"] = overrides["head_top_k_pct"]
+    if overrides.get("phase")                is not None: b["srf_apply_phase"]         = overrides["phase"]
+    if overrides.get("alpha")                is not None: b["boost_alpha"]             = overrides["alpha"]
+    if overrides.get("eps")                  is not None: b["background_eps"]          = overrides["eps"]
+    if overrides.get("clip_suppress_thresh") is not None: b["clip_suppress_thresh"]    = overrides["clip_suppress_thresh"]
+    if overrides.get("clip_suppress_alpha")  is not None: b["clip_suppress_alpha"]     = overrides["clip_suppress_alpha"]
+    if overrides.get("layer_start")          is not None: b["layer_start"]             = overrides["layer_start"]
+    if overrides.get("layer_end")            is not None: b["layer_end"]               = overrides["layer_end"]
+    if overrides.get("head_top_k_pct")       is not None: b["head_top_k_pct"]          = overrides["head_top_k_pct"]
 
     return b
 
@@ -160,14 +164,16 @@ def _make_saliency(overrides: dict) -> dict:
     """
     arch = _get_arch()
     s = {
-        "clip_coarse_grid":     arch["clip_coarse_grid"],
-        "clip_top_k_pct":       arch["clip_top_k_pct"],
-        "clip_use_soft":        True,   # always soft — hard mask hurts boundary tokens
-        "clip_fallback_thresh": arch["clip_fallback_thresh"],
+        "clip_coarse_grid":       arch["clip_coarse_grid"],
+        "clip_top_k_pct":         arch["clip_top_k_pct"],
+        "clip_use_soft":          True,   # always soft — hard mask hurts boundary tokens
+        "clip_fallback_thresh":   arch["clip_fallback_thresh"],
+        "clip_upsample_to_tokens": False,  # disabled by default
     }
-    if overrides.get("clip_coarse_grid")     is not None: s["clip_coarse_grid"]     = overrides["clip_coarse_grid"]
-    if overrides.get("clip_top_k_pct")       is not None: s["clip_top_k_pct"]       = overrides["clip_top_k_pct"]
-    if overrides.get("clip_fallback_thresh") is not None: s["clip_fallback_thresh"] = overrides["clip_fallback_thresh"]
+    if overrides.get("clip_coarse_grid")       is not None: s["clip_coarse_grid"]       = overrides["clip_coarse_grid"]
+    if overrides.get("clip_top_k_pct")         is not None: s["clip_top_k_pct"]         = overrides["clip_top_k_pct"]
+    if overrides.get("clip_fallback_thresh")   is not None: s["clip_fallback_thresh"]   = overrides["clip_fallback_thresh"]
+    if overrides.get("clip_upsample_to_tokens") is not None: s["clip_upsample_to_tokens"] = overrides["clip_upsample_to_tokens"]
     return s
 
 
@@ -436,6 +442,11 @@ def reset_for_dataset(
     clip_coarse_grid:     int   | None = None,
     clip_top_k_pct:       float | None = None,
     clip_fallback_thresh: float | None = None,
+    # Absence-aware parameters
+    clip_suppress_thresh:  float | None = None,
+    clip_suppress_alpha:   float | None = None,
+    # Upsampling option
+    clip_upsample_to_tokens: bool | None = None,
 ) -> None:
     """
     Switch to a new dataset or apply a new hyperparameter configuration.
@@ -465,6 +476,9 @@ def reset_for_dataset(
         "clip_coarse_grid":     clip_coarse_grid,
         "clip_top_k_pct":       clip_top_k_pct,
         "clip_fallback_thresh": clip_fallback_thresh,
+        "clip_suppress_thresh": clip_suppress_thresh,
+        "clip_suppress_alpha":  clip_suppress_alpha,
+        "clip_upsample_to_tokens": clip_upsample_to_tokens,
     }
 
     BIAS     = _make_bias(dataset, overrides)
@@ -492,9 +506,12 @@ def prepare_sample(inputs, img_start: int, img_end: int,
     """
     Per-sample setup: compute CLIP saliency and configure patch state.
     Must be called before every model forward pass.
+
+    Absence-aware strategy (key innovation):
+      - If max_sim < clip_suppress_thresh → object likely absent → SUPPRESS all image tokens
+      - If max_sim >= clip_suppress_thresh → object likely present → BOOST salient tokens
     """
     patch.update_sample(img_start, img_end)
-    patch._STATE["value"]             = BIAS["boost_alpha"]
     patch._STATE["method"]            = "srf"
     patch._STATE["srf_bias_mode"]     = BIAS["bias_mode"]
     patch._STATE["srf_interp_lambda"] = BIAS["interp_lambda"]
@@ -506,17 +523,44 @@ def prepare_sample(inputs, img_start: int, img_end: int,
     model_type = "llava" if "llava" in _model_id.lower() else "qwen"
     grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial, model_type)
     noun   = extract_clip_noun(question, mode=_noun_mode)
+
+    # Optional upsampling to match actual image token count
+    target_n_tokens = None
+    if SALIENCY.get("clip_upsample_to_tokens", False):
+        target_n_tokens = img_end - img_start + 1
+
     result = clip_sal.compute_clip_salience(
         image, noun, grid_h, grid_w,
         top_k_pct=SALIENCY["clip_top_k_pct"],
         coarse_n=SALIENCY["clip_coarse_grid"],
+        target_n_tokens=target_n_tokens,  # Pass token count for upsampling
     )
+
+    # Set saliency mask
     if result.max_sim < SALIENCY["clip_fallback_thresh"]:
         patch._STATE["salience_mask"] = None
     else:
         patch._STATE["salience_mask"] = (
             result.saliency if SALIENCY["clip_use_soft"] else result.mask
         )
+
+    # Absence-aware conditional boost/suppress (key innovation)
+    # When object likely absent → use LOW enh_para to suppress all image tokens
+    # When object likely present → use HIGH enh_para to boost salient tokens
+    suppress_thresh = BIAS.get("clip_suppress_thresh", 0.0)
+    suppress_alpha  = BIAS.get("clip_suppress_alpha", 5.0)
+
+    if suppress_thresh > 0.0:
+        if result.max_sim < suppress_thresh:
+            # Object likely absent → strong suppression (multiplier << 1.0)
+            # Use 1.0 / (1.0 + suppress_alpha) to get a small positive value
+            patch._STATE["enh_para"] = 1.0 / (1.0 + abs(suppress_alpha))
+        else:
+            # Object likely present → gentle boost
+            patch._STATE["enh_para"] = abs(BIAS["boost_alpha"])
+    else:
+        # Absence-aware disabled → always boost
+        patch._STATE["enh_para"] = BIAS["boost_alpha"]
 
 
 def cleanup() -> None:

@@ -39,3 +39,4 @@ f532396f	0.2190	discard	text_beta=0.05 — no gain (Animals still 0)
 463b7cad	0.2190	discard	text_beta=0.5 L20-27 — no gain Animals still 0
 94029665	0.2190	discard	text_beta=0.5 all-heads L20-27 — identical no effect
 9882cb73	0.2190	discard	text_beta=2.0 all-heads L20-27 — identical even 4x stronger has zero effect; language prior is in MLP not attention
+sweep_diag	0.2286	keep	uniform boost + deep layers 20-28 — best: Logos 1→4 GameB 1→2 OI 8→9 PGrid 3→1 (noisy). Root cause: CLIP guidance irrelevant (top10/top80/uniform identical); counting errors in Animals/Chess structurally intractable

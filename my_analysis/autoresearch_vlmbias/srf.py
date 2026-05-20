@@ -28,16 +28,21 @@ SALIENCY = {
     "clip_coarse_grid":     7,
     "clip_top_k_pct":       0.30,
     "clip_use_soft":        True,
-    "clip_fallback_thresh": 0.20,
+    # thresh=1.0 → always fallback to uniform boost (CLIP guidance makes no difference
+    # on VLMbias: top-10%, top-80%, and uniform all give identical accuracy — the
+    # bottleneck is counting/enumeration, not localization).
+    "clip_fallback_thresh": 1.0,
 }
 
 BIAS = {
-    "layer_start":      8,
-    "layer_end":        14,
+    # Deep layers (20-28) unlock Logos gains vs early layers (8-14).
+    # VLMbias is a counting task; counting/reasoning attention lives in deep layers.
+    "layer_start":      20,
+    "layer_end":        28,
     "head_top_k_pct":   0.20,
     "sys_beta":         0.10,
-    "text_beta":        0.0,    # post-image text suppression strength (0.0 = disabled; tried 0.5/2.0 — no effect, language prior is MLP not attention)
-    "text_layer_start": 20,    # ALL heads, deep layers (language prior forms here)
+    "text_beta":        0.0,    # disabled — language prior is MLP not attention (confirmed)
+    "text_layer_start": 20,
     "text_layer_end":   27,
     "bias_mode":        "additive_logit",
     "boost_alpha":      8.0,
@@ -45,7 +50,7 @@ BIAS = {
     "interp_lambda":    1.0,
     "prob_floor":       0.005,
     "img_scale":        1.5,
-    "srf_apply_phase":  "generation",   # generation-only: skip prefill, only boost during token decoding
+    "srf_apply_phase":  "generation",
 }
 
 VIS_SAMPLES = 0   # disable vis during sweep for speed

@@ -36,7 +36,7 @@ SRF_DEFAULTS = {
     "text_beta":        0.0,    # text-token suppression (disabled)
     "text_layer_start": 20,     # text suppression zone (Qwen 3B proportions)
     "text_layer_end":   27,
-    "bias_mode":        "additive_logit",
+    "bias_mode":        "global_redistribute",  # Test post-softmax redistribution
     "interp_lambda":    1.0,
     "prob_floor":       0.005,
     "img_scale":        1.5,
@@ -51,11 +51,18 @@ SRF_DEFAULTS = {
 # Absence-aware strategy (key innovation from autoresearch):
 #   alpha (boost_alpha):          positive logit boost when object present
 #   clip_suppress_thresh:         max_sim threshold separating present/absent
-#   clip_suppress_alpha:          NEGATIVE logit to suppress all img tokens when absent
-#   eps (background_eps):         DEPRECATED - use clip_suppress_alpha instead
+#                               Set to 0.0 to DISABLE absence-aware logic (use simple boost)
+#   clip_suppress_alpha:          suppression strength when object absent
+#   eps (background_eps):         fallback when absence-aware disabled
+#
+# Working config from mmvp-srf (no absence-aware):
+#   alpha=4.0, eps=0.2, clip_suppress_thresh=0.0
+#
+# Default config (with absence-aware):
+#   alpha=2.0, eps=0.0, clip_suppress_thresh=0.248, clip_suppress_alpha=5.0
 SRF_DATASET_PARAMS = {
     "mmvp":    {"phase": "both",       "alpha": 2.0, "clip_suppress_thresh": 0.248, "clip_suppress_alpha": 5.0, "eps": 0.0},
-    "pope":    {"phase": "both",       "alpha": 2.0, "clip_suppress_thresh": 0.248, "clip_suppress_alpha": 5.0, "eps": 0.0},
+    "pope":    {"phase": "both",       "alpha": 0.15, "clip_suppress_thresh": 0.0, "clip_suppress_alpha": 5.0, "eps": 0.0},  # VAF-like alpha
     "vlmbias": {"phase": "generation", "alpha": 8.0, "clip_suppress_thresh": 0.0,   "clip_suppress_alpha": 5.0, "eps": 0.5},
     "mme":     {"phase": "both",       "alpha": 2.0, "clip_suppress_thresh": 0.248, "clip_suppress_alpha": 5.0, "eps": 0.0},
 }
@@ -135,9 +142,9 @@ SRF_ARCH_PARAMS = {
         "spatial_merge_size":   1,
         "image_token":          None,   # use model.config.image_token_index
         # ── NOT tuned — ClearSight paper starting point ──
-        "layer_start":          8,
-        "layer_end":            20,
-        "head_top_k_pct":       0.20,
+        "layer_start":          10,     # VAF-like: middle layers
+        "layer_end":            15,     # VAF-like: narrower range
+        "head_top_k_pct":       0.50,   # VAF-like: more heads
         "clip_coarse_grid":     6,      # LLaVA uses 336px images → slightly smaller grid
         "clip_top_k_pct":       0.30,
         "clip_fallback_thresh": 0.20,

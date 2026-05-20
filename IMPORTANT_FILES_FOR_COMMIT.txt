@@ -1,0 +1,165 @@
+# IMPORTANT FILES TO COMMIT TO GIT (SRF Remote Branch)
+
+## CRITICAL FILES (Must Commit)
+
+### Core SRF Implementation
+- srf/CONTEXT.md                      # Algorithm documentation & reference
+- srf/config.py                       # Central configuration (hyperparameters)
+- srf/eval.py                         # Main evaluation CLI script
+- srf/srf.py                          # SRF base implementation
+- srf/srf_e.py                        # SRF-E (evidence-amplified) implementation
+- srf/eval_datasets.py                # Dataset loaders
+
+### Analysis & Tools
+- my_analysis/qwen_attn_patch.py      # Attention patching engine
+- srf/saliency/clip_salience.py       # CLIP-based saliency computation
+
+### Documentation (Essential)
+- SRF_TARGET_OBJECTIVES.md             # Success criteria & current goals
+- SRF_EXPERIMENT_STATUS.md            # Latest experiment results & status
+- POPE_BASELINE_COMPARISON.md         # Correct baselines vs papers
+- BRANCH_USAGE_GUIDE.md               # THIS FILE - comprehensive usage guide
+
+### Analysis Scripts
+- final_results_analysis.py            # Results analysis & table generation
+
+### Key Scripts
+- run_focused_srf_sweep.sh            # Main sweep launcher
+- check_sweep_detailed.sh             # Status monitoring script
+- launch_gqa_comprehensive_sweep.sh   # GQA sweep launcher
+- launch_diagnostic_round.sh          # Ultra-low alpha testing
+
+### Project Context
+- skills/vlm-proj-context.md           # Comprehensive project context (auto-loads)
+
+## IMPORTANT FILES (Should Commit)
+
+### Additional Documentation
+- SRF_DEBUG_CONTEXT.md                # Why SRF got 0.00% delta (historical)
+- SRF_SWEEP_PROGRESS.md               # Original sweep plan
+- POPE_COMPLETE_RESULTS_TABLE.md      # Full results across datasets
+
+### Supporting Scripts
+- run_pope_*.sh                       # Individual POPE dataset scripts
+- check_srf_*.sh                      # Various status checking scripts
+
+### Status Files
+- SRF_AUTOPILOT_STATUS.md             # AutoResearch experiment status
+- SRF_EXPERIMENTS_MONITORING.md       # Monitoring setup
+
+## OPTIONAL FILES (Nice to Have)
+
+### Research Notes
+- Next_steps.md                       # Future directions & ideas
+- BASELINE_DISCREPANCY_INVESTIGATION.md
+- GQA_ADVERSARIAL_INVESTIGATION.md
+- SRF_FINAL_RESULTS.md
+- MMVP_PHASE1_FINAL_REPORT.md
+
+### Additional Analysis
+- my_analysis/llava_attn_patch_*.py   # Various patching attempts
+- srf/ALL_RESULTS.tsv                 # Aggregate results
+
+## DO NOT COMMIT (Local/Cache Files)
+
+### Results & Logs (Too Large)
+- results/srf_focused_sweep/          # Large result files
+- results/autoresearch_*/             # AutoResearch outputs
+- results/llava_pope_*/               # Individual experiment results
+- results/*.log                       # Log files
+- hf_home/                            # HuggingFace cache
+
+### Temporary Files
+- *.pyc                               # Python bytecode
+- __pycache__/                        # Python cache
+- *.swp                               # Editor swap files
+
+### Data Files (Assumed Local)
+- /home/anna2/shruthi/dataset/        # Dataset files (too large)
+- Any downloaded images/videos
+
+## COMMIT STRATEGY
+
+### 1. Core Implementation (First Commit)
+```bash
+git add srf/CONTEXT.md srf/config.py srf/eval.py srf/srf.py srf/srf_e.py
+git add my_analysis/qwen_attn_patch.py
+git add srf/saliency/clip_salience.py
+git commit -m "Add SRF core implementation"
+```
+
+### 2. Documentation (Second Commit)
+```bash
+git add SRF_TARGET_OBJECTIVES.md SRF_EXPERIMENT_STATUS.md
+git add POPE_BASELINE_COMPARISON.md BRANCH_USAGE_GUIDE.md
+git add skills/vlm-proj-context.md
+git commit -m "Add SRF documentation and usage guides"
+```
+
+### 3. Scripts & Tools (Third Commit)
+```bash
+git add run_focused_srf_sweep.sh check_sweep_detailed.sh
+git add launch_gqa_comprehensive_sweep.sh launch_diagnostic_round.sh
+git add final_results_analysis.py
+git commit -m "Add SRF evaluation scripts and tools"
+```
+
+### 4. Additional Documentation (Fourth Commit)
+```bash
+git add SRF_DEBUG_CONTEXT.md SRF_SWEEP_PROGRESS.md
+git add POPE_COMPLETE_RESULTS_TABLE.md
+git add run_pope_*.sh check_srf_*.sh
+git commit -m "Add additional SRF documentation and scripts"
+```
+
+## TESTING AFTER CLONE
+
+After cloning this branch elsewhere, test with:
+
+```bash
+# 1. Environment
+conda activate mllm
+cd /path/to/lmms-eval
+
+# 2. Test imports
+python -c "from srf.srf import SRF; print('SRF OK')"
+python -c "from srf.saliency.clip_salience import compute_clip_saliency; print('CLIP OK')"
+
+# 3. Quick evaluation test
+python srf/eval.py --method srf --model llava-hf/llava-1.5-7b-hf --datasets pope --pope_splits adversarial --n_pope 5 --output results/test/
+
+# 4. Check status
+bash check_sweep_detailed.sh
+python final_results_analysis.py
+```
+
+## KEY CONTEXT FILES
+
+When working remotely, always start by reading:
+1. **BRANCH_USAGE_GUIDE.md** (this file) - Quick start & commands
+2. **srf/CONTEXT.md** - Algorithm details & hyperparameters  
+3. **SRF_EXPERIMENT_STATUS.md** - Latest results & current status
+4. **skills/vlm-proj-context.md** - Full project context (or run `/vlm-proj-context`)
+
+## DATASET SETUP (Required)
+
+Before running experiments, download datasets:
+
+```bash
+# POPE Dataset
+mkdir -p /home/anna2/shruthi/dataset/POPE_images
+cd /home/anna2/shruthi/dataset/POPE_images
+git clone https://github.com/AoiDragon/POPE.git temp_pope
+mv temp_pope/coco/*.json ./
+mv temp_pope/gqa/*.json ./
+mv temp_pope/a-okvqa/*.json ./
+
+# Download images separately
+# COCO: http://images.cocodataset.org/zips/val2014.zip
+# GQA: https://storage.googleapis.com/gqa/images.zip  
+# A-OKVQA: https://storage.googleapis.com/okvqa/visual-genome/images.zip
+```
+
+---
+*Generated: May 2026 - SRF Remote Branch*
+*Purpose: Ensure all critical files are committed for remote use*

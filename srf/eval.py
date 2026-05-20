@@ -84,16 +84,27 @@ def parse_args():
                    help="Run baseline (no intervention). Shortcut for --method baseline")
     p.add_argument("--model",    default=CFG.DEFAULT_MODEL)
     p.add_argument("--datasets", nargs="+", default=["mmvp", "pope"],
-                   choices=["mmvp", "pope", "vlmbias", "mme"])
+                   choices=["mmvp", "pope", "pope_vcd", "vlmbias", "mme"])
     p.add_argument("--beta",     type=float, nargs="+", default=[CFG.SRFE_DEFAULT_BETA],
                    help="Contrastive β (srfe only; ignored for srf)")
 
+    p.add_argument("--eval_method", default="logits",
+                   choices=["logits", "generation"],
+                   help="Evaluation method: logits (single-token, strict) or generation (text matching, lenient)")
     # ── POPE ──────────────────────────────────────────────────────────────────
     p.add_argument("--pope_splits", nargs="+", default=CFG.POPE_SPLITS,
                    choices=["adversarial", "popular", "random"],
                    help="POPE splits to run (default: all three)")
     p.add_argument("--n_pope",   type=int, default=CFG.POPE_N_FULL,
                    help="POPE samples per split (-1=all, default=-1=all)")
+    p.add_argument("--pope_vcd_file", type=str, default=None,
+                   help="Path to custom POPE JSON file (VCD format)")
+    p.add_argument("--pope_vcd_name", type=str, default=None,
+                   help="Name for custom POPE dataset")
+    p.add_argument("--pope_image_dir", type=str, default=None,
+                   help="Path to image directory for POPE VCD evaluation")
+    p.add_argument("--calib_dataset", type=str, default=None,
+                   help="Dataset to use for SRF calibration (default: args.datasets[0])")
     p.add_argument("--n_mme",    type=int, default=-1,
                    help="MME samples (-1=all, default=-1=all)")
     p.add_argument("--seed",     type=int, default=CFG.POPE_SEED)
@@ -113,6 +124,16 @@ def parse_args():
                    help="Attention logit boost magnitude (overrides dataset config)")
     p.add_argument("--eps",              type=float, default=None,
                    help="Background suppression epsilon (overrides dataset config)")
+    p.add_argument("--text_beta",        type=float, default=None,
+                   help="Text-token suppression strength (default: 0.0 = disabled)")
+    p.add_argument("--text_layer_start", type=int,   default=None,
+                   help="First layer for text suppression (default: 20)")
+    p.add_argument("--text_layer_end",   type=int,   default=None,
+                   help="Last layer for text suppression (default: 27)")
+    p.add_argument("--clip_suppress_thresh", type=float, default=None,
+                   help="Absence detection threshold. Set to 0.0 to DISABLE (use simple boost). Default: 0.248")
+    p.add_argument("--clip_suppress_alpha",  type=float, default=None,
+                   help="Suppression strength when object absent (only used if thresh>0). Default: 5.0")
     p.add_argument("--phase",            default=None,
                    choices=["prefill", "generation", "both"],
                    help="Which phase to apply SRF (overrides dataset config)")
@@ -123,6 +144,14 @@ def parse_args():
                    help="Fraction of image tokens boosted by CLIP saliency")
     p.add_argument("--clip_fallback_thresh", type=float, default=None,
                    help="CLIP max-sim below which uniform boost is used")
+
+    # Sampling decoding (VCD paper method)
+    p.add_argument("--do_sample", action="store_true",
+                   help="Use sampling decoding (do_sample=True) instead of greedy")
+    p.add_argument("--temperature", type=float, default=0.7,
+                   help="Temperature for sampling (default: 0.7)")
+    p.add_argument("--top_p", type=float, default=0.9,
+                   help="Top-p for sampling (default: 0.9)")
 
     return p.parse_args()
 
@@ -222,13 +251,32 @@ def apply_chat_template(processor, msgs: list, tokenize: bool = False, add_gener
             prompt = f"A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. USER: {user_text} ASSISTANT:"
             return prompt
 
-    # Standard chat template
-    if hasattr(processor, 'apply_chat_template') and callable(processor.apply_chat_template):
-        return processor.apply_chat_template(msgs, tokenize=tokenize, add_generation_prompt=add_generation_prompt)
-    elif hasattr(processor, 'tokenizer') and hasattr(processor.tokenizer, 'apply_chat_template'):
-        return processor.tokenizer.apply_chat_template(msgs, tokenize=tokenize, add_generation_prompt=add_generation_prompt)
-    else:
-        raise AttributeError(f"No apply_chat_template method found on processor {type(processor)}")
+    # Standard chat template (with error handling for missing templates)
+    try:
+        if hasattr(processor, 'apply_chat_template') and callable(processor.apply_chat_template):
+            return processor.apply_chat_template(msgs, tokenize=tokenize, add_generation_prompt=add_generation_prompt)
+        elif hasattr(processor, 'tokenizer') and hasattr(processor.tokenizer, 'apply_chat_template'):
+            return processor.tokenizer.apply_chat_template(msgs, tokenize=tokenize, add_generation_prompt=add_generation_prompt)
+    except (ValueError, AttributeError) as e:
+        # LLaVA and other old models raise ValueError when chat_template is missing
+        # Fall through to manual format below
+        pass
+
+    # Final fallback: manual LLaVA format (for models without chat template)
+    if hasattr(processor, 'tokenizer'):
+        user_content = []
+        for msg in msgs:
+            if msg["role"] == "user":
+                for item in msg["content"]:
+                    if item["type"] == "image":
+                        user_content.append("<image>")
+                    elif item["type"] == "text":
+                        user_content.append(item["text"])
+        user_text = " ".join(user_content)
+        prompt = f"A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. USER: {user_text} ASSISTANT:"
+        return prompt
+
+    raise AttributeError(f"No apply_chat_template method found on processor {type(processor)}")
 
 
 def get_token_id(processor, token: str) -> int:
@@ -305,7 +353,17 @@ def format_qwen_msgs(msgs: list, processor, model) -> tuple:
     # CRITICAL: Add response trigger so model knows to generate
     # Qwen-VL expects the prompt to end with a response indicator
     text = text + "\nAssistant:"
+
+    # Return images list for cleanup later
     return text, images
+
+def cleanup_qwen_temp_images(images: list) -> None:
+    """Clean up temporary Qwen-VL image files."""
+    for temp_path in images:
+        try:
+            os.unlink(temp_path)
+        except (FileNotFoundError, PermissionError):
+            pass  # File already deleted or can't delete
 
 def get_img_range(input_ids: torch.Tensor, img_token_id: int) -> tuple[int, int]:
     """
@@ -374,16 +432,23 @@ def method_get_logits(method_mod, model, inp: dict, beta: float, baseline: bool 
     """Single-token logits [1, vocab]: SRF uses one pass, SRF-E uses two."""
     if baseline:
         # Baseline: no intervention, just run the model
+        print(f"[DEBUG method_get_logits] BASELINE mode - no SRF", flush=True)
         with torch.inference_mode():
             out = model(**inp)
         return out.logits[:, -1, :].float()
     if hasattr(method_mod, "get_contrastive_logits"):
+        print(f"[DEBUG method_get_logits] Using contrastive logits (SRF-E)", flush=True)
         return method_mod.get_contrastive_logits(model, inp, beta=beta)
     # SRF base: patched model, single pass
+    print(f"[DEBUG method_get_logits] SRF mode - setting patch._STATE['method'] = 'srf'", flush=True)
+    print(f"[DEBUG method_get_logits] enh_para: {patch._STATE.get('enh_para', 'NOT SET')}", flush=True)
+    print(f"[DEBUG method_get_logits] salience_mask: {patch._STATE.get('salience_mask', 'NOT SET')}", flush=True)
     patch._STATE["method"] = "srf"
     with torch.inference_mode():
         out = model(**inp)
-    return out.logits[:, -1, :].float()
+    logits = out.logits[:, -1, :].float()
+    print(f"[DEBUG method_get_logits] Logits shape: {logits.shape}, mean: {logits.mean().item():.4f}", flush=True)
+    return logits
 
 
 def method_generate(method_mod, model, inp: dict, processor, beta: float,
@@ -414,6 +479,11 @@ def _reset_overrides(args) -> dict:
         phase=args.phase,
         alpha=args.alpha,
         eps=args.eps,
+        text_beta=args.text_beta,
+        text_layer_start=args.text_layer_start,
+        text_layer_end=args.text_layer_end,
+        clip_suppress_thresh=args.clip_suppress_thresh,
+        clip_suppress_alpha=args.clip_suppress_alpha,
         layer_start=args.layer_start,
         layer_end=args.layer_end,
         head_top_k_pct=args.head_top_k_pct,
@@ -524,16 +594,33 @@ def run_pope(method_mod, model, processor, img_token_id, device, args) -> dict:
                 pred_base = "yes" if "yes" in generated_part.lower() else "no"
         else:
             with torch.inference_mode():
-                logits_base = model(**inp).logits[:, -1, :].float()
+                # Choose evaluation method based on args
+                if args.eval_method == "generation":
+                    # Generation-based: generate text and check for "yes"/"no"
+                    max_new_tokens = 20
+                    eos_token_id = getattr(processor, 'eos_token_id', None)
 
-                # For POPE with LLaVA, compare " Yes" vs " No" tokens
-                # LLaVA generates " Yes" (3869) and " No" (1939) as single tokens
-                # Get these token IDs by encoding
-                yes_with_space_id = processor.tokenizer.encode(" Yes", add_special_tokens=False)[0]
-                no_with_space_id = processor.tokenizer.encode(" No", add_special_tokens=False)[0]
-                yes_logit = logits_base[0, yes_with_space_id].item()
-                no_logit = logits_base[0, no_with_space_id].item()
-                pred_base = "yes" if yes_logit > no_logit else "no"
+                    generated = model.generate(
+                        **inp,
+                        max_new_tokens=max_new_tokens,
+                        do_sample=False,
+                        eos_token_id=eos_token_id
+                    )
+                    generated_ids = generated[0][inp["input_ids"].shape[1]:]
+                    generated_part = processor.decode(generated_ids, skip_special_tokens=True).strip().lower()
+                    pred_base = "yes" if "yes" in generated_part else "no"
+                else:
+                    # Logits-based: compare " Yes" vs " No" tokens (original method)
+                    logits_base = model(**inp).logits[:, -1, :].float()
+
+                    # For POPE with LLaVA, compare " Yes" vs " No" tokens
+                    # LLaVA generates " Yes" (3869) and " No" (1939) as single tokens
+                    # Get these token IDs by encoding
+                    yes_with_space_id = processor.tokenizer.encode(" Yes", add_special_tokens=False)[0]
+                    no_with_space_id = processor.tokenizer.encode(" No", add_special_tokens=False)[0]
+                    yes_logit = logits_base[0, yes_with_space_id].item()
+                    no_logit = logits_base[0, no_with_space_id].item()
+                    pred_base = "yes" if yes_logit > no_logit else "no"
 
         # Track baseline confusion matrix
         if gt == "yes":
@@ -693,6 +780,276 @@ def run_pope(method_mod, model, processor, img_token_id, device, args) -> dict:
     return result
 
 
+def run_pope_vcd(method_mod, model, processor, img_token_id, device, args) -> dict:
+    """Run POPE evaluation on custom VCD-format dataset file."""
+    import json
+    import os
+    from PIL import Image
+
+    betas = args.beta if args.method == "srfe" else [0.0]
+    is_baseline = args.method == "baseline"
+    is_qwen_vl = hasattr(processor, 'from_list_format') and callable(processor.from_list_format)
+
+    dataset_name = args.pope_vcd_name
+    file_path = args.pope_vcd_file
+    image_dir = args.pope_image_dir
+
+    print("\n" + "="*60)
+    print(f"DATASET: POPE VCD ({dataset_name})")
+    print(f"FILE: {file_path}")
+    if image_dir:
+        print(f"IMAGE DIR: {image_dir}")
+    if is_baseline:
+        print("MODE: BASELINE (no intervention)")
+    else:
+        print(f"MODE: {args.method.upper()}")
+    if is_qwen_vl:
+        print("FORMAT: Qwen-VL (using from_list_format)")
+    print("="*60)
+
+    if not is_baseline:
+        method_mod.reset_for_dataset(dataset="pope", **_reset_overrides(args))
+
+    # Load custom POPE data with images
+    items = []
+    missing_images = []
+
+    with open(file_path, 'r') as f:
+        content = f.read().strip()
+
+        # Check if it's a JSON array (A-OKVQA, GQA) or JSONL (COCO)
+        if content.startswith('['):
+            # JSON array format
+            data_list = json.loads(content)
+            for data in data_list:
+                image_filename = str(data.get("image", ""))
+
+                # Load image from file if image_dir is provided
+                if image_dir:
+                    image_path = os.path.join(image_dir, image_filename)
+                    if not os.path.exists(image_path):
+                        missing_images.append(image_filename)
+                        continue
+                    try:
+                        pil_image = Image.open(image_path).convert("RGB")
+                    except Exception as e:
+                        print(f"  Warning: Failed to load {image_filename}: {e}")
+                        continue
+                else:
+                    # Fallback: try loading from HuggingFace
+                    pil_image = None
+
+                items.append({
+                    "question_id": data.get("question_id", 0),
+                    "image": pil_image,
+                    "question": str(data.get("text", "")),
+                    "label": str(data.get("label", ""))
+                })
+        else:
+            # JSONL format (one JSON per line)
+            for line in content.split('\n'):
+                if line.strip():
+                    data = json.loads(line)
+                    image_filename = str(data.get("image", ""))
+
+                    # Load image from file if image_dir is provided
+                    if image_dir:
+                        image_path = os.path.join(image_dir, image_filename)
+                        if not os.path.exists(image_path):
+                            missing_images.append(image_filename)
+                            continue
+                        try:
+                            pil_image = Image.open(image_path).convert("RGB")
+                        except Exception as e:
+                            print(f"  Warning: Failed to load {image_filename}: {e}")
+                            continue
+                    else:
+                        # Fallback: try loading from HuggingFace
+                        pil_image = None
+
+                    items.append({
+                        "question_id": data.get("question_id", 0),
+                        "image": pil_image,
+                        "question": str(data.get("text", "")),
+                        "label": str(data.get("label", ""))
+                    })
+
+    if missing_images:
+        print(f"  WARNING: {len(missing_images)} images not found")
+
+    print(f"  Loaded {len(items)} VCD POPE samples")
+
+    # Initialize metrics
+    tp_base = tn_base = fp_base = fn_base = 0
+    tp_srf = {b: 0 for b in betas}
+    tn_srf = {b: 0 for b in betas}
+    fp_srf = {b: 0 for b in betas}
+    fn_srf = {b: 0 for b in betas}
+
+    # Process each sample
+    for i, item in enumerate(items):
+        if (i + 1) % 500 == 0 or (i + 1) == len(items):
+            print(f"  [{i+1:5d}/{len(items)}]")
+
+        image = item["image"]
+        q = item["question"]
+        gt = "yes" if item["label"].lower() == "yes" else "no"
+
+        # Prepare input
+        if is_qwen_vl:
+            msgs = [{"role": "user", "content": [{"type": "image", "image": image},
+                                                {"type": "text", "text": q}]}]
+            inp = processor.from_list_format(msgs, return_tensors="pt").to(device)
+        else:
+            msgs = [{"role": "user", "content": [{"type": "image", "image": image},
+                                                {"type": "text", "text": q}]}]
+            text = apply_chat_template(processor, msgs, tokenize=False, add_generation_prompt=True)
+            vis, _ = process_vision_info(msgs)
+            inp = processor(text=[text], images=vis, return_tensors="pt", padding=True).to(device)
+
+        s, e = get_img_range(inp["input_ids"], img_token_id)
+
+        # Baseline prediction
+        patch._STATE["method"] = "baseline"
+
+        if is_qwen_vl:
+            with torch.inference_mode():
+                max_new_tokens = 20
+                eos_token_id = getattr(processor, 'eod_id', getattr(processor, 'eos_token_id', 151644))
+                if args.do_sample:
+                    generated = model.generate(**inp, max_new_tokens=max_new_tokens, do_sample=True,
+                                               temperature=args.temperature, top_p=args.top_p, eos_token_id=eos_token_id)
+                else:
+                    generated = model.generate(**inp, max_new_tokens=max_new_tokens, do_sample=False, eos_token_id=eos_token_id)
+                generated_ids = generated[0][inp["input_ids"].shape[1]:]
+                generated_part = processor.decode(generated_ids, skip_special_tokens=True).strip().lower()
+                pred_base = "yes" if "yes" in generated_part else "no"
+        else:
+            with torch.inference_mode():
+                if args.eval_method == "generation":
+                    max_new_tokens = 20
+                    eos_token_id = getattr(processor, 'eos_token_id', None)
+                    if args.do_sample:
+                        generated = model.generate(**inp, max_new_tokens=max_new_tokens, do_sample=True,
+                                                   temperature=args.temperature, top_p=args.top_p, eos_token_id=eos_token_id)
+                    else:
+                        generated = model.generate(**inp, max_new_tokens=max_new_tokens, do_sample=False, eos_token_id=eos_token_id)
+                    generated_ids = generated[0][inp["input_ids"].shape[1]:]
+                    generated_part = processor.decode(generated_ids, skip_special_tokens=True).strip().lower()
+                    pred_base = "yes" if "yes" in generated_part else "no"
+                else:
+                    logits_base = model(**inp).logits[:, -1, :].float()
+                    yes_with_space_id = processor.tokenizer.encode(" Yes", add_special_tokens=False)[0]
+                    no_with_space_id = processor.tokenizer.encode(" No", add_special_tokens=False)[0]
+                    yes_logit = logits_base[0, yes_with_space_id].item()
+                    no_logit = logits_base[0, no_with_space_id].item()
+                    pred_base = "yes" if yes_logit > no_logit else "no"
+
+        # Track baseline metrics
+        if gt == "yes":
+            if pred_base == "yes":
+                tp_base += 1
+            else:
+                fn_base += 1
+        else:
+            if pred_base == "no":
+                tn_base += 1
+            else:
+                fp_base += 1
+
+        # Method prediction
+        if not is_baseline:
+            method_mod.prepare_sample(inp, s, e, image, q, model, processor)
+            for beta in betas:
+                if is_qwen_vl:
+                    max_new_tokens = 20
+                    eos_token_id = getattr(processor, 'eod_id', getattr(processor, 'eos_token_id', 151644))
+                    if args.do_sample:
+                        generated = model.generate(**inp, max_new_tokens=max_new_tokens, do_sample=True,
+                                                   temperature=args.temperature, top_p=args.top_p, eos_token_id=eos_token_id)
+                    else:
+                        generated = model.generate(**inp, max_new_tokens=max_new_tokens, do_sample=False, eos_token_id=eos_token_id)
+                    generated_ids = generated[0][inp["input_ids"].shape[1]:]
+                    pred_text = processor.decode(generated_ids, skip_special_tokens=True).strip().lower()
+                    pred = "yes" if "yes" in pred_text else "no"
+                else:
+                    with torch.inference_mode():
+                        if args.eval_method == "generation":
+                            max_new_tokens = 20
+                            eos_token_id = getattr(processor, 'eos_token_id', None)
+                            if args.do_sample:
+                                generated = model.generate(**inp, max_new_tokens=max_new_tokens, do_sample=True,
+                                                           temperature=args.temperature, top_p=args.top_p, eos_token_id=eos_token_id)
+                            else:
+                                generated = model.generate(**inp, max_new_tokens=max_new_tokens, do_sample=False, eos_token_id=eos_token_id)
+                            generated_ids = generated[0][inp["input_ids"].shape[1]:]
+                            generated_part = processor.decode(generated_ids, skip_special_tokens=True).strip().lower()
+                            pred = "yes" if "yes" in generated_part else "no"
+                        else:
+                            logits = method_get_logits(method_mod, model, inp, beta, baseline=False)
+                            pred_text = decode_first_token(logits, processor)
+                            pred = "yes" if pred_text.startswith("yes") else "no"
+
+                # Track method metrics
+                if gt == "yes":
+                    if pred == "yes":
+                        tp_srf[beta] += 1
+                    else:
+                        fn_srf[beta] += 1
+                else:
+                    if pred == "no":
+                        tn_srf[beta] += 1
+                    else:
+                        fp_srf[beta] += 1
+            method_mod.cleanup()
+
+    n = len(items)
+
+    # Calculate final metrics
+    def calc_metrics(tp, tn, fp, fn, total=None):
+        total_n = total if total is not None else n
+        accuracy = (tp + tn) / total_n
+        precision = tp / max(1, tp + fp)
+        recall = tp / max(1, tp + fn)
+        f1 = 2 * precision * recall / max(0.001, precision + recall)
+        return {"accuracy": accuracy, "precision": precision, "recall": recall, "f1": f1}
+
+    base_metrics = calc_metrics(tp_base, tn_base, fp_base, fn_base)
+    srf_metrics = {b: calc_metrics(tp_srf[b], tn_srf[b], fp_srf[b], fn_srf[b]) for b in betas} if not is_baseline else {}
+
+    result = {
+        "dataset": dataset_name,
+        "file": file_path,
+        "n_samples": n,
+        "baseline": {
+            "accuracy": base_metrics["accuracy"],
+            "precision": base_metrics["precision"],
+            "recall": base_metrics["recall"],
+            "f1": base_metrics["f1"],
+            "tp": tp_base,
+            "tn": tn_base,
+            "fp": fp_base,
+            "fn": fn_base
+        }
+    }
+
+    if not is_baseline:
+        result["method"] = {}
+        for b in betas:
+            result["method"][str(b)] = {
+                "accuracy": srf_metrics[b]["accuracy"],
+                "precision": srf_metrics[b]["precision"],
+                "recall": srf_metrics[b]["recall"],
+                "f1": srf_metrics[b]["f1"],
+                "tp": tp_srf[b],
+                "tn": tn_srf[b],
+                "fp": fp_srf[b],
+                "fn": fn_srf[b]
+            }
+
+    return result
+
+
 # ---------------------------------------------------------------------------
 # MMVP
 # ---------------------------------------------------------------------------
@@ -777,6 +1134,10 @@ def run_mmvp(method_mod, model, processor, img_token_id, device, args) -> dict:
                 pair_srf[beta][pair_id][img_key] = ok
             method_mod.cleanup()
 
+        # Clean up Qwen-VL temp images after processing each sample
+        if is_qwen_vl:
+            cleanup_qwen_temp_images([])  # Will be populated with actual paths
+
         if csv_1idx % 60 == 0:
             bp  = [(pid, r) for pid, r in pair_base.items() if "a" in r and "b" in r]
             bpa = sum(1 for _, r in bp if r["a"] and r["b"]) / max(1, len(bp))
@@ -817,7 +1178,9 @@ def run_vlmbias(method_mod, model, processor, img_token_id, device, args) -> dic
     print(f"DATASET: VLM Bias (7 cats, {n_label}, seed={CFG.VLM_BIAS_SEED})")
     print("="*60)
 
-    method_mod.reset_for_dataset(dataset="vlmbias", **_reset_overrides(args))
+    is_baseline = method_mod is None
+    if not is_baseline:
+        method_mod.reset_for_dataset(dataset="vlmbias", **_reset_overrides(args))
 
     def normalise(s: str) -> str:
         return s.strip().lower().lstrip("{").rstrip("}")
@@ -849,6 +1212,7 @@ def run_vlmbias(method_mod, model, processor, img_token_id, device, args) -> dic
     correct_base = 0
     correct_srf  = {b: 0 for b in betas}
     cat_base     = {c: {"correct": 0, "total": 0} for c in CFG.VLM_BIAS_CATEGORIES}
+    cat_srf      = {b: {c: {"correct": 0, "total": 0} for c in CFG.VLM_BIAS_CATEGORIES} for b in betas}
 
     for i, sample in enumerate(samples):
         msgs  = [{"role": "user", "content": [{"type": "image", "image": sample["image"]},
@@ -873,16 +1237,20 @@ def run_vlmbias(method_mod, model, processor, img_token_id, device, args) -> dic
         cat_base[sample["category"]]["total"]   += 1
 
         # Method
-        method_mod.prepare_sample(inp, s, e, sample["image"], sample["question"],
-                                   model, processor)
-        for beta in betas:
-            gen_ids = method_generate(method_mod, model, inp, processor,
-                                      beta=beta, max_new_tokens=20)
-            raw_c   = processor.decode(gen_ids, skip_special_tokens=True)
-            pred_c  = normalise(extract_answer(raw_c))
-            if pred_c == sample["gt"]:
-                correct_srf[beta] += 1
-        method_mod.cleanup()
+        if not is_baseline:
+            method_mod.prepare_sample(inp, s, e, sample["image"], sample["question"],
+                                       model, processor)
+            for beta in betas:
+                gen_ids = method_generate(method_mod, model, inp, processor,
+                                          beta=beta, max_new_tokens=20)
+                raw_c   = processor.decode(gen_ids, skip_special_tokens=True)
+                pred_c  = normalise(extract_answer(raw_c))
+                ok_c = (pred_c == sample["gt"])
+                if ok_c:
+                    correct_srf[beta] += 1
+                # Track category-wise SRF results
+                cat_srf[beta][sample["category"]]["correct"] += int(ok_c)
+            method_mod.cleanup()
 
         if (i + 1) % 20 == 0:
             n = i + 1
@@ -902,7 +1270,14 @@ def run_vlmbias(method_mod, model, processor, img_token_id, device, args) -> dic
         cb = cat_base[cat]
         print(f"    {cat:20s}: {cb['correct']}/{cb['total']}")
 
-    return {"n": total, "baseline": acc_base, "method": acc_srf, "cat_baseline": cat_base}
+    # Print per-category SRF results if available
+    if not is_baseline:
+        print("\n  Per-category (SRF):")
+        for cat in CFG.VLM_BIAS_CATEGORIES:
+            cs = cat_srf[betas[0]][cat]  # Use first beta for SRF base
+            print(f"    {cat:20s}: {cs['correct']}/{cs['total']}")
+
+    return {"n": total, "baseline": acc_base, "method": acc_srf, "cat_baseline": cat_base, "cat_srf": cat_srf}
 
 
 # ---------------------------------------------------------------------------
@@ -1133,7 +1508,30 @@ def run_mme(method_mod, model, processor, img_token_id, device, args) -> dict:
 # Main
 # ---------------------------------------------------------------------------
 
+# Global registry for Qwen-VL temp files (for cleanup)
+_qwen_temp_files: list = []
+
+def cleanup_qwen_temp_images(images: list | None = None) -> None:
+    """Clean up temporary Qwen-VL image files."""
+    if images is None:
+        # Clean up all tracked temp files
+        global _qwen_temp_files
+        for temp_path in _qwen_temp_files[:]:  # Copy list to avoid modification during iteration
+            try:
+                os.unlink(temp_path)
+            except (FileNotFoundError, PermissionError):
+                pass
+        _qwen_temp_files.clear()
+    else:
+        # Clean up specific files
+        for temp_path in images:
+            try:
+                os.unlink(temp_path)
+            except (FileNotFoundError, PermissionError):
+                pass
+
 def main():
+    print("[STARTUP] SRF evaluation starting...", flush=True)
     args = parse_args()
 
     # Handle --baseline flag
@@ -1169,7 +1567,8 @@ def main():
         # (needed for both srf and srfe since srf_e imports from srf)
         import srf as srf_mod
         srf_mod.patch = patch
-        method_mod.setup(model, processor, calib_dataset=args.datasets[0])
+        calib_ds = args.calib_dataset if args.calib_dataset else args.datasets[0]
+        method_mod.setup(model, processor, calib_dataset=calib_ds)
 
     results = {}
 
@@ -1184,6 +1583,12 @@ def main():
     if "pope" in args.datasets:
         results["pope"] = run_pope(method_mod, model, processor, img_token_id, device, args)
         save_results(results["pope"], args.output, "pope")
+
+    if "pope_vcd" in args.datasets:
+        if not args.pope_vcd_file or not args.pope_vcd_name:
+            raise ValueError("--pope_vcd_file and --pope_vcd_name required for pope_vcd dataset")
+        results["pope_vcd"] = run_pope_vcd(method_mod, model, processor, img_token_id, device, args)
+        save_results(results["pope_vcd"], args.output, f"pope_{args.pope_vcd_name}")
 
     if "mme" in args.datasets:
         results["mme"] = run_mme(method_mod, model, processor, img_token_id, device, args)
@@ -1262,10 +1667,7 @@ def main():
                   f"Δ={_p(r['method_acc'][b]-r['baseline_acc'])}  "
                   f"perc={r['method_perception'][b]}  cogn={r['method_cognition'][b]}")
 
-    if args.output:
-        save_results(results, args.output, "summary")
-        print(f"\nAll results saved to {args.output}")
-
-
 if __name__ == "__main__":
     main()
+
+ 

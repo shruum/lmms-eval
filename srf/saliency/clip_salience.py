@@ -148,16 +148,32 @@ def compute_clip_salience(
     with torch.no_grad():
         img_inputs = processor(images=patches, return_tensors="pt",
                                padding=True).to(_CLIP_INFER_DEVICE)
-        img_feats  = model.get_image_features(**img_inputs)      # (n_patches, d)
+        img_out    = model.get_image_features(**img_inputs)      # (n_patches, d)
+        # Handle both old transformers (tensor) and new (BaseModelOutputWithPooling)
+        # Old: returns tensor directly (n_patches, 512)
+        # New: returns BaseModelOutputWithPooling with pooler_output (n_patches, 512)
+        if hasattr(img_out, 'pooler_output'):
+            img_feats = img_out.pooler_output  # (n_patches, 512)
+        elif hasattr(img_out, 'last_hidden_state'):
+            img_feats = img_out.last_hidden_state[:, 0, :]  # Use [CLS] token
+        else:
+            img_feats = img_out  # Old format: direct tensor
         img_feats  = img_feats / img_feats.norm(dim=-1, keepdim=True)
 
         txt_inputs = processor(text=[noun], return_tensors="pt",
                                padding=True, truncation=True,
                                max_length=77).to(_CLIP_INFER_DEVICE)
-        txt_feat   = model.get_text_features(**txt_inputs)        # (1, d)
+        txt_out    = model.get_text_features(**txt_inputs)        # (1, d)
+        # Handle both old transformers (tensor) and new (BaseModelOutputWithPooling)
+        if hasattr(txt_out, 'pooler_output'):
+            txt_feat = txt_out.pooler_output  # (1, 512)
+        elif hasattr(txt_out, 'last_hidden_state'):
+            txt_feat = txt_out.last_hidden_state[:, 0, :]  # Use [CLS] token
+        else:
+            txt_feat = txt_out  # Old format: direct tensor
         txt_feat   = txt_feat / txt_feat.norm(dim=-1, keepdim=True)
 
-        sims = (img_feats @ txt_feat.T).squeeze(-1).cpu()         # (n_patches,)
+        sims = (img_feats @ txt_feat.mT).squeeze(-1).cpu()         # (n_patches,)
     _clip_model_to_storage()  # free VRAM before Qwen forward pass
 
     max_sim        = float(sims.max())

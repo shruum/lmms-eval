@@ -84,6 +84,10 @@ def _apply_chat_template(processor, msgs: list, tokenize: bool = False, add_gene
         raise AttributeError(f"No apply_chat_template method found on processor {type(processor)}")
 import config as CFG
 
+# Global counter for saliency image saving (only save first N samples for debugging)
+_SALIENCY_SAVE_COUNTER = 0
+_MAX_SALIENCY_SAVES = 20
+
 
 # ---------------------------------------------------------------------------
 # Module state
@@ -434,6 +438,10 @@ def reset_for_dataset(
     phase:    str   | None = None,
     alpha:    float | None = None,
     eps:      float | None = None,
+    # text-token suppression
+    text_beta:        float | None = None,
+    text_layer_start: int   | None = None,
+    text_layer_end:   int   | None = None,
     # arch/layer tunables (scale with model depth)
     layer_start:    int   | None = None,
     layer_end:      int   | None = None,
@@ -470,6 +478,9 @@ def reset_for_dataset(
         "phase":                phase,
         "alpha":                alpha,
         "eps":                  eps,
+        "text_beta":            text_beta,
+        "text_layer_start":     text_layer_start,
+        "text_layer_end":       text_layer_end,
         "layer_start":          layer_start,
         "layer_end":            layer_end,
         "head_top_k_pct":       head_top_k_pct,
@@ -536,13 +547,125 @@ def prepare_sample(inputs, img_start: int, img_end: int,
         target_n_tokens=target_n_tokens,  # Pass token count for upsampling
     )
 
+    # ========== DEBUG ==========
+    print(f"[DEBUG SRF] max_sim: {result.max_sim:.4f}", flush=True)
+    print(f"[DEBUG SRF] fallback_thresh: {SALIENCY['clip_fallback_thresh']:.4f}", flush=True)
+    print(f"[DEBUG SRF] clip_top_k_pct: {SALIENCY['clip_top_k_pct']}", flush=True)
+    print(f"[DEBUG SRF] clip_coarse_grid: {SALIENCY['clip_coarse_grid']}", flush=True)
+    print(f"[DEBUG SRF] noun: {noun}", flush=True)
+    # ========== END DEBUG ==========
+
     # Set saliency mask
     if result.max_sim < SALIENCY["clip_fallback_thresh"]:
+        print(f"[DEBUG SRF] ❌ max_sim < thresh → salience_mask = None", flush=True)
         patch._STATE["salience_mask"] = None
     else:
+        print(f"[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set", flush=True)
         patch._STATE["salience_mask"] = (
             result.saliency if SALIENCY["clip_use_soft"] else result.mask
         )
+        if patch._STATE["salience_mask"] is not None:
+            mask = patch._STATE["salience_mask"]
+            if torch.is_tensor(mask):
+                print(f"[DEBUG SRF] mask: shape={mask.shape}, sum={mask.sum().item():.2f}, mean={mask.mean().item():.4f}", flush=True)
+            else:
+                print(f"[DEBUG SRF] mask: type={type(mask)}", flush=True)
+
+            # ========== SAVE SALIENCY IMAGE FOR VISUAL INSPECTION ==========
+            global _SALIENCY_SAVE_COUNTER, _MAX_SALIENCY_SAVES
+            if _SALIENCY_SAVE_COUNTER < _MAX_SALIENCY_SAVES:
+                try:
+                    import os
+                    import uuid
+                    from PIL import Image
+                    import numpy as np
+
+                    # Create output directory (organize by dataset)
+                    # Detect dataset from question content or use default
+                    output_dir = "results/saliency_images_pope"  # Will change dynamically below
+                    # Check if question contains counting keywords (VLM-Bias style)
+                    question_lower = question.lower() if question else ""
+                    if any(word in question_lower for word in ["how many", "count", "number of", "much"]):
+                        output_dir = "results/saliency_images_vlmbias"
+                    elif "butterfly" in question_lower or "arrow" in question_lower or "direction" in question_lower:
+                        output_dir = "results/saliency_images_mmvp"
+                    else:
+                        output_dir = "results/saliency_images_pope"
+
+                    os.makedirs(output_dir, exist_ok=True)
+
+                    # Generate unique filename with counter
+                    unique_id = uuid.uuid4().hex[:8]
+                    filename = f"{output_dir}/saliency_{_SALIENCY_SAVE_COUNTER+1}_{noun.replace(' ', '_')}.png"
+
+                    # Get original image size
+                    orig_w, orig_h = image.size
+
+                    # Convert mask to numpy
+                    if torch.is_tensor(mask):
+                        mask_np = mask.cpu().numpy()
+                    else:
+                        mask_np = np.array(mask)
+
+                    # Normalize mask to 0-255
+                    if mask_np.max() > 0:
+                        mask_normalized = ((mask_np - mask_np.min()) / (mask_np.max() - mask_np.min()) * 255).astype(np.uint8)
+                    else:
+                        mask_normalized = np.zeros_like(mask_np, dtype=np.uint8)
+
+                    # Create heatmap (same size as original image)
+                    if len(mask_np.shape) == 1:
+                        grid_size = int(np.sqrt(len(mask_np)))
+                        if grid_size * grid_size == len(mask_np):
+                            mask_2d = mask_normalized.reshape(grid_size, grid_size)
+                        else:
+                            grid_h = int(np.sqrt(len(mask_np) * (orig_h / orig_w)))
+                            grid_w = len(mask_np) // grid_h
+                            mask_2d = mask_normalized[:grid_h * grid_w].reshape(grid_h, grid_w)
+                    else:
+                        mask_2d = mask_normalized
+
+                    # Resize to original image size
+                    heatmap = Image.fromarray(mask_2d).resize((orig_w, orig_h), Image.NEAREST)
+
+                    # Create overlay: blend original image with heatmap
+                    original_rgb = image.convert("RGB")
+                    heatmap_rgb = heatmap.convert("RGB")
+
+                    # Use red channel for heatmap
+                    heatmap_colored = Image.new("RGB", (orig_w, orig_h), (0, 0, 0))
+                    for y in range(orig_h):
+                        for x in range(orig_w):
+                            intensity = heatmap.getpixel((x, y)) / 255.0
+                            if intensity < 0.33:
+                                r = int(intensity * 3 * 255)
+                                g = 0
+                                b = 0
+                            elif intensity < 0.66:
+                                r = 255
+                                g = int((intensity - 0.33) * 3 * 255)
+                                b = 0
+                            else:
+                                r = 255
+                                g = 255
+                                b = int((intensity - 0.66) * 3 * 255)
+                            heatmap_colored.putpixel((x, y), (r, g, b))
+
+                    # Blend: 50% original + 50% heatmap
+                    overlay = Image.blend(original_rgb, heatmap_colored, 0.5)
+
+                    # Save side-by-side comparison
+                    comparison = Image.new("RGB", (orig_w * 3, orig_h))
+                    comparison.paste(original_rgb, (0, 0))
+                    comparison.paste(heatmap_rgb, (orig_w, 0))
+                    comparison.paste(overlay, (orig_w * 2, 0))
+                    comparison.save(filename)
+
+                    _SALIENCY_SAVE_COUNTER += 1
+                    print(f"[DEBUG SRF] 📸 Saved saliency visualization ({_SALIENCY_SAVE_COUNTER}/{_MAX_SALIENCY_SAVES}): {filename}", flush=True)
+                except Exception as e:
+                    print(f"[DEBUG SRF] ⚠️  Failed to save saliency image: {e}", flush=True)
+            # ========== END SALIENCY SAVE ==========
 
     # Absence-aware conditional boost/suppress (key innovation)
     # When object likely absent → use LOW enh_para to suppress all image tokens
@@ -555,12 +678,15 @@ def prepare_sample(inputs, img_start: int, img_end: int,
             # Object likely absent → strong suppression (multiplier << 1.0)
             # Use 1.0 / (1.0 + suppress_alpha) to get a small positive value
             patch._STATE["enh_para"] = 1.0 / (1.0 + abs(suppress_alpha))
+            print(f"[DEBUG SRF] Absence-aware: SUPPRESSING (enh_para={patch._STATE['enh_para']:.4f})", flush=True)
         else:
             # Object likely present → gentle boost
             patch._STATE["enh_para"] = abs(BIAS["boost_alpha"])
+            print(f"[DEBUG SRF] Absence-aware: BOOSTING (enh_para={patch._STATE['enh_para']:.4f})", flush=True)
     else:
         # Absence-aware disabled → always boost
         patch._STATE["enh_para"] = BIAS["boost_alpha"]
+        print(f"[DEBUG SRF] enh_para: {patch._STATE['enh_para']:.4f}", flush=True)
 
 
 def cleanup() -> None:

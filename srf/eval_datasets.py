@@ -89,7 +89,22 @@ def load_pope(groups_filter: Optional[List[str]], n_samples: int) -> List[Dict]:
         if cat not in targets:
             continue
         gt     = "Yes" if str(row.get("answer", "")).strip().lower() == "yes" else "No"
-        prompt = str(row.get("question", "")).strip() + "\nAnswer with Yes or No only."
+
+        # Convert "Is there a [object] in the image?" to "Is [object] in this image? Please answer yes or no."
+        question = str(row.get("question", "")).strip()
+
+        # Extract object name from "Is there a [object] in the image?" format
+        if "Is there a" in question and "in the image" in question:
+            # Extract object between "Is there a" and "in the image"
+            obj_start = question.find("Is there a") + len("Is there a")
+            obj_end = question.find("in the image")
+            object_name = question[obj_start:obj_end].strip().rstrip('?').strip()
+
+            # Convert to AIR paper format: "Is [object] in this image? Please answer yes or no."
+            prompt = f"Is {object_name} in this image? Please answer yes or no."
+        else:
+            # Fallback for other question formats
+            prompt = question + " Please answer yes or no."
         by_group[cat].append({
             "image":        row["image"].convert("RGB"),
             "prompt":       prompt,
@@ -103,6 +118,38 @@ def load_pope(groups_filter: Optional[List[str]], n_samples: int) -> List[Dict]:
         out.extend(rng.sample(items, min(n_samples, len(items))))
     print(f"  → {len(out)} samples, {len(by_group)} groups")
     return out
+
+
+def load_pope_vcd(file_path: str, dataset_name: str, n_samples: int = -1) -> List[Dict]:
+    """Load custom POPE dataset in VCD format (JSON lines).
+
+    Format: {"question_id": int, "image": str, "text": str, "label": str}
+    """
+    import json
+    from PIL import Image
+
+    print(f"  Loading POPE VCD: {dataset_name} from {file_path}…")
+
+    items = []
+    with open(file_path, 'r') as f:
+        for line in f:
+            if line.strip():
+                data = json.loads(line)
+                gt = "yes" if str(data.get("label", "")).strip().lower() == "yes" else "no"
+                items.append({
+                    "question_id":  data.get("question_id", 0),
+                    "image_path":   str(data.get("image", "")),
+                    "prompt":       str(data.get("text", "")).strip() + "\nAnswer with Yes or No only.",
+                    "ground_truth": gt,
+                    "group":        dataset_name,
+                })
+
+    if n_samples > 0 and n_samples < len(items):
+        rng = random.Random(SEED)
+        items = rng.sample(items, n_samples)
+
+    print(f"  → {len(items)} samples")
+    return items
 
 
 def load_mmbench(groups_filter: Optional[List[str]], n_samples: int) -> List[Dict]:
@@ -333,6 +380,7 @@ def load_mme(groups_filter: Optional[List[str]], n_samples: int) -> List[Dict]:
 LOADERS: Dict[str, Any] = {
     "vlm_bias":        load_vlm_bias,
     "pope":            load_pope,
+    "pope_vcd":        load_pope_vcd,
     "mmbench":         load_mmbench,
     "cv_bench":        load_cv_bench,
     "mmvp":            load_mmvp,

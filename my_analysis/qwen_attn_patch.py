@@ -120,18 +120,40 @@ IMAGE_TOKEN = "<|image_pad|>"   # Qwen2.5-VL image-pad token string
 # Architecture helpers — support Qwen2.5-VL and LLaVA without hardcoding
 # ---------------------------------------------------------------------------
 
+def _get_language_model(model: Any) -> Any:
+    """Get the language model component for any supported LMM architecture.
+
+    Supported:
+      - Qwen2.5-VL  : model.model.language_model    is Qwen2_5_VLTextModel
+      - Qwen-VL     : model.language_model          is Qwen2VLModel
+      - LLaVA-1.5   : model.language_model          is LlamaForCausalLM
+    """
+    # Handle Qwen2.5-VL structure: model.model.language_model
+    if hasattr(model, "model") and hasattr(model.model, "language_model"):
+        return model.model.language_model
+    elif hasattr(model, "language_model"):
+        return model.language_model
+    else:
+        raise AttributeError(
+            f"Cannot find language model on {type(model).__name__}. "
+            "Expected '.model.language_model' (Qwen2.5-VL) or '.language_model' (Qwen-VL/LLaVA)."
+        )
+
+
 def _get_decoder_layers(model: Any) -> Any:
     """Return the decoder layer list for any supported LMM architecture.
 
     Supported:
-      - Qwen2.5-VL  : model.language_model          is Qwen2VLModel     → .layers
-      - LLaVA-1.5   : model.language_model          is LlamaForCausalLM → .model.layers
+      - Qwen2.5-VL  : model.model.language_model    is Qwen2_5_VLTextModel → .model.layers
+      - Qwen-VL     : model.language_model          is Qwen2VLModel        → .layers
+      - LLaVA-1.5   : model.language_model          is LlamaForCausalLM    → .model.layers
     """
-    lm = model.language_model
-    if hasattr(lm, "layers"):
-        return lm.layers
+    lm = _get_language_model(model)
+
     if hasattr(lm, "model") and hasattr(lm.model, "layers"):
         return lm.model.layers
+    if hasattr(lm, "layers"):
+        return lm.layers
     raise AttributeError(
         f"Cannot find decoder layers on {type(lm).__name__}. "
         "Expected '.layers' (Qwen) or '.model.layers' (LLaVA / LLaMA)."
@@ -189,7 +211,7 @@ def _patched_softmax(
                     bias[0, mask_dev, 0, 0] = log_w
                     input[..., s : e + 1] = input[..., s : e + 1] + bias
 
-        elif method in ("attn_salience", "srf_clip_basic"):
+        elif method in ("attn_salience", "srf_clip_basic", "srf", "srf_clip"):
             # Salience-weighted boost: log(w) * per-token salience weight.
             # Falls back to uniform boost when salience_mask is None.
             if s is not None and e is not None:
@@ -524,7 +546,7 @@ def patch_model(model: Any, method: str = "baseline", value: float = 1.0) -> Non
     global _ORIGINAL_SOFTMAX
 
     valid = ("baseline", "temperature", "vision_boost", "vhr_boost", "vaf",
-             "attn_salience", "srf_clip_basic", "srf_clip", "srf_hssa")
+             "attn_salience", "srf_clip_basic", "srf", "srf_clip", "srf_hssa")
     if method not in valid:
         raise ValueError(f"Unknown method: {method!r}. Choose from {valid}")
     if value <= 0:
@@ -539,7 +561,7 @@ def patch_model(model: Any, method: str = "baseline", value: float = 1.0) -> Non
     _STATE["value"]   = value
 
     if not _HOOKS:
-        lm = model.language_model
+        lm = _get_language_model(model)
 
         def _lm_pre(module, args):
             _STATE["in_decoder"] = True

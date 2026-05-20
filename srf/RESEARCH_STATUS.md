@@ -7,15 +7,21 @@
 
 ## Current Best Results (Qwen2.5-VL-3B-Instruct)
 
-| Method | MMVP pair | POPE COCO adv | POPE full (9 combos) | MME score | VLM Bias |
-|--------|-----------|---------------|----------------------|-----------|----------|
-| Baseline | 40.00% | 83.33% | — | — | 17.14% |
-| **SRF** | ~44.00% | 84.33% (+1pp) | ❌ not run yet | ❌ not run yet | 22.86% |
-| **SRF-E** β=2.0 | **49.33%** | ~86% (est.) | ❌ not run yet | ❌ not run yet | broken* |
+| Method | MMVP pair | POPE COCO adv | POPE full (9 combos) | MME (perception, /200) | VLM Bias |
+|--------|-----------|---------------|----------------------|------------------------|----------|
+| Baseline | 40.00% | 83.33% | — | 177/200 (88.5%) | 17.14% |
+| **SRF** | ~44.00% | 84.33% (+1pp) | ❌ not run yet | 176/200 (-0.5%) | 22.86% |
+| **SRF-E** β=2.0 | **49.33%** | ~86% (est.) | ❌ not run yet | 174/200 (-1.5%) | broken* |
 
 *VLM Bias SRF-E broken: contrastive pass suppresses format tokens (`{`). Use SRF base only.
 
 All numbers from autoresearch runs (Qwen 3B). Full POPE (9000 samples, all splits) and MME not yet run.
+
+### MME key findings (autoresearch_mme, 2026-04)
+- SRF cannot improve MME — best is 176/200 (-0.5% vs baseline)
+- Root cause: 77% of MME categories require global context (artwork, celebrity, scene); any attention redistribution hurts
+- SRF-E also fails: zero-pixel ViT produces noisy features, not a clean language prior
+- Results in `my_analysis/autoresearch_mme/results.tsv`
 
 ### VLM Bias key findings (autoresearch_vlmbias, 2026-05)
 - Best config: uniform boost (clip_fallback_thresh=1.0) + deep layers 20-28, alpha=8.0, eps=0.5

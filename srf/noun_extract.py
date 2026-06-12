@@ -194,15 +194,31 @@ def _vlmbias(question: str) -> str:
 # POPE mode
 # ---------------------------------------------------------------------------
 def _pope(question: str) -> str:
-    """Extract the queried object from a POPE existence question.
+    """Extract the queried object from a POPE / MME existence question.
 
     "Is there a cat in the image?" → "cat"
     "Is there a tennis racket in the image?" → "tennis racket"
+    "Is there only one bottle in the image?" → "bottle"
+    "Is the pineapple on the left?" → "pineapple"
     """
     q = question.strip().lower().rstrip("?")
 
+    # "Is there only [one/a/an/...] X in/on/at"
+    m = re.search(r"\bis there (?:only\s+)?(?:\w+\s+)?(\w+(?:\s+\w+)?)\s+(?:in|on|at|visible)", q)
+    if m:
+        noun = m.group(1).strip()
+        if noun not in _GENERIC_NOUNS:
+            return noun
+
     # "Is there a/an X in/on/at the image"
     m = re.search(r"\bis there (?:an? )?(.+?)\s+(?:in|on|at|visible)", q)
+    if m:
+        noun = m.group(1).strip()
+        if noun not in _GENERIC_NOUNS:
+            return noun
+
+    # "Is the/a X [position/colour/...]" — MME position/color questions
+    m = re.search(r"\bis (?:the|a|an) (\w+(?:\s+\w+)?)\s+(?:on|in|at|to|left|right|above|below|next)", q)
     if m:
         noun = m.group(1).strip()
         if noun not in _GENERIC_NOUNS:
@@ -220,6 +236,59 @@ def _pope(question: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# MMBench / general MCQ mode
+# ---------------------------------------------------------------------------
+def _mmbench(question: str) -> str:
+    """Extract the main visual subject from an MMBench MCQ question.
+
+    MMBench questions are diverse (spatial, attribute, counting, scene).
+    Strategy: strip options if present, then apply mmvp-style extraction
+    with extra patterns for MCQ phrasing.
+    """
+    # Strip "A. ... B. ... C. ... D. ..." option block if present
+    q = re.split(r'\n[A-D][\.\)]\s', question)[0].strip().lower().rstrip("?")
+
+    # Common MCQ patterns
+    # "what is the X in/of/on"
+    m = re.search(r'what (?:is|are) the (\w+(?:\s+\w+)?)\s+(?:in|of|on|at|doing|shown)', q)
+    if m:
+        noun = m.group(1).strip()
+        if noun not in _GENERIC_NOUNS:
+            return noun
+
+    # "what color/shape/size is the X"
+    m = re.search(r'what (?:color|shape|size|type|kind)\s+(?:is|are)\s+(?:the|a|an)\s+(\w+)', q)
+    if m:
+        noun = m.group(1).strip()
+        if noun not in _GENERIC_NOUNS:
+            return noun
+
+    # "where is the X" / "what is the position of the X"
+    m = re.search(r'(?:where is|position of)\s+(?:the|a|an)\s+(\w+)', q)
+    if m:
+        noun = m.group(1).strip()
+        if noun not in _GENERIC_NOUNS:
+            return noun
+
+    # "how many X"
+    m = re.search(r'how many (\w+(?:\s+\w+)?)\s+(?:are|is|can|do)', q)
+    if m:
+        noun = m.group(1).strip()
+        if noun not in _GENERIC_NOUNS:
+            return noun
+
+    # "which X" — "which animal", "which object"
+    m = re.search(r'which (\w+)', q)
+    if m:
+        noun = m.group(1).strip()
+        if noun not in _GENERIC_NOUNS | {"one", "of", "the"}:
+            return noun
+
+    # Fall back to mmvp extractor (handles most remaining cases)
+    return _mmvp(question)
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 def extract_clip_noun(question: str, mode: str = "mmvp") -> str:
@@ -227,7 +296,7 @@ def extract_clip_noun(question: str, mode: str = "mmvp") -> str:
 
     Args:
         question: Raw question string (any casing).
-        mode:     Dataset mode — "mmvp", "vlmbias", or "pope".
+        mode:     Dataset mode — "mmvp", "vlmbias", "pope", or "mmbench".
 
     Returns:
         A short noun string suitable for CLIP text query.
@@ -238,5 +307,8 @@ def extract_clip_noun(question: str, mode: str = "mmvp") -> str:
         return _vlmbias(question)
     elif mode == "pope":
         return _pope(question)
+    elif mode in ("mmbench", "hallusionbench"):
+        return _mmbench(question)
     else:
-        raise ValueError(f"Unknown mode {mode!r}. Use 'mmvp', 'vlmbias', or 'pope'.")
+        # Fallback to mmvp for unknown modes
+        return _mmvp(question)

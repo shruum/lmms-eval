@@ -9,20 +9,30 @@
 
 ```
 srf/
-  config.py           ← SINGLE SOURCE OF TRUTH for all hyperparams
-  eval.py             ← unified eval CLI
-  srf.py              ← SRF base method
-  srf_e.py            ← SRF-E (two-pass contrastive)
-  eval_datasets.py    ← dataset loaders
-  noun_extract.py     ← CLIP query noun extraction
+  config.py              ← SINGLE SOURCE OF TRUTH for all hyperparams
+  eval.py                ← unified eval CLI (all datasets)
+  eval_pope_val.py       ← quick 60-sample POPE val set (fast iteration)
+  eval_mme.py            ← MME-specific eval
+  eval_hallusionbench.py ← HallusionBench-specific eval
+  eval_ablation.py       ← ablation sweep runner
+  srf.py                 ← SRF base method; exposes last_clip_result dict
+  srf_e.py               ← SRF-E (two-pass contrastive)
+  eval_datasets.py       ← dataset loaders
+  noun_extract.py        ← CLIP query noun extraction (pope / mmbench modes)
   saliency/
-    clip_salience.py  ← CLIP patch saliency (cross-modal encoder)
-    hssa_salience.py  ← hidden-state saliency
+    clip_salience.py     ← CLIP patch saliency; compute_clip_salience_full_gate_v3
+    hssa_salience.py     ← hidden-state saliency
+    lta_salience.py      ← last-token attention saliency
+    eval_presence.py     ← saliency gate accuracy on 60-sample val set
+  calibration/
+    sweep_heads_layers.py ← layer/head sweep on val set
 
 my_analysis/
-  qwen_attn_patch.py  ← attention patching engine (shared by srf/)
-                         patch_model / identify_visual_heads / update_sample / _STATE{}
-  autoresearch*/      ← completed loops (reference only, do not modify)
+  qwen_attn_patch.py     ← attention patching engine (shared by srf/)
+                            patch_model / identify_visual_heads / update_sample / _STATE{}
+                            bias modes: additive_logit | prob_interp | prob_scale |
+                                        attn_floor | global_redistribute | budget_shift
+  autoresearch*/         ← completed loops (reference only, do not modify)
 ```
 
 ---
@@ -34,25 +44,26 @@ Three-tier config in `srf/config.py`.
 **Priority: CLI args → SRF_ARCH_PARAMS → SRF_DATASET_PARAMS → SRF_DEFAULTS**
 
 ```python
-SRF_DEFAULTS          # shared: sys_beta=0.10, calib_n=20, bias_mode, prob_floor, …
+SRF_DEFAULTS          # shared: sys_beta=0.30, calib_n=20, bias_mode="additive_logit", …
 
 SRF_DATASET_PARAMS    # per-dataset (arch-agnostic):
-  mmvp / pope / mme:  phase=both,       alpha=4.0, eps=0.2
+  pope / mme / hallusionbench / mmbench:  phase=generation, alpha=4.0, eps=0.2
+  mmvp:               phase=generation, alpha=4.0, eps=0.2
   vlmbias:            phase=generation, alpha=8.0, eps=0.5
 
 SRF_ARCH_PARAMS       # per-model (scale with depth — re-tune for new models):
-  layer_start         # first layer of cross-modal fusion zone  (~8/28 * n_layers)
-  layer_end           # last layer                              (~15/28 * n_layers)
-  dataset_layer_end   # per-dataset fine-tune: {"mmvp": 15, "pope": 15, …}
+  layer_start         # first layer of cross-modal fusion zone
+  layer_end           # last layer
+  dataset_layer_end   # per-dataset fine-tune: {"mmvp": 15, "pope": 12, …}
   head_top_k_pct      # fraction of heads selected as vision-aware (default 0.20)
   clip_coarse_grid    # CLIP patch grid (7 for Qwen/448px, 6 for LLaVA/336px)
   clip_top_k_pct      # fraction of image tokens boosted (default 0.30)
-  clip_fallback_thresh # below this CLIP sim → uniform boost (default 0.20)
+  clip_fallback_thresh # presence threshold for CLIP gate (v3: 0.21)
 ```
 
 Supported models:
 ```
-Qwen/Qwen2.5-VL-3B-Instruct   TUNED   layer_start=8, layer_end=15
+Qwen/Qwen2.5-VL-3B-Instruct   TUNED   layer_start=6, layer_end=12, sys_beta=0.30
 Qwen/Qwen2.5-VL-7B-Instruct   NOT TUNED (proportional: start=9, end=17)
 llava-hf/llava-1.5-7b-hf      NOT TUNED (start=8, end=20; image_token=None → model.config)
 ```
@@ -68,11 +79,14 @@ llava-hf/llava-1.5-7b-hf      NOT TUNED (start=8, end=20; image_token=None → m
    - Calibrate: run calib_n samples, identify top head_top_k_pct vision-aware heads
    - Patch model with qwen_attn_patch
 
-2. reset_for_dataset(dataset, *, phase, alpha, eps, layer_start, layer_end,
-                      head_top_k_pct, clip_coarse_grid, clip_top_k_pct, clip_fallback_thresh)
+2. reset_for_dataset(dataset, *, phase, alpha, eps, neg_absent_alpha,
+                      layer_start, layer_end, head_top_k_pct,
+                      clip_coarse_grid, clip_top_k_pct, clip_fallback_thresh,
+                      saliency_mode, bias_mode, vr_target, vr_k, ...)
    - Merge arch + dataset params; apply any CLI overrides (None = use config)
-   - Re-calibrate heads, sync patch state
+   - Re-calibrate heads if head_top_k_pct changed; sync patch state
    - Sets noun extraction mode (mme/hallusionbench → "pope" mode)
+   - last_clip_result dict populated by prepare_sample (used by B4 retry)
 
 3. prepare_sample(inp, img_start, img_end, image, question, model, processor)
    - Extract noun from question (extract_clip_noun)
@@ -104,6 +118,7 @@ BROKEN for VLM Bias (contrastive suppresses { token). Use SRF base there.
 ## CLI Reference
 
 ```bash
+# ── Full eval (all datasets, GPU, ~75 min for POPE) ──────────────────────────
 python srf/eval.py \
   --method      srf | srfe \
   --model       Qwen/Qwen2.5-VL-3B-Instruct \
@@ -113,13 +128,42 @@ python srf/eval.py \
   --n_pope      -1                            # per-split cap (-1 = all)
   --output      results/run_name/
 
-  # Arch overrides (None = use config)
-  --layer_start 8  --layer_end 15  --head_top_k_pct 0.20
-  --clip_coarse_grid 7  --clip_top_k_pct 0.30  --clip_fallback_thresh 0.20
+  # Arch overrides (None = use config default)
+  --layer_start 6  --layer_end 12  --head_top_k_pct 0.20
+  --clip_coarse_grid 7  --clip_top_k_pct 0.30
+
+  # Saliency mode (default: clip_full_gate_v3 — best, do not change without sweep)
+  --saliency_mode clip_full_gate_v3   # best | clip (basic) | hssa | lta | srf2
 
   # Dataset overrides
-  --alpha 4.0  --eps 0.2  --phase both
+  --alpha 4.0  --eps 0.2  --phase generation
+
+  # Boosting method (default: additive_logit — best)
+  --bias_mode additive_logit          # best | budget_shift (B3) | prob_interp | prob_scale
+  --neg_absent_alpha 0.0              # absent suppression: 0=off (default), try 2.0
+  --vr_target 0.15  --vr_k 3.0       # B1 visual reliance; vr_target=0 disables (default)
+
+# ── Quick 60-sample val set (~3 min, use for all sweeps) ─────────────────────
+python srf/eval_pope_val.py \
+  --srf                               # enable SRF (omit for baseline)
+  --srf_mode clip_full_gate_v3        # saliency mode override
+  --alpha 4.0 --neg_absent_alpha 0.0
+  --bias_mode additive_logit          # boosting method (see below)
+  --vr_target 0.15 --vr_k 3.0        # B1: visual reliance compensation
+  --b4 --b4_threshold 0.25 --b4_multiplier 2.0  # B4: two-pass retry
+  --out results/pope_val_srf.json
 ```
+
+### Boosting method quick reference
+
+| Flag | Method | Val acc | Notes |
+|------|--------|---------|-------|
+| *(default)* | `additive_logit` | 0.900 | Best; boosts logits before softmax |
+| `--bias_mode budget_shift` | B3 | 0.867 | No gain; image budget not bottleneck |
+| `--vr_target 0.15` | B1 | 0.900 | Same ceiling; adaptive alpha in-loop |
+| `--b4` | B4 | 0.900 | Two-pass retry; same failures as B1 |
+
+Val set ceiling = **0.900**. Remaining 6 FNs are model capacity limits, not saliency failures.
 
 ---
 

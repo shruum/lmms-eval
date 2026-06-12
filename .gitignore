@@ -53,6 +53,8 @@ uv.lock
 workspace/*
 .claude/*
 !.claude-plugin/
+results/
+my_analysis/autoresearch*/
 .opencode/
 remote_code/*
 docs/plans/

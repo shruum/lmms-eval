@@ -110,7 +110,23 @@ def parse_args():
     p.add_argument("--clip_top_k_pct",   type=float, default=None,
                    help="Fraction of image tokens boosted by CLIP saliency")
     p.add_argument("--clip_fallback_thresh", type=float, default=None,
-                   help="CLIP max-sim below which uniform boost is used")
+                   help="CLIP max-sim below which object is considered absent (basic 'clip' mode only)")
+    p.add_argument("--saliency_mode", default=None,
+                   help="Override saliency mode: clip_full_gate_v3 (default/best) | clip | hssa | lta | clip_lta | srf2")
+
+    # ── Boosting method ───────────────────────────────────────────────────────
+    p.add_argument("--neg_absent_alpha", type=float, default=None,
+                   help="Suppression logit when CLIP says object absent (0=off, default)")
+    p.add_argument("--bias_mode", default=None,
+                   choices=["additive_logit", "budget_shift", "prob_interp", "prob_scale"],
+                   help="How the bias is applied (default: additive_logit)")
+    p.add_argument("--interp_lambda", type=float, default=None,
+                   help="Mixing weight for prob_interp bias mode (default: 1.0)")
+    p.add_argument("--vr_target", type=float, default=None,
+                   help="B1 visual reliance target fraction; 0=off (default). "
+                        "If model attends < vr_target to image, alpha is scaled up.")
+    p.add_argument("--vr_k", type=float, default=None,
+                   help="B1 deficit amplification factor (default: 3.0)")
 
     return p.parse_args()
 
@@ -194,12 +210,18 @@ def _reset_overrides(args) -> dict:
         phase=args.phase,
         alpha=args.alpha,
         eps=args.eps,
+        neg_absent_alpha=args.neg_absent_alpha,
         layer_start=args.layer_start,
         layer_end=args.layer_end,
         head_top_k_pct=args.head_top_k_pct,
         clip_coarse_grid=args.clip_coarse_grid,
         clip_top_k_pct=args.clip_top_k_pct,
         clip_fallback_thresh=args.clip_fallback_thresh,
+        saliency_mode=args.saliency_mode,
+        bias_mode=args.bias_mode,
+        interp_lambda=args.interp_lambda,
+        vr_target=args.vr_target,
+        vr_k=args.vr_k,
     )
 
 

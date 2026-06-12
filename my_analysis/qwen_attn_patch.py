@@ -78,6 +78,9 @@ _STATE: dict = {
     "srf_prob_floor":    0.005,  # for attn_floor: minimum attention per salient token
     #   "global_redistribute" — post-softmax: scale up total img fraction by img_scale,
     #                           distribute within img budget by saliency, scale text down.
+    #   "budget_shift"        — post-softmax: redistribute within image budget only.
+    #                           p_img_new[i] = p_img[i]*(1+α·sal[i]), renorm to same img total.
+    #                           Text/system attention unchanged → no image-vs-text inflation.
     "srf_img_scale":     2.0,    # for global_redistribute: multiply current img attn total
     # ---- SRF phase control ----
     # srf_apply_phase: "both" | "prefill" | "generation"
@@ -94,6 +97,13 @@ _STATE: dict = {
     # ---- SRF-V2: per-layer alpha override (drift-adaptive alpha) ----
     # None → use global "value"; dict[int, float] → per-layer override used by srf_v2.py
     "srf_layer_alphas": None,
+    # ---- B1: in-loop visual reliance compensation ----
+    # Measures actual image attention fraction per generation step and scales alpha
+    # up when the model under-attends to image tokens.
+    # srf_vr_target: desired fraction of attention going to image tokens (0 = disabled)
+    # srf_vr_k:      scale factor — alpha_effective = alpha * (1 + k * deficit)
+    "srf_vr_target":    0.0,    # 0.0 = disabled (backward-compatible)
+    "srf_vr_k":         3.0,    # deficit amplification factor
     # ---- internal captures (not part of public API) ----
     "_capture":          False,   # CHECK 3: capture one 4-D softmax output
     "_captured":         None,    # CHECK 3: last captured (n_heads, q_len, kv_len) on CPU
@@ -292,6 +302,29 @@ def _patched_softmax(
                         if (_layer_alphas and current_layer in _layer_alphas)
                         else float(value)
                     )
+
+                    # ── B1: Visual Reliance Compensation ─────────────────────
+                    # Estimate current image attention fraction from logits.
+                    # If under-attending, scale alpha up proportionally.
+                    _vr_target = float(_STATE.get("srf_vr_target", 0.0))
+                    if _vr_target > 0.0 and _is_gen:
+                        _vr_k = float(_STATE.get("srf_vr_k", 3.0))
+                        with torch.no_grad():
+                            # Use current logits to estimate softmax img fraction
+                            # (vision-aware heads or all heads)
+                            if head_mask is not None:
+                                _logits_img = input[:, head_mask.to(input.device), :, s:e+1]
+                                _logits_all = input[:, head_mask.to(input.device), :, :]
+                            else:
+                                _logits_img = input[..., s:e+1]
+                                _logits_all = input
+                            # softmax denominator approx via logsumexp
+                            _lse = torch.logsumexp(_logits_all.float(), dim=-1, keepdim=True)
+                            _img_frac = torch.exp(
+                                torch.logsumexp(_logits_img.float(), dim=-1) - _lse.squeeze(-1)
+                            ).mean().item()
+                        _deficit  = max(0.0, _vr_target - _img_frac)
+                        alpha_val = alpha_val * (1.0 + _vr_k * _deficit)
                     if sal is not None:
                         sal_dev  = sal.to(device=input.device, dtype=input.dtype)
                         bias_row = alpha_val * sal_dev - eps * (1.0 - sal_dev)
@@ -503,6 +536,37 @@ def _patched_softmax(
                     result[..., :s2]    *= scale_f
                     result[..., e2+1:]  *= scale_f
                     result[..., s2:e2+1] = new_img
+
+            elif mode == "budget_shift":
+                # Within-image-budget saliency redistribution.
+                # Multiplicatively upweights salient patches and renorms ONLY the image
+                # token slice so total image attention stays constant.  Text/system tokens
+                # are never touched → no image-vs-text inflation → avoids HallusionBench
+                # regression caused by additive_logit inflating image budget.
+                #
+                # p_img_new[i] = p_img[i] * (1 + α·sal[i])
+                # then renorm so sum(p_img_new) == sum(p_img)   ← same total img budget
+                #
+                # Effect: salient patches grow, background patches shrink proportionally.
+                # α controls sharpness: 0 = no-op, large α → pure saliency routing.
+                if sal is not None:
+                    sal_dev = sal.to(result.device, dtype=result.dtype).view(1, 1, 1, -1)
+                else:
+                    n_img   = e2 - s2 + 1
+                    sal_dev = result.new_ones(1, 1, 1, n_img)
+
+                if hm is not None:
+                    img_p    = result[:, hm, :, s2:e2+1]
+                    orig_sum = img_p.sum(-1, keepdim=True).clamp(min=1e-8)
+                    img_new  = img_p * (1.0 + val * sal_dev)
+                    new_sum  = img_new.sum(-1, keepdim=True).clamp(min=1e-8)
+                    result[:, hm, :, s2:e2+1] = img_new * (orig_sum / new_sum)
+                else:
+                    img_p    = result[..., s2:e2+1]
+                    orig_sum = img_p.sum(-1, keepdim=True).clamp(min=1e-8)
+                    img_new  = img_p * (1.0 + val * sal_dev)
+                    new_sum  = img_new.sum(-1, keepdim=True).clamp(min=1e-8)
+                    result[..., s2:e2+1] = img_new * (orig_sum / new_sum)
 
     return result
 

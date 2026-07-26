@@ -337,7 +337,7 @@ def compute_metrics(records: List[Dict]) -> Dict[str, Any]:
 
     spatial: Dict[str, Any] = {}
     for key in ("entropy", "peak_to_mean", "contrast",
-                "raw_entropy", "cross_scale_iou", "blur_delta", "full_img_sim"):
+                "raw_entropy", "cross_scale_iou", "blur_delta", "full_img_sim", "max_sim"):
         spatial[key] = {
             "yes": mean_m(yes_rec, key),
             "no":  mean_m(no_rec,  key),

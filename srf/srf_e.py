@@ -5,11 +5,11 @@ SRF-E (Evidence-Amplified SRF) — two-pass visual evidence amplification.
 Extends SRF base with a contrastive second pass that isolates image
 evidence from language priors:
 
-    logits_final = logits_full + β * (logits_full - logits_noval)
+    logits_final = logits_full + γ * (logits_full - logits_noval)
 
 where logits_noval is a forward pass with pixel_values zeroed (no-visual).
 The difference (logits_full - logits_noval) captures what the image adds
-over the language prior; β amplifies this signal.
+over the language prior; γ (gamma) amplifies this signal.
 
 All setup/calibration/saliency logic lives in srf.py. This file adds only
 the two-pass inference functions.
@@ -18,8 +18,8 @@ Public interface (identical to srf.py, plus two extra functions):
     setup(model, processor, calib_dataset="pope")
     reset_for_dataset(phase, alpha, layer_end, eps, dataset)
     prepare_sample(inputs, img_start, img_end, image, question, model, processor)
-    get_contrastive_logits(model, inp, beta, mode) -> Tensor [1, vocab]
-    generate_contrastive(model, inp, processor, beta, mode, max_new_tokens) -> list[int]
+    get_contrastive_logits(model, inp, gamma, mode) -> Tensor [1, vocab]
+    generate_contrastive(model, inp, processor, gamma, mode, max_new_tokens) -> list[int]
     cleanup()
 """
 from __future__ import annotations
@@ -74,7 +74,7 @@ def _make_noval_inp(inp: dict, mode: str = "all") -> dict:
 # Contrastive inference
 # ---------------------------------------------------------------------------
 
-def get_contrastive_logits(model, inp: dict, beta: float = 1.0,
+def get_contrastive_logits(model, inp: dict, gamma: float = 1.0,
                            mode: str = "all") -> torch.Tensor:
     """
     Single-step contrastive decoding — returns logits [1, vocab] for the first token.
@@ -82,7 +82,7 @@ def get_contrastive_logits(model, inp: dict, beta: float = 1.0,
     Pass 1 (SRF + full image):   logits_full
     Pass 2 (baseline + no image): logits_noval
 
-    logits_final = logits_full + β * (logits_full - logits_noval)
+    logits_final = logits_full + γ * (logits_full - logits_noval)
 
     Use for single-token answers (POPE yes/no, MMVP A/B).
     For multi-token answers, use generate_contrastive().
@@ -103,12 +103,13 @@ def get_contrastive_logits(model, inp: dict, beta: float = 1.0,
     # Restore state
     patch._STATE["method"] = "srf"
 
-    return logits_full + beta * (logits_full - logits_noval)
+    return logits_full + gamma * (logits_full - logits_noval)
 
 
 def generate_contrastive(model, inp: dict, processor,
-                         beta: float = 1.0, mode: str = "all",
-                         max_new_tokens: int = 20) -> list[int]:
+                         gamma: float = 1.0, mode: str = "all",
+                         max_new_tokens: int = 20,
+                         content_offset: int = 0) -> list[int]:
     """
     Step-by-step contrastive generation — for multi-token answers (VLM Bias).
 
@@ -118,10 +119,13 @@ def generate_contrastive(model, inp: dict, processor,
       - Apply contrastive combination, pick next token via greedy argmax
       - Feed same token to both KV caches
 
-    Returns list of generated token IDs (prompt not included).
+    content_offset: skip contrastive for the first N tokens (format prefix).
+      0 = apply contrastive at every step (default; correct for POPE/MMVP)
+      1 = skip step 0 (the '{' format token in VLM Bias '{answer}' template)
+    The first content_offset tokens are generated from logits_full only (SRF,
+    no subtraction), so format tokens are not suppressed by the language prior.
 
-    Note: suppresses language-prior format tokens (e.g. '{' in VLM Bias answer
-    templates) — use SRF base (srf.py) for format-sensitive generation instead.
+    Returns list of generated token IDs (prompt not included).
     """
     device    = next(model.parameters()).device
     input_len = inp["input_ids"].shape[1]
@@ -164,8 +168,11 @@ def generate_contrastive(model, inp: dict, processor,
         logits_noval = out_noval.logits[:, -1, :].float()
         past_noval   = out_noval.past_key_values
 
-        logits_final = logits_full + beta * (logits_full - logits_noval)
-        next_token   = int(logits_final.argmax(dim=-1).item())
+        if step >= content_offset:
+            logits_final = logits_full + gamma * (logits_full - logits_noval)
+        else:
+            logits_final = logits_full  # format prefix: no contrastive
+        next_token = int(logits_final.argmax(dim=-1).item())
         generated.append(next_token)
 
         if next_token in eos_ids:

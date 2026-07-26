@@ -274,8 +274,22 @@ def _patched_softmax(
                 n_img     = e - s + 1
                 bias_mode = _STATE.get("srf_bias_mode", "additive_logit")
 
-                # ── System-prompt suppression: applied pre-softmax for ALL bias modes ──
-                if sys_end is not None and sys_end > 0 and beta > 0:
+                # ── Phase gate: must be computed BEFORE any conditional suppression ──
+                # Determines whether this forward step (prefill vs generation) should
+                # receive the boost. Both sys_beta suppression AND image-token boost are
+                # gated here so their behaviour is always consistent with each other.
+                _phase    = _STATE.get("srf_apply_phase", "both")
+                _is_gen   = (input.shape[2] == 1)    # True when q_len==1 (generation step)
+                _phase_ok = (
+                    _phase == "both"
+                    or (_phase == "generation" and _is_gen)
+                    or (_phase == "prefill"    and not _is_gen)
+                )
+
+                # ── System-prompt suppression: pre-softmax, gated by phase ──
+                # Bug fix: was applied outside the phase gate, so it fired during
+                # prefill even when phase="generation". Now consistent with img boost.
+                if _phase_ok and sys_end is not None and sys_end > 0 and beta > 0:
                     if head_mask is not None:
                         mask_dev = head_mask.to(input.device)
                         sup_bias = input.new_zeros(1, n_heads, 1, 1)
@@ -285,14 +299,6 @@ def _patched_softmax(
                         input[..., : sys_end + 1] = input[..., : sys_end + 1] - beta
 
                 # ── Image-token boost: pre-softmax, additive_logit mode only ──
-                # Phase gate: skip img bias if phase restriction is active.
-                _phase    = _STATE.get("srf_apply_phase", "both")
-                _is_gen   = (input.shape[2] == 1)    # True when q_len==1 (generation step)
-                _phase_ok = (
-                    _phase == "both"
-                    or (_phase == "generation" and _is_gen)
-                    or (_phase == "prefill"    and not _is_gen)
-                )
                 if bias_mode == "additive_logit" and _phase_ok:
                     # Use boost_alpha directly as logit addition (same convention as vaf).
                     # SRF-V2: if per-layer alphas are set, use them (drift-adaptive alpha).

@@ -41,6 +41,20 @@ _CLIP_DEFAULT_MODEL  = "openai/clip-vit-base-patch32"  # 0.31 GB fp16 — fits w
 COARSE_GRID    = 7       # NxN coarse grid for CLIP — 7×7 gives ~50px patches, better spatial precision
 ABSENCE_THRESH = 0.20    # default patch max_sim below this → object probably absent
 
+# ── Prompt-ensemble templates ─────────────────────────────────────────────────
+# Averaging text embeddings from multiple templates consistently outperforms a
+# single template (CLIP paper: +3.5pp on ImageNet with 80 templates).
+# These 5 were chosen to cover: bare noun, photo framing (a/the), existence
+# framing, and scene-container framing — all POPE-relevant phrasings.
+# Applied to just the extracted noun (e.g. "person"), not the full question.
+_PRESENCE_TEMPLATES = [
+    "{noun}",
+    "a photo of a {noun}",
+    "a photo of the {noun}",
+    "there is a {noun} in this photo",
+    "an image containing a {noun}",
+]
+
 # Per-model calibrated patch absence thresholds
 _MODEL_ABSENCE_THRESH = {
     "openai/clip-vit-base-patch32":   0.20,
@@ -77,7 +91,11 @@ _ENTROPY_THRESH = 0.68
 # Full-image threshold: optimal from val-set sweep (60 samples, seed=42).
 #   t=0.21 → acc=0.817 F1=0.800 TPR=0.733 FPR=0.100  (gate_full alone, no fallbacks)
 #   t=0.24 → acc=0.633 F1=0.421 TPR=0.267 FPR=0.000  (current/was too conservative)
-_FULL_IMG_THRESH_V3 = 0.21
+# NOTE: This constant is the fallback default only. All callers in srf.py pass
+# full_img_thresh=SALIENCY["clip_fallback_thresh"] (config default 0.20) so this
+# constant is only used if clip_fallback_thresh is somehow None. Keep in sync with
+# config.py SRF_ARCH_PARAMS["clip_fallback_thresh"] = 0.20.
+_FULL_IMG_THRESH_V3 = 0.20
 
 # Raw-sim entropy: computed on unnormalized patch cosine sims (not saliency [0,1]).
 # Temperature=0.02 because raw sims span ~0.10 (present peak ~0.22 vs bg ~0.17).
@@ -348,9 +366,12 @@ def compute_clip_salience(
         mask     = torch.zeros(n_tokens, dtype=torch.float32)
         mask[topk_idx] = 1.0
     else:
-        # Object absent: uniform mask — no targeted boost
-        mask     = torch.ones(n_tokens, dtype=torch.float32)
-        saliency = torch.full((n_tokens,), 0.5)   # neutral when absent
+        # Object absent: uniform mask, keep the actual CLIP saliency map.
+        # Bug fix: was overwriting saliency with 0.5 ("neutral"), which is NOT neutral —
+        # the boost logic computes alpha*0.5 - eps*0.5 = a weak positive boost.
+        # Callers must check object_present and decide the absent behaviour themselves
+        # (e.g. set salience_mask=None for no boost, or use uniform alpha).
+        mask = torch.ones(n_tokens, dtype=torch.float32)
 
     return ClipSalienceResult(
         mask=mask, saliency=saliency, max_sim=max_sim,
@@ -432,25 +453,28 @@ def compute_full_image_sim(
     model, processor = _load_clip(clip_model_name)
     kind = _CLIP_MODEL_KIND or _model_kind(clip_model_name)
 
+    prompts = [t.format(noun=noun) for t in _PRESENCE_TEMPLATES]
     _clip_model_to_infer()
     with torch.no_grad():
         if kind == "siglip":
             img_inp = processor(images=[image], return_tensors="pt",
                                 padding="max_length").to(_CLIP_INFER_DEVICE)
-            txt_inp = processor(text=[noun], return_tensors="pt",
+            txt_inp = processor(text=prompts, return_tensors="pt",
                                 padding="max_length", truncation=True,
                                 max_length=64).to(_CLIP_INFER_DEVICE)
         else:
             img_inp = processor(images=[image], return_tensors="pt",
                                 padding=True).to(_CLIP_INFER_DEVICE)
-            txt_inp = processor(text=[noun], return_tensors="pt",
+            txt_inp = processor(text=prompts, return_tensors="pt",
                                 padding=True, truncation=True,
                                 max_length=77).to(_CLIP_INFER_DEVICE)
 
-        img_feat = model.get_image_features(**img_inp)
-        txt_feat = model.get_text_features(**txt_inp)
-        img_feat = img_feat / img_feat.norm(dim=-1, keepdim=True)
-        txt_feat = txt_feat / txt_feat.norm(dim=-1, keepdim=True)
+        img_feat  = model.get_image_features(**img_inp)
+        img_feat  = img_feat / img_feat.norm(dim=-1, keepdim=True)
+        txt_feats = model.get_text_features(**txt_inp)              # (n_templates, d)
+        txt_feats = txt_feats / txt_feats.norm(dim=-1, keepdim=True)
+        txt_feat  = txt_feats.mean(dim=0, keepdim=True)
+        txt_feat  = txt_feat / txt_feat.norm(dim=-1, keepdim=True)
         sim = float((img_feat @ txt_feat.T).squeeze().cpu())
     _clip_model_to_storage()
     return sim
@@ -939,6 +963,7 @@ def compute_clip_salience_full_gate_v3(
     clip_model_name: str = _CLIP_DEFAULT_MODEL,
     backup: str = "none",
     full_img_thresh: Optional[float] = None,
+    patch_thresh: float = 0.27,
 ) -> ClipSalienceResult:
     """
     Full-gate v3: three new independent presence signals, single GPU block.
@@ -971,7 +996,6 @@ def compute_clip_salience_full_gate_v3(
     gate_patch NOT used in any decision.
     """
     import math as _math
-    from PIL import ImageFilter
 
     noun            = extract_query_noun(text)
     model, proc     = _load_clip(clip_model_name)
@@ -979,9 +1003,6 @@ def compute_clip_salience_full_gate_v3(
     absence_thresh  = _MODEL_ABSENCE_THRESH.get(clip_model_name, ABSENCE_THRESH)
     n_tokens        = grid_h * grid_w
     W, H            = image.size
-
-    # ── Prepare blurred image ─────────────────────────────────────────────────
-    blurred = image.filter(ImageFilter.GaussianBlur(radius=_BLUR_RADIUS))
 
     # ── Build patch crops at all scales ───────────────────────────────────────
     scale_patches: dict = {}
@@ -1007,23 +1028,35 @@ def compute_clip_salience_full_gate_v3(
             f = model.get_image_features(**inp).float()
             return (f / f.norm(dim=-1, keepdim=True)).cpu()
 
-    def _enc_text(t):
+    def _enc_text_ensemble(n: str) -> torch.Tensor:
+        """Encode all presence templates for noun n, return mean-pooled unit vector (1, d)."""
+        prompts = [t.format(noun=n) for t in _PRESENCE_TEMPLATES]
         with torch.no_grad():
             if kind == "siglip":
-                inp = proc(text=[t], return_tensors="pt", padding="max_length",
+                inp = proc(text=prompts, return_tensors="pt", padding="max_length",
                            truncation=True, max_length=64).to(_CLIP_INFER_DEVICE)
             else:
-                inp = proc(text=[t], return_tensors="pt", padding=True,
+                inp = proc(text=prompts, return_tensors="pt", padding=True,
                            truncation=True, max_length=77).to(_CLIP_INFER_DEVICE)
-            f = model.get_text_features(**inp).float()
-            return (f / f.norm(dim=-1, keepdim=True)).cpu()
+            f = model.get_text_features(**inp).float()          # (n_templates, d)
+            f = f / f.norm(dim=-1, keepdim=True)
+            f_mean = f.mean(dim=0, keepdim=True)                # (1, d)
+            f_mean = f_mean / f_mean.norm(dim=-1, keepdim=True) # re-normalize
+        return f_mean.cpu()
 
-    txt_feat = _enc_text(noun)                          # (1, d)
+    txt_feat = _enc_text_ensemble(noun)                 # (1, d)
 
-    # Full-image: encode real + blurred together (1 forward instead of 2)
-    full_feats  = _enc_imgs([image, blurred])            # (2, d)
-    full_img_sim = float((full_feats[0:1] @ txt_feat.T).item())
-    sim_blurred  = float((full_feats[1:2] @ txt_feat.T).item())
+    # Full-image: encode real image (+ blurred only when needed for blur_delta backup)
+    if backup == "blur_delta":
+        from PIL import ImageFilter as _ImageFilter
+        blurred     = image.filter(_ImageFilter.GaussianBlur(radius=_BLUR_RADIUS))
+        full_feats  = _enc_imgs([image, blurred])        # (2, d)
+        full_img_sim = float((full_feats[0:1] @ txt_feat.T).item())
+        sim_blurred  = float((full_feats[1:2] @ txt_feat.T).item())
+    else:
+        full_feats   = _enc_imgs([image])                # (1, d)
+        full_img_sim = float((full_feats[0:1] @ txt_feat.T).item())
+        sim_blurred  = 0.0                               # unused
 
     # Patch scales: raw cosine sims (unnormalized) for each scale
     scale_raw_sims: dict = {}
@@ -1057,49 +1090,59 @@ def compute_clip_salience_full_gate_v3(
     all_mean   = float(saliency.float().mean()) + 1e-8
     patch_contrast = top_mean / all_mean
 
-    # ── NEW Signal 1: raw-sim entropy (finest scale, unnormalized) ────────────
-    finest_n     = max(coarse_scales)
-    raw_finest   = scale_raw_sims[finest_n]                          # (finest_n^2,)
-    p_raw        = torch.softmax(raw_finest.float() / _RAW_ENTROPY_TEMPERATURE, dim=0)
-    raw_entropy  = float(-(p_raw * (p_raw + 1e-9).log()).sum() / _math.log(len(p_raw)))
-
-    # ── NEW Signal 2: cross-scale localization agreement ─────────────────────
-    coarsest_n   = min(coarse_scales)
-    sal_coarsest = scale_saliency[coarsest_n]
-    sal_finest   = scale_saliency[finest_n]
-    k_iou        = max(1, round(n_tokens * 0.30))
-    top_coarsest = set(sal_coarsest.topk(k_iou).indices.tolist())
-    top_finest_s = set(sal_finest.topk(k_iou).indices.tolist())
-    inter        = len(top_coarsest & top_finest_s)
-    union        = len(top_coarsest | top_finest_s)
-    cross_scale_iou = inter / (union + 1e-8)
-
-    # ── NEW Signal 3: blur delta ──────────────────────────────────────────────
-    blur_delta = full_img_sim - sim_blurred
-
     # ── Gate decisions ────────────────────────────────────────────────────────
-    _thresh          = full_img_thresh if full_img_thresh is not None else _FULL_IMG_THRESH_V3
-    gate_full        = full_img_sim     >= _thresh
-    gate_full_soft   = full_img_sim     >= 0.85 * _thresh
-    gate_patch       = patch_max_sim    >= absence_thresh                     # diagnostics only
-    gate_contrast    = patch_contrast   >= _CONTRAST_THRESH                   # diagnostics only
-    gate_raw_entropy = raw_entropy      <  _RAW_ENTROPY_THRESH                # peaked → present
-    gate_cross_scale = cross_scale_iou  >= _CROSS_SCALE_THRESH               # consistent location
-    gate_blur_delta  = blur_delta       >= _BLUR_DELTA_THRESH                 # object features
+    # backup="none" (default): gate is purely gate_full — no backup signals needed.
+    # Only compute backup signals when the relevant backup mode is active.
+    _thresh   = full_img_thresh if full_img_thresh is not None else _FULL_IMG_THRESH_V3
+    gate_full = full_img_sim >= _thresh
 
-    # Gate: gate_full always primary. backup tested one at a time.
-    # backup="none"        → Exp 1: threshold only
-    # backup="cross_scale" → Exp 2: + cross_scale_iou fallback
-    # backup="blur_delta"  → Exp 3: + blur_delta fallback
-    # backup="raw_entropy" → Exp 4: + raw_entropy fallback
-    if backup == "cross_scale":
-        object_present = gate_full or (gate_full_soft and gate_cross_scale)
+    # Defaults for diagnostic fields (populated only when backup is active)
+    raw_entropy     = 0.0
+    cross_scale_iou = 0.0
+    blur_delta      = 0.0
+    gate_raw_entropy = False
+    gate_cross_scale = False
+    gate_blur_delta  = False
+
+    if backup == "none":
+        gate_patch_presence = patch_max_sim >= patch_thresh
+        object_present = gate_full or gate_patch_presence
+
+    elif backup == "cross_scale":
+        finest_n     = max(coarse_scales)
+        coarsest_n   = min(coarse_scales)
+        sal_coarsest = scale_saliency[coarsest_n]
+        sal_finest   = scale_saliency[finest_n]
+        k_iou        = max(1, round(n_tokens * 0.30))
+        top_coarsest = set(sal_coarsest.topk(k_iou).indices.tolist())
+        top_finest_s = set(sal_finest.topk(k_iou).indices.tolist())
+        inter        = len(top_coarsest & top_finest_s)
+        union        = len(top_coarsest | top_finest_s)
+        cross_scale_iou  = inter / (union + 1e-8)
+        gate_cross_scale = cross_scale_iou >= _CROSS_SCALE_THRESH
+        gate_full_soft   = full_img_sim >= 0.85 * _thresh
+        object_present   = gate_full or (gate_full_soft and gate_cross_scale)
+
     elif backup == "blur_delta":
-        object_present = gate_full or (gate_full_soft and gate_blur_delta)
+        blur_delta      = full_img_sim - sim_blurred   # sim_blurred set above when backup=="blur_delta"
+        gate_blur_delta = blur_delta >= _BLUR_DELTA_THRESH
+        gate_full_soft  = full_img_sim >= 0.85 * _thresh
+        object_present  = gate_full or (gate_full_soft and gate_blur_delta)
+
     elif backup == "raw_entropy":
-        object_present = gate_full or (gate_full_soft and gate_raw_entropy)
+        finest_n     = max(coarse_scales)
+        raw_finest   = scale_raw_sims[finest_n]
+        p_raw        = torch.softmax(raw_finest.float() / _RAW_ENTROPY_TEMPERATURE, dim=0)
+        raw_entropy      = float(-(p_raw * (p_raw + 1e-9).log()).sum() / _math.log(len(p_raw)))
+        gate_raw_entropy = raw_entropy < _RAW_ENTROPY_THRESH
+        gate_full_soft   = full_img_sim >= 0.85 * _thresh
+        object_present   = gate_full or (gate_full_soft and gate_raw_entropy)
+
     else:
         object_present = gate_full
+
+    gate_patch    = patch_max_sim  >= absence_thresh    # diagnostics only
+    gate_contrast = patch_contrast >= _CONTRAST_THRESH  # diagnostics only
 
     # ── Build mask ────────────────────────────────────────────────────────────
     if object_present:

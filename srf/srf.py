@@ -34,6 +34,7 @@ sys.path.insert(0, str(_SRF_DIR / "saliency"))           # clip_salience, hssa_s
 sys.path.insert(0, str(_SRF_DIR))                         # config, noun_extract, srf
 sys.path.insert(0, str(_ANALYSIS_DIR))                    # qwen_attn_patch
 
+import os
 import torch
 import qwen_attn_patch as patch
 import clip_salience as clip_sal
@@ -55,6 +56,8 @@ _processor  = None
 _spatial    = 2
 _noun_mode  = "pope"
 _model_id   = ""        # set in setup(); used to look up SRF_ARCH_PARAMS
+_calib_head_top_k: float | None = None  # last head_top_k_pct used for calibration
+_calib_layer_end:  int   | None = None  # last layer_end used for calibration
 
 # Last CLIP result — set by prepare_sample, read by callers for B4 retry logic.
 # Fields: object_present (bool), full_img_sim (float), saliency (tensor|None)
@@ -115,6 +118,12 @@ def _make_bias(dataset: str, overrides: dict) -> dict:
     if overrides.get("head_top_k_pct")  is not None: b["head_top_k_pct"]    = overrides["head_top_k_pct"]
     if overrides.get("bias_mode")        is not None: b["bias_mode"]          = overrides["bias_mode"]
     if overrides.get("interp_lambda")   is not None: b["interp_lambda"]      = overrides["interp_lambda"]
+    if overrides.get("sys_beta")        is not None: b["sys_beta"]           = overrides["sys_beta"]
+    if overrides.get("text_beta")       is not None: b["text_beta"]          = overrides["text_beta"]
+    if overrides.get("text_layer_start") is not None: b["text_layer_start"]  = overrides["text_layer_start"]
+    if overrides.get("text_layer_end")  is not None: b["text_layer_end"]     = overrides["text_layer_end"]
+    if overrides.get("prob_floor")      is not None: b["prob_floor"]         = overrides["prob_floor"]
+    if overrides.get("img_scale")       is not None: b["img_scale"]          = overrides["img_scale"]
     if overrides.get("vr_target")       is not None: b["vr_target"]          = overrides["vr_target"]
     if overrides.get("vr_k")            is not None: b["vr_k"]               = overrides["vr_k"]
 
@@ -227,7 +236,9 @@ def _build_calib_inputs(dataset: str, n: int, seed: int):
         rows = list(ds); rng.shuffle(rows)
         for r in rows[:n]:
             img  = r["image"].convert("RGB")
-            msgs = [{"role": "user", "content": [{"type": "image", "image": img},
+            # Cap resolution: VLMBias images up to 2.1M px; cap to ~POPE size to avoid OOM
+            msgs = [{"role": "user", "content": [{"type": "image", "image": img,
+                                                   "max_pixels": 400 * 400},
                                                   {"type": "text",  "text":  r["prompt"]}]}]
             text = _processor.apply_chat_template(msgs, tokenize=False,
                                                    add_generation_prompt=True)
@@ -285,9 +296,45 @@ def _build_calib_inputs(dataset: str, n: int, seed: int):
             e = len(ids) - 1 - ids[::-1].index(img_id)
             calib_inputs.append(inp); img_ranges.append((s, e))
 
+    elif dataset == "vlind":
+        import json as _json
+        from pathlib import Path as _Path
+        from huggingface_hub import snapshot_download as _snap_dl
+        _vlind_root = _Path(_snap_dl(repo_id=CFG.VLIND_BENCH_REPO_ID, repo_type="dataset",
+                                     cache_dir=os.environ.get("HF_HOME"),
+                                     local_files_only=True)) / "VLind-Bench Dataset"
+        with open(_vlind_root / "data.json") as _f:
+            _items = _json.load(_f)
+        rng.shuffle(_items)
+        for _item in _items:
+            _concept = _item["concept"]
+            _cf_dir  = (_vlind_root / "images" / "counterfactual"
+                        / _concept / f"{_item['context_id']}_{_item['context']}")
+            _img_path = _cf_dir / f"{_item['best_img_id']}.jpg"
+            if not _img_path.exists():
+                continue
+            from PIL import Image as _PIL_Image
+            _img  = _PIL_Image.open(_img_path).convert("RGB")
+            _q    = (f"Only respond in True or False.\n"
+                     f"Statement: {_item['true_statement']}\n"
+                     f"Based on the image, is the given statement true or false?")
+            msgs = [{"role": "user", "content": [{"type": "image", "image": _img},
+                                                  {"type": "text",  "text":  _q}]}]
+            text = _processor.apply_chat_template(msgs, tokenize=False,
+                                                   add_generation_prompt=True)
+            vis, _ = pvi(msgs)
+            inp = _processor(text=[text], images=vis, return_tensors="pt",
+                             padding=True).to(device)
+            ids = inp["input_ids"][0].tolist()
+            s = ids.index(img_id)
+            e = len(ids) - 1 - ids[::-1].index(img_id)
+            calib_inputs.append(inp); img_ranges.append((s, e))
+            if len(calib_inputs) >= n:
+                break
+
     else:
         raise ValueError(f"Unknown calib dataset: {dataset!r}. "
-                         f"Supported: pope, mmvp, vlmbias, mme, hallusionbench, mmbench")
+                         f"Supported: pope, mmvp, vlmbias, mme, hallusionbench, mmbench, vlind")
 
     return calib_inputs, img_ranges
 
@@ -349,6 +396,8 @@ def setup(model, processor, calib_dataset: str = "pope") -> None:
     print(f"  [SRF] {n_sel} vision-aware heads (top {BIAS['head_top_k_pct']*100:.0f}%)")
     del calib_inputs, img_ranges
     torch.cuda.empty_cache()
+    global _calib_head_top_k
+    _calib_head_top_k = BIAS["head_top_k_pct"]
 
     patch.patch_model(model, "vaf", max(float(BIAS["boost_alpha"]), 1e-6))
     _sync_patch_state()
@@ -384,9 +433,16 @@ def reset_for_dataset(
     # Bias mode + related
     bias_mode:            str   | None = None,
     interp_lambda:        float | None = None,
+    sys_beta:             float | None = None,
+    text_beta:            float | None = None,
+    text_layer_start:     int   | None = None,
+    text_layer_end:       int   | None = None,
+    prob_floor:           float | None = None,
+    img_scale:            float | None = None,
     # B1: visual reliance compensation
     vr_target:            float | None = None,
     vr_k:                 float | None = None,
+    **kwargs,   # absorb method-specific params (vcd/vaf) passed via _reset_overrides
 ) -> None:
     """
     Switch to a new dataset or apply a new hyperparameter configuration.
@@ -432,6 +488,12 @@ def reset_for_dataset(
         "clip_weight":          clip_weight,
         "bias_mode":            bias_mode,
         "interp_lambda":        interp_lambda,
+        "sys_beta":             sys_beta,
+        "text_beta":            text_beta,
+        "text_layer_start":     text_layer_start,
+        "text_layer_end":       text_layer_end,
+        "prob_floor":           prob_floor,
+        "img_scale":            img_scale,
         "vr_target":            vr_target,
         "vr_k":                 vr_k,
     }
@@ -447,23 +509,38 @@ def reset_for_dataset(
           f"clip_grid={SALIENCY['clip_coarse_grid']}  "
           f"clip_topk={SALIENCY['clip_top_k_pct']}")
 
-    n    = CFG.SRF_DEFAULTS["calib_n"]
-    seed = CFG.SRF_DEFAULTS["calib_seed"]
-    calib_inputs, img_ranges = _build_calib_inputs(dataset, n=n, seed=seed)
-    patch.identify_visual_heads(_model, calib_inputs, img_ranges, BIAS["head_top_k_pct"])
-    del calib_inputs, img_ranges
-    torch.cuda.empty_cache()
+    global _calib_head_top_k, _calib_layer_end
+    new_topk = BIAS["head_top_k_pct"]
+    new_le   = BIAS["layer_end"]
+    if (new_topk != _calib_head_top_k or new_le != _calib_layer_end
+            or patch._STATE.get("head_mask") is None):
+        # Re-calibrate when head_top_k_pct or layer_end changes, or heads not yet identified.
+        # layer_end changes which layers are scored → different vision-aware head ranking.
+        n    = CFG.SRF_DEFAULTS["calib_n"]
+        seed = CFG.SRF_DEFAULTS["calib_seed"]
+        calib_inputs, img_ranges = _build_calib_inputs(dataset, n=n, seed=seed)
+        patch.identify_visual_heads(_model, calib_inputs, img_ranges, new_topk)
+        del calib_inputs, img_ranges
+        torch.cuda.empty_cache()
+        _calib_head_top_k = new_topk
+        _calib_layer_end  = new_le
+    else:
+        print(f"  [SRF] reusing visual heads (head_top_k_pct={new_topk}, layer_end={new_le} unchanged)")
     _sync_patch_state()
 
 
 def prepare_sample(inputs, img_start: int, img_end: int,
-                   image, question: str, model, processor) -> None:
+                   image, question: str, model, processor,
+                   noun_override: str | None = None) -> None:
     """
     Per-sample setup: compute saliency and configure patch state.
     Saliency source is controlled by SALIENCY["saliency_mode"]:
       "clip" — CLIP ViT-B/32 patch similarity (default, no extra forward pass)
       "hssa" — Qwen hidden-state cosine similarity (extra forward pass, better alignment)
     Must be called before every model forward pass.
+
+    noun_override: if provided, skip noun extraction from question and use this directly
+                   for CLIP saliency (e.g. VLind-Bench provides existent_noun directly).
     """
     patch.update_sample(img_start, img_end)
     patch._STATE["value"]             = BIAS["boost_alpha"]
@@ -490,8 +567,9 @@ def prepare_sample(inputs, img_start: int, img_end: int,
     }
     global last_clip_result
     last_clip_result = {}   # reset each sample
-    _test_noun = extract_clip_noun(question, mode=_noun_mode)
-    if _test_noun in _BAD_NOUNS or len(_test_noun) <= 2:
+    # Use noun_override if provided (e.g. VLind-Bench existent_noun), else extract from question
+    _noun = noun_override if noun_override else extract_clip_noun(question, mode=_noun_mode)
+    if _noun in _BAD_NOUNS or len(_noun) <= 2:
         patch._STATE["method"] = "baseline"
         return
 
@@ -534,7 +612,7 @@ def prepare_sample(inputs, img_start: int, img_end: int,
         patch._STATE["method"] = "srf"
 
         grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial)
-        noun   = extract_clip_noun(question, mode=_noun_mode)
+        noun   = _noun
         clip_result = clip_sal.compute_clip_salience(
             image, noun, grid_h, grid_w,
             top_k_pct=SALIENCY["clip_top_k_pct"],
@@ -555,7 +633,7 @@ def prepare_sample(inputs, img_start: int, img_end: int,
         # Multi-scale CLIP with hard presence gate (3-signal combined).
         # When object is absent → uniform 0.5; when present → spatial localization.
         grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial)
-        noun   = extract_clip_noun(question, mode=_noun_mode)
+        noun   = _noun
         result = clip_sal.compute_clip_salience_multiscale_full_gate(
             image, noun, grid_h, grid_w,
             top_k_pct=SALIENCY["clip_top_k_pct"],
@@ -576,7 +654,7 @@ def prepare_sample(inputs, img_start: int, img_end: int,
         # sigma = range/4 so ±2σ spans the full layer range.
         import math as _math
         grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial)
-        noun   = extract_clip_noun(question, mode=_noun_mode)
+        noun   = _noun
         result = clip_sal.compute_clip_salience_full_gate_v3(
             image, noun, grid_h, grid_w,
             top_k_pct=SALIENCY["clip_top_k_pct"],
@@ -610,18 +688,24 @@ def prepare_sample(inputs, img_start: int, img_end: int,
         #                              strongly-present objects get proportionally higher boost
         backup = "cross_scale" if sal_mode == "clip_full_gate_v3_iou" else "none"
         grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial)
-        noun   = extract_clip_noun(question, mode=_noun_mode)
+        noun   = _noun
+        # Use clip_fallback_thresh as the gate threshold if set; otherwise falls back to
+        # the hardcoded _FULL_IMG_THRESH_V3=0.21 inside compute_clip_salience_full_gate_v3.
+        v3_thresh = SALIENCY.get("clip_fallback_thresh") or None
         result = clip_sal.compute_clip_salience_full_gate_v3(
             image, noun, grid_h, grid_w,
             top_k_pct=SALIENCY["clip_top_k_pct"],
             clip_model_name=SALIENCY.get("clip_model", clip_sal._CLIP_DEFAULT_MODEL),
             backup=backup,
+            full_img_thresh=v3_thresh,
         )
         last_clip_result["object_present"] = result.object_present
         last_clip_result["full_img_sim"]   = result.full_img_sim
         last_clip_result["saliency"]       = result.saliency
         if result.object_present:
-            raw_conf  = result.full_img_sim / clip_sal._FULL_IMG_THRESH_V3
+            # Use same threshold for confidence scaling so --clip_fallback_thresh controls both.
+            _conf_thresh = v3_thresh if v3_thresh is not None else clip_sal._FULL_IMG_THRESH_V3
+            raw_conf  = result.full_img_sim / _conf_thresh
             clip_conf = raw_conf if sal_mode == "clip_full_gate_v3_adaptive" else min(raw_conf, 1.0)
             patch._STATE["value"]         = BIAS["boost_alpha"] * clip_conf
             patch._STATE["salience_mask"] = result.saliency
@@ -643,16 +727,17 @@ def prepare_sample(inputs, img_start: int, img_end: int,
         patch._STATE["method"] = "srf"
 
         grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial)
-        noun   = extract_clip_noun(question, mode=_noun_mode)
+        noun      = _noun
+        v3_thresh = SALIENCY.get("clip_fallback_thresh") or clip_sal._FULL_IMG_THRESH_V3
         result = clip_sal.compute_clip_salience_full_gate_v3(
             image, noun, grid_h, grid_w,
             top_k_pct=SALIENCY["clip_top_k_pct"],
             clip_model_name=SALIENCY.get("clip_model", clip_sal._CLIP_DEFAULT_MODEL),
             backup="none",
+            full_img_thresh=v3_thresh,
         )
         if result.object_present:
-            raw_conf  = result.full_img_sim / clip_sal._FULL_IMG_THRESH_V3
-            clip_conf = min(raw_conf, 1.0)
+            clip_conf = min(result.full_img_sim / v3_thresh, 1.0)
             patch._STATE["value"]         = BIAS["boost_alpha"] * clip_conf
             patch._STATE["salience_mask"] = result.saliency
         else:
@@ -696,16 +781,17 @@ def prepare_sample(inputs, img_start: int, img_end: int,
         patch._STATE["vaf_layer_end"]   = dyn_le
 
         grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial)
-        noun   = extract_clip_noun(question, mode=_noun_mode)
+        noun      = _noun
+        v3_thresh = SALIENCY.get("clip_fallback_thresh") or clip_sal._FULL_IMG_THRESH_V3
         result = clip_sal.compute_clip_salience_full_gate_v3(
             image, noun, grid_h, grid_w,
             top_k_pct=SALIENCY["clip_top_k_pct"],
             clip_model_name=SALIENCY.get("clip_model", clip_sal._CLIP_DEFAULT_MODEL),
             backup="none",
+            full_img_thresh=v3_thresh,
         )
         if result.object_present:
-            raw_conf  = result.full_img_sim / clip_sal._FULL_IMG_THRESH_V3
-            clip_conf = min(raw_conf, 1.0)
+            clip_conf = min(result.full_img_sim / v3_thresh, 1.0)
             patch._STATE["value"]         = BIAS["boost_alpha"] * clip_conf
             patch._STATE["salience_mask"] = result.saliency
         else:
@@ -716,7 +802,7 @@ def prepare_sample(inputs, img_start: int, img_end: int,
         # Multi-scale CLIP with soft presence gate.
         # Blends spatial and uniform by w = min(full_img_sim / thresh, 1).
         grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial)
-        noun   = extract_clip_noun(question, mode=_noun_mode)
+        noun   = _noun
         result = clip_sal.compute_clip_salience_soft_gate(
             image, noun, grid_h, grid_w,
             top_k_pct=SALIENCY["clip_top_k_pct"],
@@ -727,7 +813,7 @@ def prepare_sample(inputs, img_start: int, img_end: int,
     elif sal_method == "clip_gradcam":
         # GradCAM: full image → CLIP → cosine sim → backprop → spatial map
         grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial)
-        noun   = extract_clip_noun(question, mode=_noun_mode)
+        noun   = _noun
         result = clip_sal.compute_clip_gradcam(
             image, noun, grid_h, grid_w,
             top_k_pct=SALIENCY["clip_top_k_pct"],
@@ -738,7 +824,7 @@ def prepare_sample(inputs, img_start: int, img_end: int,
     elif sal_method == "srf2":
         # SRF2: 0.7 * GradCAM saliency + 0.3 * HSSA saliency
         grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial)
-        noun   = extract_clip_noun(question, mode=_noun_mode)
+        noun   = _noun
         gradcam = clip_sal.compute_clip_gradcam(
             image, noun, grid_h, grid_w,
             top_k_pct=SALIENCY["clip_top_k_pct"],
@@ -762,7 +848,7 @@ def prepare_sample(inputs, img_start: int, img_end: int,
     else:
         # Default: CLIP/SigLIP patch similarity (clip_patch, backward-compatible)
         grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial)
-        noun   = extract_clip_noun(question, mode=_noun_mode)
+        noun   = _noun
         result = clip_sal.compute_clip_salience(
             image, noun, grid_h, grid_w,
             top_k_pct=SALIENCY["clip_top_k_pct"],
@@ -770,8 +856,13 @@ def prepare_sample(inputs, img_start: int, img_end: int,
             clip_model_name=SALIENCY.get("clip_model", clip_sal._CLIP_DEFAULT_MODEL),
         )
         if result.max_sim < SALIENCY["clip_fallback_thresh"]:
+            # Object absent (or threshold forced to 1.0 for uniform mode).
+            # If neg_absent_alpha>0: suppress image attention (object truly absent).
+            # If neg_absent_alpha=0 (default): uniform boost with full alpha — keeps
+            # behaviour consistent with old autoresearch (value was never overwritten).
+            _neg = BIAS.get("neg_absent_alpha", 0.0)
             patch._STATE["salience_mask"] = None
-            patch._STATE["value"]         = -BIAS.get("neg_absent_alpha", 0.0)
+            patch._STATE["value"]         = -_neg if _neg > 0.0 else BIAS["boost_alpha"]
         else:
             clip_conf = min(result.max_sim / SALIENCY["clip_fallback_thresh"], 1.0)
             patch._STATE["value"]         = BIAS["boost_alpha"] * clip_conf

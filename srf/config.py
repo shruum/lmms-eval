@@ -3,18 +3,30 @@ Central config — single source of truth for paths, model IDs, and SRF hyperpar
 All eval scripts import from here; nothing is hardcoded in eval scripts.
 
 ═══════════════════════════════════════════════════════════════════════════════
-QUICK-START: BEST CONFIG (Qwen2.5-VL-3B-Instruct, as of 2026-06-12)
+QUICK-START: BEST CONFIG (Qwen2.5-VL-3B-Instruct, as of 2026-06-16)
 ═══════════════════════════════════════════════════════════════════════════════
 
+  Method: SRF-E (contrastive), gamma=3.0
   saliency_mode   = clip_full_gate_v3   ← already the default in SRF_ARCH_PARAMS
-  layer_start/end = 6 / 12             ← tuned by val-set sweep
+  layer_start     = 8                   ← tuned by coordinate-descent sweep
+  layer_end       = dataset-specific (MMVP=16, POPE=12, VLMBias=14)
   head_top_k_pct  = 0.20
-  alpha           = 4.0,  eps = 0.2
-  phase           = generation
+  alpha           = 2.0 (MMVP/POPE), 8.0 (VLMBias)
+  eps             = 0.2 (MMVP/POPE), 0.5 (VLMBias)
+  phase           = generation (POPE/VLMBias), both (MMVP)
   sys_beta        = 0.30
   bias_mode       = additive_logit     ← default; see "Boosting methods" below
+  gamma           = 3.0                ← SRF-E contrastive amplification
 
-Full POPE:   conda run -n mllm python srf/eval.py --method srf --datasets pope --output results/
+Results (Qwen2.5-VL-3B):
+  MMVP pair_acc = 49.33%  (baseline 40.0%,  +9.33pp)
+  POPE adv_acc  = 87.33%  (baseline 86.37%, +0.96pp)
+  VLMBias       = 19.0%   (baseline 19.04%, ≈0pp — SRF-E broken for multi-token)
+
+NOTE: SRF-E (gamma>0) only works for single/short-token answers.
+      For VLMBias (multi-token {Yes}/{No} format), use SRF base (gamma=0).
+
+Full POPE:   conda run -n mllm python srf/eval.py --method srfe --datasets pope --output results/ --gamma 3.0
 Quick val:   conda run -n mllm python srf/eval_pope_val.py --srf --out results/pope_val_srf.json
 
 ═══════════════════════════════════════════════════════════════════════════════
@@ -122,6 +134,14 @@ VLM_BIAS_SEED       = 42
 
 MMVP_GT_CORRECTIONS = {99: "A", 279: "A"}   # known GT errors in original CSV
 
+# ── VLind-Bench ────────────────────────────────────────────────────────────────
+VLIND_BENCH_REPO_ID     = "klee972/VLind-Bench"
+VLIND_BENCH_VOTE_THRESH = 2          # min human votes for an image to be used
+VLIND_BENCH_CONCEPTS    = [
+    "climate", "color", "diet", "folklore", "habitat",
+    "history", "landmark", "location", "size", "time", "weight",
+]
+
 # ── SRF shared defaults (not arch-specific) ────────────────────────────────────
 # These do NOT vary with model size. Arch-specific tunables live in SRF_ARCH_PARAMS.
 SRF_DEFAULTS = {
@@ -141,17 +161,23 @@ SRF_DEFAULTS = {
 # Tunable per dataset, arch-agnostic.
 # layer_start / layer_end live in SRF_ARCH_PARAMS (they scale with model depth).
 SRF_DATASET_PARAMS = {
-    "mmvp":       {"phase": "both",       "alpha": 4.0, "eps": 0.2, "neg_absent_alpha": 0.0},
-    "pope":       {"phase": "generation", "alpha": 4.0, "eps": 0.2, "neg_absent_alpha": 0.0},
+    # alpha tuned by coordinate-descent sweep (autoresearch_mmvp_v2, 2026-06-16)
+    # MMVP: α=2.0 + γ=3.0 → 49.33% pair_acc (+9.33pp)
+    # POPE: α=2.0 or α=4.0 both give 87.33%; use 2.0 for unified config
+    "mmvp":       {"phase": "both",       "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
+    "pope":       {"phase": "both",       "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 2.0},
     "vlmbias":    {"phase": "generation", "alpha": 8.0, "eps": 0.5, "neg_absent_alpha": 0.0},
-    "mme":        {"phase": "generation", "alpha": 4.0, "eps": 0.2, "neg_absent_alpha": 0.0},
-    "mmbench":    {"phase": "generation", "alpha": 4.0, "eps": 0.2, "neg_absent_alpha": 0.0},
-    "hallusionbench": {"phase": "generation", "alpha": 4.0, "eps": 0.2, "neg_absent_alpha": 0.0},
+    "mme":        {"phase": "generation", "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
+    "mmbench":    {"phase": "generation", "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
+    "hallusionbench": {"phase": "generation", "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
+    # VLind-Bench: counterfactual visual reasoning — same structure as MMVP (True/False pair)
+    # phase="both": boost helps in both prefill (question understanding) and generation
+    "vlind":      {"phase": "both",       "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
 }
 
 # ── SRF-E (evidence amplification) defaults ────────────────────────────────────
-SRFE_DEFAULT_BETA = 2.0    # best on MMVP; sweep to confirm on POPE
-SRFE_BETA_SWEEP   = [0.5, 1.0, 2.0]
+SRFE_DEFAULT_GAMMA = 3.0    # tuned: best on both MMVP (49.33%) and POPE (87.33%)
+SRFE_GAMMA_SWEEP   = [1.0, 2.0, 3.0, 4.0]
 
 # ── Architecture-specific hyperparameters ──────────────────────────────────────
 # These all VARY with model size/architecture and must be tuned per model.
@@ -182,10 +208,11 @@ SRF_ARCH_PARAMS = {
         "n_layers":             28,
         "spatial_merge_size":   2,
         "image_token":          "<|image_pad|>",
-        # ── tuned by val-set sweep (sweep_heads_layers.py, 2026-06-07) ──
-        # ls=6 le=12 → acc=0.900 vs ls=8 le=15 → acc=0.867 on 60-sample POPE val
-        "layer_start":          6,
-        "layer_end":            12,
+        # ── tuned by coordinate-descent sweep (autoresearch_mmvp_v2, 2026-06-16) ──
+        # ls=8 le=16 α=2.0 γ=3.0 → MMVP pair_acc=49.33% (+9.33pp vs 40% baseline)
+        # ls=8 le=12 α=2.0 γ=3.0 → POPE adv=87.33% (+0.96pp vs 86.37% baseline)
+        "layer_start":          8,
+        "layer_end":            12,    # POPE-tuned default; dataset_layer_end overrides per dataset
         "head_top_k_pct":       0.20,
         "clip_coarse_grid":     7,
         "clip_top_k_pct":       0.30,
@@ -203,7 +230,7 @@ SRF_ARCH_PARAMS = {
         "lta_weight":           0.6,    # weight in clip_lta combined mode
         "clip_weight":          0.4,    # weight in clip_lta combined mode
         # per-dataset layer_end fine-tuning (overrides layer_end above)
-        "dataset_layer_end":    {"mmvp": 15, "pope": 12, "vlmbias": 14, "mme": 15},
+        "dataset_layer_end":    {"mmvp": 16, "pope": 12, "vlmbias": 14, "mme": 16, "vlind": 16},
     },
     "Qwen/Qwen2.5-VL-7B-Instruct": {
         "n_layers":             32,
@@ -225,7 +252,7 @@ SRF_ARCH_PARAMS = {
         "lta_layer_idx":        -1,
         "lta_weight":           0.6,
         "clip_weight":          0.4,
-        "dataset_layer_end":    {"mmvp": 17, "pope": 17, "vlmbias": 16, "mme": 17},
+        "dataset_layer_end":    {"mmvp": 17, "pope": 17, "vlmbias": 16, "mme": 17, "vlind": 17},
     },
     "llava-hf/llava-1.5-7b-hf": {
         "n_layers":             32,
@@ -247,7 +274,7 @@ SRF_ARCH_PARAMS = {
         "lta_layer_idx":        -1,
         "lta_weight":           0.6,
         "clip_weight":          0.4,
-        "dataset_layer_end":    {"mmvp": 20, "pope": 20, "vlmbias": 19, "mme": 20},
+        "dataset_layer_end":    {"mmvp": 20, "pope": 20, "vlmbias": 19, "mme": 20, "vlind": 20},
     },
 }
 

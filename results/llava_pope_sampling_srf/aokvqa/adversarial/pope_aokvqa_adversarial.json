@@ -1,0 +1,27 @@
+{
+  "dataset": "aokvqa_adversarial",
+  "file": "/home/anna2/shruthi/dataset/POPE_images/aokvqa_adversarial.json",
+  "n_samples": 3000,
+  "baseline": {
+    "accuracy": 0.6946666666666667,
+    "precision": 0.6315315315315315,
+    "recall": 0.9346666666666666,
+    "f1": 0.753763440860215,
+    "tp": 1402,
+    "tn": 682,
+    "fp": 818,
+    "fn": 98
+  },
+  "method": {
+    "0.0": {
+      "accuracy": 0.6913333333333334,
+      "precision": 0.6275555555555555,
+      "recall": 0.9413333333333334,
+      "f1": 0.7530666666666666,
+      "tp": 1412,
+      "tn": 662,
+      "fp": 838,
+      "fn": 88
+    }
+  }
+}

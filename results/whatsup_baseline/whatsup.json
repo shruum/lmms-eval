@@ -1,0 +1,38 @@
+{
+  "n": 4958,
+  "baseline": {
+    "accuracy": 0.3071803146430012,
+    "by_subtask": {
+      "controlled_a": {
+        "accuracy": 0.5558252427184466,
+        "correct": 229,
+        "total": 412
+      },
+      "controlled_b": {
+        "accuracy": 0.27205882352941174,
+        "correct": 111,
+        "total": 408
+      },
+      "coco_one": {
+        "accuracy": 0.3168669336893636,
+        "correct": 712,
+        "total": 2247
+      },
+      "coco_two": {
+        "accuracy": 0.14772727272727273,
+        "correct": 65,
+        "total": 440
+      },
+      "vg_one": {
+        "accuracy": 0.2991379310344828,
+        "correct": 347,
+        "total": 1160
+      },
+      "vg_two": {
+        "accuracy": 0.2027491408934708,
+        "correct": 59,
+        "total": 291
+      }
+    }
+  }
+}

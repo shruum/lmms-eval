@@ -1,0 +1,77 @@
+🚀 Launching REPOPE-COCO SRF Sweep (Sequential)
+================================================
+🚀 Job 0: coco_random | α=0.15 | layers=10-15 | GPU=0
+🚀 Job 1: coco_random | α=0.15 | layers=10-18 | GPU=1
+🚀 Job 2: coco_random | α=0.25 | layers=10-15 | GPU=2
+🚀 Job 3: coco_random | α=0.25 | layers=10-18 | GPU=3
+🚀 Job 4: coco_random | α=0.50 | layers=10-15 | GPU=4
+🚀 Job 5: coco_random | α=0.50 | layers=10-18 | GPU=5
+🚀 Job 6: coco_popular | α=0.15 | layers=10-15 | GPU=6
+🚀 Job 7: coco_popular | α=0.15 | layers=10-18 | GPU=7
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+🚀 Job 8: coco_popular | α=0.25 | layers=10-15 | GPU=6
+🚀 Job 9: coco_popular | α=0.25 | layers=10-18 | GPU=7
+⏳ Waiting for GPU to be available... (8/8 in use)
+⏳ Waiting for GPU to be available... (8/8 in use)
+🚀 Job 10: coco_popular | α=0.50 | layers=10-15 | GPU=5
+🚀 Job 11: coco_popular | α=0.50 | layers=10-18 | GPU=6
+🚀 Job 12: coco_adversarial | α=0.15 | layers=10-15 | GPU=7
+🚀 Job 13: coco_adversarial | α=0.15 | layers=10-18 | GPU=7
+⏳ Waiting for GPU to be available... (8/8 in use)
+🚀 Job 14: coco_adversarial | α=0.25 | layers=10-15 | GPU=7
+⏳ Waiting for GPU to be available... (8/8 in use)
+🚀 Job 15: coco_adversarial | α=0.25 | layers=10-18 | GPU=5
+🚀 Job 16: coco_adversarial | α=0.50 | layers=10-15 | GPU=6
+🚀 Job 17: coco_adversarial | α=0.50 | layers=10-18 | GPU=7
+================================================
+🎯 Launched 18 experiments
+📊 Results: results/repope_sequential_sweep
+⏳ Waiting for all experiments to complete...
+✅ All experiments completed!

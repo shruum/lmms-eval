@@ -1,0 +1,15 @@
+{
+  "dataset": "coco_adversarial",
+  "file": "/home/anna2/shruthi/dataset/pope_vcd/coco_adversarial.json",
+  "n_samples": 3000,
+  "baseline": {
+    "accuracy": 0.5173333333333333,
+    "precision": 0.51625,
+    "recall": 0.5506666666666666,
+    "f1": 0.5329032258064516,
+    "tp": 826,
+    "tn": 726,
+    "fp": 774,
+    "fn": 674
+  }
+}

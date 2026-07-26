@@ -1,0 +1,14 @@
+{
+  "baseline": {
+    "accuracy": 83.0,
+    "config": {"alpha": 2.0, "clip_coarse_grid": 7, "eps": 0.0},
+    "gpu": 1
+  },
+  "experiments": [
+    {"id": "1A", "name": "5x5_grid", "gpu": 2, "config": {"alpha": 2.0, "clip_coarse_grid": 5}},
+    {"id": "1B", "name": "9x9_grid", "gpu": 1, "config": {"alpha": 2.0, "clip_coarse_grid": 9}},
+    {"id": "2A", "name": "stronger_boost", "gpu": 2, "config": {"alpha": 4.0, "eps": 0.2, "clip_coarse_grid": 7}},
+    {"id": "2B", "name": "gentle_boost", "gpu": 1, "config": {"alpha": 1.5, "eps": 0.1, "clip_coarse_grid": 7}}
+  ],
+  "completed": []
+}

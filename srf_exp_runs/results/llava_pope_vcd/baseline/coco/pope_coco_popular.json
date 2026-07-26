@@ -1,0 +1,15 @@
+{
+  "dataset": "coco_popular",
+  "file": "/home/anna2/shruthi/dataset/pope_vcd/coco_popular.json",
+  "n_samples": 3000,
+  "baseline": {
+    "accuracy": 0.6203333333333333,
+    "precision": 0.625086625086625,
+    "recall": 0.6013333333333334,
+    "f1": 0.6129799524294938,
+    "tp": 902,
+    "tn": 959,
+    "fp": 541,
+    "fn": 598
+  }
+}

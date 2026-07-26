@@ -1,0 +1,27 @@
+{
+  "dataset": "RePOPE config6_higher_clip",
+  "file": "/home/anna2/shruthi/RePOPE/annotations/coco_repope_adversarial.json",
+  "n_samples": 2684,
+  "baseline": {
+    "accuracy": 0.8040238450074516,
+    "precision": 0.7144711226476315,
+    "recall": 0.9275484414490311,
+    "f1": 0.8071847507331379,
+    "tp": 1101,
+    "tn": 1057,
+    "fp": 440,
+    "fn": 86
+  },
+  "method": {
+    "0.0": {
+      "accuracy": 0.8006706408345753,
+      "precision": 0.710594315245478,
+      "recall": 0.9267059814658803,
+      "f1": 0.8043875685557585,
+      "tp": 1100,
+      "tn": 1049,
+      "fp": 448,
+      "fn": 87
+    }
+  }
+}

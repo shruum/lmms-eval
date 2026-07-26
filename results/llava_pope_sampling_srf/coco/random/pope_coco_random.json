@@ -1,0 +1,27 @@
+{
+  "dataset": "coco_random",
+  "file": "/home/anna2/shruthi/dataset/POPE_images/coco_random.json",
+  "n_samples": 3000,
+  "baseline": {
+    "accuracy": 0.8556666666666667,
+    "precision": 0.8439716312056738,
+    "recall": 0.8726666666666667,
+    "f1": 0.8580793182563093,
+    "tp": 1309,
+    "tn": 1258,
+    "fp": 242,
+    "fn": 191
+  },
+  "method": {
+    "0.0": {
+      "accuracy": 0.8653333333333333,
+      "precision": 0.8526383526383526,
+      "recall": 0.8833333333333333,
+      "f1": 0.8677144728225278,
+      "tp": 1325,
+      "tn": 1271,
+      "fp": 229,
+      "fn": 175
+    }
+  }
+}

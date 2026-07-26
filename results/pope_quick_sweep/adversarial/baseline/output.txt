@@ -1,0 +1,60 @@
+Loading llava-hf/llava-1.5-7b-hf…
+  Detected model type: llava
+  Model family: Unknown
+  Using LLaVA attention patch
+
+[BASELINE] Setup  model=llava-hf/llava-1.5-7b-hf  BASELINE (no intervention)
+
+============================================================
+DATASET: POPE (adversarial, n=all/split, seed=42)
+MODE: BASELINE (no intervention)
+============================================================
+  Loaded 3000 POPE samples (adversarial)
+  [  500/3000] base_acc=0.7960  base_f1=0.7918
+  [ 1000/3000] base_acc=0.8080  base_f1=0.8017
+  [ 1500/3000] base_acc=0.8253  base_f1=0.8163
+  [ 2000/3000] base_acc=0.8325  base_f1=0.8232
+  [ 2500/3000] base_acc=0.8348  base_f1=0.8267
+  [ 3000/3000] base_acc=0.8293  base_f1=0.8206
+
+POPE baseline:
+  Accuracy: 0.8293  (2488/3000)
+  F1-score: 0.8206
+  Precision: 0.8648
+  Recall: 0.7807
+
+============================================================
+PER-SPLIT RESULTS
+============================================================
+
+ADVERSARIAL (n=3000):
+  Baseline:  acc=0.8293  f1=0.8206  prec=0.8648  rec=0.7807
+  Saved → results/pope_quick_sweep/adversarial/baseline/pope.json
+
+======================================================================
+FINAL SUMMARY — BASELINE RESULTS (no intervention)
+======================================================================
+Model: llava-hf/llava-1.5-7b-hf  |  method=baseline  |  BASELINE (no intervention)
+
+POPE (n=3000):
+  baseline:  acc=82.93%  f1=82.06%
+
+  Per-split breakdown:
+    adversarial:  baseline=82.93% f1=82.06%
+  Saved → results/pope_quick_sweep/adversarial/baseline/summary.json
+
+All results saved to results/pope_quick_sweep/adversarial/baseline/
+
+
+=== STDERR ===
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/huggingface_hub/file_download.py:949: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/transformers/models/llava/configuration_llava.py:103: FutureWarning: The `vocab_size` argument is deprecated and will be removed in v4.42, since it can be inferred from the `text_config`. Passing this argument has no effect
+  warnings.warn(
+
+Loading checkpoint shards:   0%|          | 0/3 [00:00<?, ?it/s]
+Loading checkpoint shards:  33%|███▎      | 1/3 [00:00<00:01,  1.35it/s]
+Loading checkpoint shards:  67%|██████▋   | 2/3 [00:01<00:00,  1.42it/s]
+Loading checkpoint shards: 100%|██████████| 3/3 [00:01<00:00,  1.67it/s]
+Loading checkpoint shards: 100%|██████████| 3/3 [00:01<00:00,  1.59it/s]
+Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.

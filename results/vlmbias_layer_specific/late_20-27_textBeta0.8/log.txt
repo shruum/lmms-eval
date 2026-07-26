@@ -1,0 +1,633 @@
+[STARTUP] SRF evaluation starting...
+Loading Qwen/Qwen2.5-VL-3B-Instruct…
+  Detected model type: qwen2_5_vl
+  Model family: Qwen2-VL
+  Using Qwen2-VL attention patch
+Fetching 2 files:   0%|          | 0/2 [00:00<?, ?it/s]Fetching 2 files: 100%|██████████| 2/2 [00:00<00:00, 32388.45it/s]
+Loading weights:   0%|          | 0/824 [00:00<?, ?it/s]Loading weights: 100%|██████████| 824/824 [00:00<00:00, 14344.68it/s]
+
+[SRF] Setup  model=Qwen/Qwen2.5-VL-3B-Instruct  base
+  [SRF] Calibrating on vlmbias (n=20, seed=0)…
+  [SRF] arch: Qwen/Qwen2.5-VL-3B-Instruct  layer_start=8  layer_end=15  head_top_k=0.2  clip_grid=7  clip_topk=0.3
+  [SRF] 3 vision-aware heads (top 20%)
+
+============================================================
+DATASET: VLM Bias (7 cats, n=10/cat, seed=42)
+============================================================
+
+  [SRF] reset → dataset=vlmbias  phase=generation  alpha=8.0  eps=0.5  layers=[20,27]  head_topk=0.2  clip_grid=7  clip_topk=0.3
+  [clip_salience] Loading openai/clip-vit-base-patch32 on cpu (one-time, infers on cuda)…
+Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 4055.24it/s]
+[DEBUG SRF] max_sim: 0.2350
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: stars
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1271]), sum=811.50, mean=0.6387
+[DEBUG SRF] 📸 Saved saliency visualization (1/20): results/saliency_images_vlmbias/saliency_1_stars.png
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2734
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: logo
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([196]), sum=90.31, mean=0.4607
+[DEBUG SRF] 📸 Saved saliency visualization (2/20): results/saliency_images_vlmbias/saliency_2_logo.png
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2467
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: stars
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1271]), sum=289.25, mean=0.2275
+[DEBUG SRF] 📸 Saved saliency visualization (3/20): results/saliency_images_vlmbias/saliency_3_stars.png
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2585
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: lines
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([196]), sum=103.56, mean=0.5283
+[DEBUG SRF] 📸 Saved saliency visualization (4/20): results/saliency_images_vlmbias/saliency_4_lines.png
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2365
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: stars
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1271]), sum=681.50, mean=0.5361
+[DEBUG SRF] 📸 Saved saliency visualization (5/20): results/saliency_images_vlmbias/saliency_5_stars.png
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2404
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: count
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1148]), sum=558.00, mean=0.4861
+[DEBUG SRF] 📸 Saved saliency visualization (6/20): results/saliency_images_vlmbias/saliency_6_count.png
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2588
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: horizontal
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1681]), sum=551.50, mean=0.3281
+[DEBUG SRF] 📸 Saved saliency visualization (7/20): results/saliency_images_pope/saliency_7_horizontal.png
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2737
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: circles
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1681]), sum=1031.00, mean=0.6138
+[DEBUG SRF] 📸 Saved saliency visualization (8/20): results/saliency_images_vlmbias/saliency_8_circles.png
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2585
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: circles
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([196]), sum=105.19, mean=0.5366
+[DEBUG SRF] 📸 Saved saliency visualization (9/20): results/saliency_images_vlmbias/saliency_9_circles.png
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2725
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: vertical lines
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([196]), sum=69.56, mean=0.3550
+[DEBUG SRF] 📸 Saved saliency visualization (10/20): results/saliency_images_vlmbias/saliency_10_vertical_lines.png
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2405
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: count
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1107]), sum=498.25, mean=0.4500
+[DEBUG SRF] 📸 Saved saliency visualization (11/20): results/saliency_images_vlmbias/saliency_11_count.png
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2810
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: logo
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([729]), sum=276.75, mean=0.3796
+[DEBUG SRF] 📸 Saved saliency visualization (12/20): results/saliency_images_vlmbias/saliency_12_logo.png
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2681
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: lines
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1681]), sum=1124.00, mean=0.6685
+[DEBUG SRF] 📸 Saved saliency visualization (13/20): results/saliency_images_vlmbias/saliency_13_lines.png
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2487
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: horizontal
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([729]), sum=56.44, mean=0.0774
+[DEBUG SRF] 📸 Saved saliency visualization (14/20): results/saliency_images_pope/saliency_14_horizontal.png
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2520
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: rows
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([196]), sum=137.25, mean=0.7007
+[DEBUG SRF] 📸 Saved saliency visualization (15/20): results/saliency_images_vlmbias/saliency_15_rows.png
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2462
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: count
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1189]), sum=486.25, mean=0.4089
+[DEBUG SRF] 📸 Saved saliency visualization (16/20): results/saliency_images_vlmbias/saliency_16_count.png
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2732
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: circles
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1681]), sum=1077.00, mean=0.6406
+[DEBUG SRF] 📸 Saved saliency visualization (17/20): results/saliency_images_vlmbias/saliency_17_circles.png
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2532
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: chariot pieces
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([837]), sum=458.25, mean=0.5474
+[DEBUG SRF] 📸 Saved saliency visualization (18/20): results/saliency_images_vlmbias/saliency_18_chariot_pieces.png
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2383
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: stars
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([140]), sum=52.38, mean=0.3740
+[DEBUG SRF] 📸 Saved saliency visualization (19/20): results/saliency_images_vlmbias/saliency_19_stars.png
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2446
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: points
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([486]), sum=279.25, mean=0.5747
+[DEBUG SRF] 📸 Saved saliency visualization (20/20): results/saliency_images_vlmbias/saliency_20_points.png
+[DEBUG SRF] enh_para: 8.0000
+  [ 20/70] base=0.2000  β=0.0:0.1500
+[DEBUG SRF] max_sim: 0.2544
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: logo
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([112]), sum=56.22, mean=0.5020
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2473
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: columns
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([196]), sum=111.88, mean=0.5708
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2705
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: diagonal
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([729]), sum=241.00, mean=0.3306
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2476
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: general pieces
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1886]), sum=1094.00, mean=0.5801
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2448
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: legs
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1025]), sum=412.75, mean=0.4026
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2496
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: count
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1107]), sum=417.50, mean=0.3772
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2374
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: legs
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([126]), sum=64.38, mean=0.5107
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2791
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: horizontal lines
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1681]), sum=1130.00, mean=0.6719
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2588
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: horizontal
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1681]), sum=525.50, mean=0.3125
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2727
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: circles
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1681]), sum=1115.00, mean=0.6631
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2479
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: overlapping circles
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([140]), sum=67.69, mean=0.4834
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2949
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: king pieces
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1681]), sum=393.75, mean=0.2343
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2520
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: points
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1271]), sum=580.50, mean=0.4565
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.3064
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: queen pieces
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([729]), sum=171.88, mean=0.2357
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2849
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: horizontal lines
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([729]), sum=393.00, mean=0.5391
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2426
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: stripes
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1271]), sum=525.00, mean=0.4131
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2500
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: stars
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1271]), sum=522.50, mean=0.4111
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2678
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: legs
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([675]), sum=258.50, mean=0.3828
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2469
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: stars
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([567]), sum=207.88, mean=0.3667
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.3215
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: chess pieces
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1681]), sum=513.00, mean=0.3052
+[DEBUG SRF] enh_para: 8.0000
+  [ 40/70] base=0.1000  β=0.0:0.1000
+[DEBUG SRF] max_sim: 0.2454
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: general pieces
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([210]), sum=96.94, mean=0.4617
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2334
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: horizontal
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([196]), sum=64.44, mean=0.3286
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2620
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: stars
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1271]), sum=586.50, mean=0.4617
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2328
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: count
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1148]), sum=643.50, mean=0.5605
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2585
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: vertical lines
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1886]), sum=920.00, mean=0.4878
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2690
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: circles
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1681]), sum=982.50, mean=0.5845
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2411
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: prongs
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([405]), sum=259.50, mean=0.6411
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2517
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: stars
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([140]), sum=33.97, mean=0.2426
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2537
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: rows
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([729]), sum=529.00, mean=0.7261
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2339
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: legs
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1025]), sum=463.75, mean=0.4524
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2428
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: stars
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1271]), sum=492.25, mean=0.3872
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2428
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: horizontal
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([729]), sum=148.38, mean=0.2035
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2477
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: count
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([486]), sum=216.88, mean=0.4463
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2595
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: logo
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([648]), sum=287.75, mean=0.4441
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2551
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: horizontal
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1681]), sum=320.50, mean=0.1906
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2585
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: circles
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([196]), sum=105.31, mean=0.5371
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.3381
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: xiangqi pieces
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([837]), sum=487.00, mean=0.5820
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2612
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: horizontal
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1681]), sum=263.75, mean=0.1569
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.3398
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: xiangqi pieces
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1886]), sum=997.00, mean=0.5288
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2432
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: columns
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1681]), sum=675.00, mean=0.4016
+[DEBUG SRF] enh_para: 8.0000
+  [ 60/70] base=0.1333  β=0.0:0.1500
+[DEBUG SRF] max_sim: 0.2257
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: rows
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([729]), sum=367.25, mean=0.5039
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2483
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: lines
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([196]), sum=127.62, mean=0.6514
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.3398
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: xiangqi pieces
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1886]), sum=983.00, mean=0.5210
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2445
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: points
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([540]), sum=289.00, mean=0.5352
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2537
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: rows
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([729]), sum=529.00, mean=0.7261
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.3201
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: chess pieces
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([729]), sum=237.25, mean=0.3254
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2346
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: horizontal
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([196]), sum=63.06, mean=0.3218
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2595
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: horizontal
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([1681]), sum=536.00, mean=0.3191
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2465
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: overlapping circles
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([154]), sum=65.94, mean=0.4282
+[DEBUG SRF] enh_para: 8.0000
+[DEBUG SRF] max_sim: 0.2483
+[DEBUG SRF] fallback_thresh: 0.2000
+[DEBUG SRF] clip_top_k_pct: 0.3
+[DEBUG SRF] clip_coarse_grid: 7
+[DEBUG SRF] noun: lines
+[DEBUG SRF] ✅ max_sim >= thresh → salience_mask set
+[DEBUG SRF] mask: shape=torch.Size([196]), sum=126.94, mean=0.6475
+[DEBUG SRF] enh_para: 8.0000
+
+VLM Bias baseline:  0.1286  (9/70)
+  SRF: 0.1429  Δ=+0.0143
+
+  Per-category (baseline):
+    Animals             : 0/10
+    Chess Pieces        : 0/10
+    Flags               : 5/10
+    Game Boards         : 0/10
+    Logos               : 0/10
+    Optical Illusion    : 4/10
+    Patterned Grid      : 0/10
+
+  Per-category (SRF):
+    Animals             : 0/0
+    Chess Pieces        : 0/0
+    Flags               : 3/0
+    Game Boards         : 0/0
+    Logos               : 2/0
+    Optical Illusion    : 5/0
+    Patterned Grid      : 0/0
+  Saved → results/vlmbias_layer_specific/late_20-27_textBeta0.8/vlmbias.json
+
+======================================================================
+FINAL SUMMARY — SRF vs Baseline
+======================================================================
+Model: Qwen/Qwen2.5-VL-3B-Instruct  |  method=srf  |  base
+
+VLM Bias acc (n=70):  baseline=12.86%
+  SRF: 14.29%  Δ=1.43%

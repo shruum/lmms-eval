@@ -1,0 +1,15 @@
+{
+  "dataset": "aokvqa_popular",
+  "file": "/home/anna2/shruthi/dataset/pope_vcd/aokvqa_popular.json",
+  "n_samples": 1501,
+  "baseline": {
+    "accuracy": 0.6788807461692206,
+    "precision": 1.0,
+    "recall": 0.43559718969555034,
+    "f1": 0.6068515497553018,
+    "tp": 372,
+    "tn": 647,
+    "fp": 0,
+    "fn": 482
+  }
+}

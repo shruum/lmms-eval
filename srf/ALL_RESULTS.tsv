@@ -1,0 +1,12 @@
+model	task	dataset	experiment	config layers	config alpha	config other	baseline_score	srf_score	delta	baseline_acc	srf_acc	baseline_pair	srf_pair	perception_base	perception_srf	cognition_base	cognition_srf	status	notes
+Qwen-VL-Chat	POPE	POPE adversarial	3000 samples	sweep	8-14	1.5	clip_top_k=0.20,head_top_k=0.15-0.20	2400	2430	+1.0%	80.00%	81.00%	76.74%	76.74%	N/A	N/A	N/A	N/A	success	Best config from 50-experiment sweep
+LLaVA-1.5-7B	POPE	POPE adversarial	3000 samples	baseline	N/A	N/A	N/A	2400	TBD	TBD	80.00%	TBD	TBD	TBD	N/A	N/A	N/A	N/A	in_progress	Autoresearch ongoing
+LLaVA-1.5-7B	MME	MME full	2374 samples	exp1	10-14	2.0	N/A	1650	1650	0.00%	69.50%	69.50%	39.60%	39.51%	1500	1500	150	150	no_improvement	Perfect identity across all metrics
+LLaVA-1.5-7B	MME	MME full	2374 samples	exp2	8-14	2.0	N/A	1650	1650	0.00%	69.50%	69.50%	39.60%	39.51%	1500	1500	150	150	no_improvement	Early fusion, same result
+LLaVA-1.5-7B	MME	MME full	2374 samples	exp3	8-16	2.0	N/A	1650	1650	0.00%	69.50%	69.50%	39.60%	39.51%	1500	1500	150	150	no_improvement	Wide fusion, same result
+LLaVA-1.5-7B	MME	MME full	2374 samples	exp4	13-16	3.0	clip_top_k=0.25,head_top_k=0.50	TBD	TBD	TBD	TBD	TBD	TBD	TBD	TBD	TBD	TBD	TBD	running	Late fusion test
+Qwen-VL-Chat	MME	MME full	2374 samples	exp1	8-14	1.5	clip_top_k=0.20,head_top_k=0.15	1948	1873	-3.16%	82.06%	78.90%	66.81%	TBD	1779	1721	169	152	worse	Anomalous baseline, severe degradation
+Qwen-VL-Chat	MME	MME full	2374 samples	exp2	8-14	2.0	clip_top_k=0.20,head_top_k=0.15	TBD	TBD	TBD	TBD	TBD	TBD	TBD	TBD	TBD	TBD	TBD	TBD	running	Stronger boost test
+Qwen2.5-VL-3B	MMVP	MMVP	pair accuracy	N/A	N/A	N/A	N/A	40.00%	49.33%	+9.33%	N/A	N/A	N/A	N/A	N/A	N/A	N/A	N/A	success	SRF-E beta=2.0, legacy model
+Qwen2.5-VL-3B	POPE	POPE adversarial	3000 samples	N/A	N/A	N/A	N/A	83.33%	83.33%	0.00%	N/A	N/A	N/A	N/A	N/A	N/A	N/A	N/A	no_gain	Legacy model
+Qwen2.5-VL-3B	VLM Bias	VLM Bias	accuracy	N/A	N/A	N/A	N/A	17.14%	21.90%	+4.76%	N/A	N/A	N/A	N/A	N/A	N/A	N/A	N/A	success	SRF base, SRF-E broken

@@ -1,0 +1,15 @@
+{
+  "dataset": "gqa_adversarial",
+  "file": "/home/anna2/shruthi/dataset/pope_vcd/gqa_adversarial.json",
+  "n_samples": 1085,
+  "baseline": {
+    "accuracy": 0.5133640552995392,
+    "precision": 0.6869158878504673,
+    "recall": 0.4273255813953488,
+    "f1": 0.5268817204301075,
+    "tp": 294,
+    "tn": 263,
+    "fp": 134,
+    "fn": 394
+  }
+}

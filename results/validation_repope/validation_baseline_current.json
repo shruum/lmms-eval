@@ -1,0 +1,17 @@
+{
+  "config": {
+    "name": "baseline_current",
+    "alpha": 0.15,
+    "eps": 0.0,
+    "enable_v3_gate": false,
+    "layer_start": 10,
+    "layer_end": 15,
+    "head_top_k_pct": 0.2,
+    "description": "Current weak config (VAF-like)"
+  },
+  "split": "adversarial",
+  "n_samples": 100,
+  "stdout": "",
+  "stderr": "Traceback (most recent call last):\n  File \"srf/eval.py\", line 61, in <module>\n    from transformers import AutoProcessor, AutoConfig, AutoModelForCausalLM, LlavaForConditionalGeneration\nModuleNotFoundError: No module named 'transformers'\n",
+  "returncode": 1
+}

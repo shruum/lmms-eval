@@ -1,0 +1,80 @@
+Loading llava-hf/llava-1.5-7b-hf…
+  Detected model type: llava
+  Model family: Unknown
+  Using LLaVA attention patch
+
+[SRF] Setup  model=llava-hf/llava-1.5-7b-hf  base
+  [SRF] Calibrating on pope (n=20, seed=0)…
+  [SRF] arch: llava-hf/llava-1.5-7b-hf  layer_start=8  layer_end=20  head_top_k=0.2  clip_grid=6  clip_topk=0.3
+  [CALIB] Registered [<torch.utils.hooks.RemovableHandle object at 0x7f142b9d1840>, <torch.utils.hooks.RemovableHandle object at 0x7f142b9d34f0>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a4250>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a43a0>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a52d0>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a6470>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a6d40>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a5660>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a5bd0>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a60b0>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a4310>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a71c0>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a7760>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a7670>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a6da0>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a7e20>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a7d30>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a7c40>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a5c60>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a61d0>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a4280>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a57e0>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a4e20>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a4370>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a43d0>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a6020>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a40d0>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a5f60>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a51b0>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a47f0>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a54b0>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a5240>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a5570>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a6c50>] hooks
+  [CALIB] Captured 640 softmax calls
+  [SRF] 6 vision-aware heads (top 20%)
+
+============================================================
+DATASET: POPE (popular, n=all/split, seed=42)
+============================================================
+
+  [SRF] reset → dataset=pope  phase=both  alpha=4.0  eps=0.2  absence_aware=DISABLED
+  [SRF]   → layers=[8,20]  head_topk=0.2  clip_grid=5  clip_topk=0.3
+  [CALIB] Registered [<torch.utils.hooks.RemovableHandle object at 0x7f142b9d1840>, <torch.utils.hooks.RemovableHandle object at 0x7f142b9d34f0>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a4250>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a43a0>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a52d0>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a6470>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a6d40>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a5660>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a5bd0>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a60b0>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a4310>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a71c0>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a7760>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a7670>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a6da0>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a7e20>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a7d30>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a7c40>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a5c60>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a61d0>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a4280>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a57e0>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a4e20>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a4370>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a43d0>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a6020>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a40d0>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a5f60>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a51b0>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a47f0>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a54b0>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a5240>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a5570>, <torch.utils.hooks.RemovableHandle object at 0x7f13c42a6c50>] hooks
+  [CALIB] Captured 640 softmax calls
+  Loaded 3000 POPE samples (popular)
+  [clip_salience] Loading openai/clip-vit-base-patch32 on cpu (one-time, infers on cuda)…
+  [  500/3000] base_acc=0.8340  base_f1=0.8245  β=0.0:acc=0.8340,f1=0.8245
+  [ 1000/3000] base_acc=0.8420  base_f1=0.8312  β=0.0:acc=0.8400,f1=0.8287
+  [ 1500/3000] base_acc=0.8507  base_f1=0.8388  β=0.0:acc=0.8500,f1=0.8378
+  [ 2000/3000] base_acc=0.8595  base_f1=0.8477  β=0.0:acc=0.8595,f1=0.8474
+  [ 2500/3000] base_acc=0.8604  base_f1=0.8498  β=0.0:acc=0.8612,f1=0.8505
+  [ 3000/3000] base_acc=0.8547  base_f1=0.8433  β=0.0:acc=0.8557,f1=0.8443
+
+POPE baseline:
+  Accuracy: 0.8547  (2564/3000)
+  F1-score: 0.8433
+  Precision: 0.9150
+  Recall: 0.7820
+
+SRF:
+  Accuracy: 0.8557  Δ=+0.0010
+  F1-score: 0.8443  Δ=+0.0010
+  Precision: 0.9165
+  Recall: 0.7827
+
+============================================================
+PER-SPLIT RESULTS
+============================================================
+
+POPULAR (n=3000):
+  Baseline:  acc=0.8547  f1=0.8433  prec=0.9150  rec=0.7820
+  SRF     :  acc=0.8557  f1=0.8443  prec=0.9165  rec=0.7827
+  Saved → results/pope_quick_sweep/popular/fine_grid_weak/pope.json
+
+======================================================================
+FINAL SUMMARY — SRF vs Baseline
+======================================================================
+Model: llava-hf/llava-1.5-7b-hf  |  method=srf  |  base
+
+POPE (n=3000):
+  baseline:  acc=85.47%  f1=84.33%
+  SRF:  acc=85.57%  Δ=0.10%  f1=84.43%  Δ=0.10%
+
+  Per-split breakdown:
+    popular:  baseline=85.47% f1=84.33%  SRF=85.57% (Δ=0.10%) f1=84.43% (Δ=0.10%)
+  Saved → results/pope_quick_sweep/popular/fine_grid_weak/summary.json
+
+All results saved to results/pope_quick_sweep/popular/fine_grid_weak/
+
+
+=== STDERR ===
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/huggingface_hub/file_download.py:949: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/transformers/models/llava/configuration_llava.py:103: FutureWarning: The `vocab_size` argument is deprecated and will be removed in v4.42, since it can be inferred from the `text_config`. Passing this argument has no effect
+  warnings.warn(
+
+Loading checkpoint shards:   0%|          | 0/3 [00:00<?, ?it/s]
+Loading checkpoint shards:  33%|███▎      | 1/3 [00:00<00:01,  1.61it/s]
+Loading checkpoint shards:  67%|██████▋   | 2/3 [00:01<00:00,  1.57it/s]
+Loading checkpoint shards: 100%|██████████| 3/3 [00:01<00:00,  1.83it/s]
+Loading checkpoint shards: 100%|██████████| 3/3 [00:01<00:00,  1.76it/s]
+Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/huggingface_hub/file_download.py:949: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(

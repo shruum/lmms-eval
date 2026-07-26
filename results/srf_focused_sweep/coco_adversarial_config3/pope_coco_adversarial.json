@@ -1,0 +1,27 @@
+{
+  "dataset": "coco_adversarial",
+  "file": "/home/anna2/shruthi/dataset/POPE_images/coco_adversarial.json",
+  "n_samples": 3000,
+  "baseline": {
+    "accuracy": 0.7726666666666666,
+    "precision": 0.7232532751091703,
+    "recall": 0.8833333333333333,
+    "f1": 0.7953181272509003,
+    "tp": 1325,
+    "tn": 993,
+    "fp": 507,
+    "fn": 175
+  },
+  "method": {
+    "0.0": {
+      "accuracy": 0.787,
+      "precision": 0.7409065472859541,
+      "recall": 0.8826666666666667,
+      "f1": 0.8055978095527836,
+      "tp": 1324,
+      "tn": 1037,
+      "fp": 463,
+      "fn": 176
+    }
+  }
+}

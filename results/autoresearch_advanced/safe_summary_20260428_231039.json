@@ -1,0 +1,71 @@
+{
+  "baseline": 83.0,
+  "best_experiment": "2_strong_boost_6",
+  "best_accuracy": 84.0,
+  "best_delta": 1.0,
+  "all_results": [
+    {
+      "name": "2_strong_boost_6",
+      "accuracy": 84.0,
+      "params": "Stronger boost (\u03b1=6.0, eps=0.3)",
+      "timestamp": "2026-04-28T22:56:42.409232",
+      "output_file": "results/autoresearch_advanced/2_strong_boost_6/output.txt"
+    },
+    {
+      "name": "5_fine_grid_boost",
+      "accuracy": 84.0,
+      "params": "Fine grid with strong boost (5\u00d75, \u03b1=6.0)",
+      "timestamp": "2026-04-28T23:03:18.884228",
+      "output_file": "results/autoresearch_advanced/5_fine_grid_boost/output.txt"
+    },
+    {
+      "name": "6_coarse_grid_boost",
+      "accuracy": 84.0,
+      "params": "Coarse grid with strong boost (9\u00d79, \u03b1=6.0)",
+      "timestamp": "2026-04-28T23:05:40.494716",
+      "output_file": "results/autoresearch_advanced/6_coarse_grid_boost/output.txt"
+    },
+    {
+      "name": "7_no_absence_aware",
+      "accuracy": 84.0,
+      "params": "No absence-aware (\u03b1=6.0, thresh=0.0)",
+      "timestamp": "2026-04-28T23:07:52.780537",
+      "output_file": "results/autoresearch_advanced/7_no_absence_aware/output.txt"
+    },
+    {
+      "name": "8_higher_topk",
+      "accuracy": 84.0,
+      "params": "Higher top-k percentage (50% instead of 30%)",
+      "timestamp": "2026-04-28T23:10:39.617003",
+      "output_file": "results/autoresearch_advanced/8_higher_topk/output.txt"
+    },
+    {
+      "name": "baseline",
+      "accuracy": 83.0,
+      "params": "Original baseline (\u03b1=2.0, grid=7\u00d77)",
+      "timestamp": "2026-04-28T22:52:13.554423",
+      "output_file": "results/autoresearch_advanced/baseline/output.txt"
+    },
+    {
+      "name": "1_strong_boost_4",
+      "accuracy": 83.0,
+      "params": "Stronger boost (\u03b1=4.0, eps=0.2)",
+      "timestamp": "2026-04-28T22:54:29.060239",
+      "output_file": "results/autoresearch_advanced/1_strong_boost_4/output.txt"
+    },
+    {
+      "name": "3_very_strong_boost_8",
+      "accuracy": 83.0,
+      "params": "Very strong boost (\u03b1=8.0, eps=0.4)",
+      "timestamp": "2026-04-28T22:58:54.933857",
+      "output_file": "results/autoresearch_advanced/3_very_strong_boost_8/output.txt"
+    },
+    {
+      "name": "4_extreme_boost_12",
+      "accuracy": 83.0,
+      "params": "Extreme boost (\u03b1=12.0, eps=0.5)",
+      "timestamp": "2026-04-28T23:01:08.585573",
+      "output_file": "results/autoresearch_advanced/4_extreme_boost_12/output.txt"
+    }
+  ]
+}

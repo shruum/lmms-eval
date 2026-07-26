@@ -191,6 +191,79 @@ def _vlmbias(question: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# VLind-Bench mode
+# ---------------------------------------------------------------------------
+
+def _vlind(question: str) -> str:
+    """Extract noun from VLind-Bench question.
+
+    'What color is the banana?' → 'banana'
+    'What is the dog doing?' → 'dog'
+    'How many cars are there?' → 'cars'
+    """
+    q = question.strip().lower().rstrip("?")
+
+    # "What is the X doing/wearing/etc" → X (handle before generic "the X")
+    m = re.search(r'\bis the (\w+(?:\s+\w+)?)\s+(?:doing|wearing|holding|carrying)\b', q)
+    if m:
+        return m.group(1).strip()
+
+    # "What [attr] is the X" → X
+    m = re.search(r'\bthe\s+(\w+(?:\s+\w+)?)\b', q)
+    if m:
+        noun = m.group(1).strip()
+        if noun not in _GENERIC_NOUNS:
+            return noun
+
+    # "How many X are/is/…" → X
+    m = re.search(r'how many (\w+(?:\s+\w+)?) (?:are|is|have|does)', q)
+    if m:
+        noun = m.group(1).strip()
+        if noun not in _GENERIC_NOUNS:
+            return noun
+
+    # Fallback: first 4+ char content word
+    words = re.findall(r'\b[a-z]{4,}\b', q)
+    for w in words:
+        if w not in _GENERIC_NOUNS:
+            return w
+    return "object"
+
+
+# ---------------------------------------------------------------------------
+# WhatsUp mode
+# ---------------------------------------------------------------------------
+
+def _whatsup(caption: str) -> tuple:
+    """Extract object nouns from a WhatsUp caption option.
+
+    'A photo of a dining table on the bottom' → ('dining table', None)
+    'A photo of a dining table to the left of a refrigerator' → ('dining table', 'refrigerator')
+    'A beer bottle on a armchair' → ('beer bottle', 'armchair')
+
+    Returns (noun_A, noun_B) where noun_B is None for single-object captions.
+    """
+    c = caption.strip().lower()
+    # Remove "A photo of" prefix if present
+    c = re.sub(r'^a photo of\s+', '', c)
+    # Remove leading article
+    c = re.sub(r'^an?\s+', '', c)
+
+    # Two-object: "X [spatial_rel] [a/an] Y"
+    spatial_rels = r'(?:to the left of|to the right of|in front of|behind|above|below|on top of|next to|near|beside)'
+    m = re.search(rf'^(.+?)\s+{spatial_rels}\s+(?:an?\s+)?(.+?)(?:\s*$)', c)
+    if m:
+        return m.group(1).strip(), m.group(2).strip()
+
+    # One-object: "X [spatial_rel]" (position descriptor at end)
+    m = re.search(r'^(.+?)\s+(?:on|under|above|below|to the|in|at)\b', c)
+    if m:
+        return m.group(1).strip(), None
+
+    return c.strip(), None
+
+
+# ---------------------------------------------------------------------------
 # POPE mode
 # ---------------------------------------------------------------------------
 def _pope(question: str) -> str:
@@ -254,16 +327,16 @@ def _singularize(noun: str) -> str:
         return noun[:-1]
 
 
-def extract_clip_noun(question: str, mode: str = "mmvp", singular: bool = False) -> str:
+def extract_clip_noun(question: str, mode: str = "mmvp", singular: bool = False):
     """Return the best CLIP query noun for a VLM benchmark question.
 
     Args:
         question: Raw question string (any casing).
-        mode:     Dataset mode — "mmvp", "vlmbias", or "pope".
+        mode:     Dataset mode — "mmvp", "vlmbias", "pope", "vlind", or "whatsup".
         singular: If True, convert plural nouns to singular for CLIP.
 
     Returns:
-        A short noun string suitable for CLIP text query.
+        A short noun string (or tuple for whatsup) suitable for CLIP text query.
     """
     if mode == "mmvp":
         result = _mmvp(question)
@@ -271,9 +344,13 @@ def extract_clip_noun(question: str, mode: str = "mmvp", singular: bool = False)
         result = _vlmbias(question)
     elif mode == "pope":
         result = _pope(question)
+    elif mode == "vlind":
+        result = _vlind(question)
+    elif mode == "whatsup":
+        result = _whatsup(question)  # Returns (noun_A, noun_B)
     else:
-        raise ValueError(f"Unknown mode {mode!r}. Use 'mmvp', 'vlmbias', or 'pope'.")
+        raise ValueError(f"Unknown mode {mode!r}. Use 'mmvp', 'vlmbias', 'pope', 'vlind', or 'whatsup'.")
 
-    if singular:
+    if singular and isinstance(result, str):
         result = _singularize(result)
     return result

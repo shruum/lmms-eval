@@ -1,0 +1,27 @@
+{
+  "dataset": "gqa_random",
+  "file": "/home/anna2/shruthi/dataset/POPE_images/gqa_random.json",
+  "n_samples": 3000,
+  "baseline": {
+    "accuracy": 0.858,
+    "precision": 0.8,
+    "recall": 0.9546666666666667,
+    "f1": 0.8705167173252281,
+    "tp": 1432,
+    "tn": 1142,
+    "fp": 358,
+    "fn": 68
+  },
+  "method": {
+    "0.0": {
+      "accuracy": 0.856,
+      "precision": 0.7976588628762542,
+      "recall": 0.954,
+      "f1": 0.8688524590163935,
+      "tp": 1431,
+      "tn": 1137,
+      "fp": 363,
+      "fn": 69
+    }
+  }
+}

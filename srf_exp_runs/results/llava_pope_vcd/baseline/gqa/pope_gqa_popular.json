@@ -1,0 +1,15 @@
+{
+  "dataset": "gqa_popular",
+  "file": "/home/anna2/shruthi/dataset/pope_vcd/gqa_popular.json",
+  "n_samples": 1020,
+  "baseline": {
+    "accuracy": 0.6509803921568628,
+    "precision": 1.0,
+    "recall": 0.49359886201991465,
+    "f1": 0.660952380952381,
+    "tp": 347,
+    "tn": 317,
+    "fp": 0,
+    "fn": 356
+  }
+}

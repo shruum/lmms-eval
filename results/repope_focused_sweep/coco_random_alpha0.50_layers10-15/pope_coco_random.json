@@ -1,0 +1,27 @@
+{
+  "dataset": "coco_random",
+  "file": "/home/anna2/shruthi/RePOPE/annotations/coco_repope_random.json",
+  "n_samples": 2774,
+  "baseline": {
+    "accuracy": 0.8929343907714492,
+    "precision": 0.8285060975609756,
+    "recall": 0.9378774805867127,
+    "f1": 0.8798057466612708,
+    "tp": 1087,
+    "tn": 1390,
+    "fp": 225,
+    "fn": 72
+  },
+  "method": {
+    "0.0": {
+      "accuracy": 0.893294881038212,
+      "precision": 0.8296409472880061,
+      "recall": 0.9370146678170836,
+      "f1": 0.880064829821718,
+      "tp": 1086,
+      "tn": 1392,
+      "fp": 223,
+      "fn": 73
+    }
+  }
+}

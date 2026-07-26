@@ -1,0 +1,86 @@
+Loading Qwen/Qwen-VL-Chat…
+  Detected model type: qwen
+  Model family: Qwen-VL-Chat (v1)
+  Using Qwen-VL-Chat (v1) attention patch
+
+[SRF] Setup  model=Qwen/Qwen-VL-Chat  base
+  [SRF] Calibrating on pope (n=20, seed=0)…
+  [SRF] arch: Qwen/Qwen-VL-Chat  layer_start=9  layer_end=17  head_top_k=0.2  clip_grid=7  clip_topk=0.3
+  [CALIB] Registered [<torch.utils.hooks.RemovableHandle object at 0x7f87031ea590>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7fac0>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7d180>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7feb0>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7c8b0>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7f220>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7db40>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7cc10>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7df90>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7ce80>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7e860>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7e1d0>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7d300>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7c640>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7f910>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7ded0>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7f280>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7f850>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7c940>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7cfd0>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7eec0>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7eb30>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7ead0>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7d630>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7c220>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7e560>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7dba0>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7ddb0>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7e530>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7cbe0>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7f4f0>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7cee0>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7dc30>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7f2b0>] hooks
+  [CALIB] Captured 640 softmax calls
+  [SRF] 6 vision-aware heads (top 20%)
+
+============================================================
+DATASET: POPE (adversarial, n=100/split, seed=42)
+FORMAT: Qwen-VL (using from_list_format)
+============================================================
+
+  [SRF] reset → dataset=pope  phase=both  alpha=6.0  eps=0.3  absence_aware=ENABLED
+  [SRF]   → thresh=0.248  suppress_alpha=5.0
+  [SRF]   → layers=[9,17]  head_topk=0.2  clip_grid=5  clip_topk=0.3
+  [CALIB] Registered [<torch.utils.hooks.RemovableHandle object at 0x7f87031ea590>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7fac0>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7d180>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7feb0>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7c8b0>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7f220>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7db40>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7cc10>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7df90>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7ce80>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7e860>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7e1d0>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7d300>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7c640>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7f910>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7ded0>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7f280>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7f850>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7c940>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7cfd0>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7eec0>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7eb30>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7ead0>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7d630>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7c220>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7e560>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7dba0>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7ddb0>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7e530>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7cbe0>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7f4f0>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7cee0>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7dc30>, <torch.utils.hooks.RemovableHandle object at 0x7f8126d7f2b0>] hooks
+  [CALIB] Captured 640 softmax calls
+  Loaded 100 POPE samples (adversarial)
+  [clip_salience] Loading openai/clip-vit-base-patch32 on cpu (one-time, infers on cuda)…
+  [  100/100] base_acc=0.8000  base_f1=0.7674  β=0.0:acc=0.7900,f1=0.7586
+
+POPE baseline:
+  Accuracy: 0.8000  (80/100)
+  F1-score: 0.7674
+  Precision: 0.9706
+  Recall: 0.6346
+
+SRF:
+  Accuracy: 0.7900  Δ=-0.0100
+  F1-score: 0.7586  Δ=-0.0088
+  Precision: 0.9429
+  Recall: 0.6346
+
+============================================================
+PER-SPLIT RESULTS
+============================================================
+
+ADVERSARIAL (n=100):
+  Baseline:  acc=0.8000  f1=0.7674  prec=0.9706  rec=0.6346
+  SRF     :  acc=0.7900  f1=0.7586  prec=0.9429  rec=0.6346
+  Saved → results/autoresearch_qwen/fine_grid/pope.json
+
+======================================================================
+FINAL SUMMARY — SRF vs Baseline
+======================================================================
+Model: Qwen/Qwen-VL-Chat  |  method=srf  |  base
+
+POPE (n=100):
+  baseline:  acc=80.00%  f1=76.74%
+  SRF:  acc=79.00%  Δ=-1.00%  f1=75.86%  Δ=-0.88%
+
+  Per-split breakdown:
+    adversarial:  baseline=80.00% f1=76.74%  SRF=79.00% (Δ=-1.00%) f1=75.86% (Δ=-0.88%)
+  Saved → results/autoresearch_qwen/fine_grid/summary.json
+
+All results saved to results/autoresearch_qwen/fine_grid/
+
+
+=== STDERR ===
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/huggingface_hub/file_download.py:949: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+The model is automatically converting to bf16 for faster inference. If you want to disable the automatic precision, please manually add bf16/fp16/fp32=True to "AutoModelForCausalLM.from_pretrained".
+
+Loading checkpoint shards:   0%|          | 0/10 [00:00<?, ?it/s]
+Loading checkpoint shards:  10%|█         | 1/10 [00:00<00:02,  3.59it/s]
+Loading checkpoint shards:  20%|██        | 2/10 [00:00<00:02,  3.95it/s]
+Loading checkpoint shards:  30%|███       | 3/10 [00:00<00:01,  3.67it/s]
+Loading checkpoint shards:  40%|████      | 4/10 [00:01<00:01,  3.77it/s]
+Loading checkpoint shards:  50%|█████     | 5/10 [00:01<00:01,  3.66it/s]
+Loading checkpoint shards:  60%|██████    | 6/10 [00:01<00:01,  3.92it/s]
+Loading checkpoint shards:  70%|███████   | 7/10 [00:01<00:00,  4.13it/s]
+Loading checkpoint shards:  80%|████████  | 8/10 [00:02<00:00,  4.13it/s]
+Loading checkpoint shards:  90%|█████████ | 9/10 [00:02<00:00,  4.16it/s]
+Loading checkpoint shards: 100%|██████████| 10/10 [00:02<00:00,  4.47it/s]
+Loading checkpoint shards: 100%|██████████| 10/10 [00:02<00:00,  4.08it/s]
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/transformers/generation/configuration_utils.py:497: UserWarning: `do_sample` is set to `False`. However, `top_p` is set to `0.3` -- this flag is only used in sample-based generation modes. You should set `do_sample=True` or unset `top_p`.
+  warnings.warn(
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/transformers/generation/configuration_utils.py:509: UserWarning: `do_sample` is set to `False`. However, `top_k` is set to `0` -- this flag is only used in sample-based generation modes. You should set `do_sample=True` or unset `top_k`.
+  warnings.warn(
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/huggingface_hub/file_download.py:949: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(

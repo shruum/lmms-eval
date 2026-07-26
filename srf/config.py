@@ -65,6 +65,9 @@ SRF_DATASET_PARAMS = {
     "pope":    {"phase": "both",       "alpha": 0.15, "clip_suppress_thresh": 0.0, "clip_suppress_alpha": 5.0, "eps": 0.0},  # VAF-like alpha
     "vlmbias": {"phase": "generation", "alpha": 8.0, "clip_suppress_thresh": 0.0,   "clip_suppress_alpha": 5.0, "eps": 0.5},
     "mme":     {"phase": "both",       "alpha": 2.0, "clip_suppress_thresh": 0.248, "clip_suppress_alpha": 5.0, "eps": 0.0},
+    # NEW: non-hallucination datasets (objects always present)
+    "vlind":   {"phase": "generation", "alpha": 8.0, "clip_suppress_thresh": 0.0,   "clip_suppress_alpha": 5.0, "eps": 0.5},  # similar to vlmbias
+    "whatsup": {"phase": "both",       "alpha": 4.0, "clip_suppress_thresh": 0.248, "clip_suppress_alpha": 5.0, "eps": 0.2},  # similar to mmvp
 }
 
 # ── SRF-E (evidence amplification) defaults ────────────────────────────────────
@@ -108,7 +111,7 @@ SRF_ARCH_PARAMS = {
         "clip_top_k_pct":       0.30,
         "clip_fallback_thresh": 0.20,
         # per-dataset layer_end fine-tuning (overrides layer_end above)
-        "dataset_layer_end":    {"mmvp": 15, "pope": 15, "vlmbias": 14, "mme": 15},
+        "dataset_layer_end":    {"mmvp": 15, "pope": 15, "vlmbias": 14, "mme": 15, "vlind": 14, "whatsup": 15},
     },
     "Qwen/Qwen2.5-VL-7B-Instruct": {
         "n_layers":             32,
@@ -121,7 +124,7 @@ SRF_ARCH_PARAMS = {
         "clip_coarse_grid":     7,
         "clip_top_k_pct":       0.30,
         "clip_fallback_thresh": 0.20,
-        "dataset_layer_end":    {"mmvp": 17, "pope": 17, "vlmbias": 16, "mme": 17},
+        "dataset_layer_end":    {"mmvp": 17, "pope": 17, "vlmbias": 16, "mme": 17, "vlind": 16, "whatsup": 17},
     },
     "Qwen/Qwen-VL-Chat": {
         "n_layers":             32,
@@ -135,7 +138,7 @@ SRF_ARCH_PARAMS = {
         "clip_coarse_grid":     7,
         "clip_top_k_pct":       0.30,
         "clip_fallback_thresh": 0.20,
-        "dataset_layer_end":    {"mmvp": 17, "pope": 17, "vlmbias": 16, "mme": 17},
+        "dataset_layer_end":    {"mmvp": 17, "pope": 17, "vlmbias": 16, "mme": 17, "vlind": 16, "whatsup": 17},
     },
     "llava-hf/llava-1.5-7b-hf": {
         "n_layers":             32,
@@ -148,7 +151,8 @@ SRF_ARCH_PARAMS = {
         "clip_coarse_grid":     6,      # LLaVA uses 336px images → slightly smaller grid
         "clip_top_k_pct":       0.30,
         "clip_fallback_thresh": 0.20,
-        "dataset_layer_end":    {"mmvp": 20, "pope": 20, "vlmbias": 19, "mme": 20},
+        "clip_upsample_to_tokens": True,  # CRITICAL: Enable upsampling to 576 LLaVA image tokens
+        "dataset_layer_end":    {"mmvp": 20, "pope": 20, "vlmbias": 19, "mme": 20, "vlind": 19, "whatsup": 20},
     },
 }
 

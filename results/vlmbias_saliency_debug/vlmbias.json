@@ -1,0 +1,37 @@
+{
+  "n": 21,
+  "baseline": 0.09523809523809523,
+  "method": {
+    "0.0": 0.14285714285714285
+  },
+  "cat_baseline": {
+    "Animals": {
+      "correct": 0,
+      "total": 3
+    },
+    "Chess Pieces": {
+      "correct": 0,
+      "total": 3
+    },
+    "Flags": {
+      "correct": 0,
+      "total": 3
+    },
+    "Game Boards": {
+      "correct": 1,
+      "total": 3
+    },
+    "Logos": {
+      "correct": 0,
+      "total": 3
+    },
+    "Optical Illusion": {
+      "correct": 1,
+      "total": 3
+    },
+    "Patterned Grid": {
+      "correct": 0,
+      "total": 3
+    }
+  }
+}

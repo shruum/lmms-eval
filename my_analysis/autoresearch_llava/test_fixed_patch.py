@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+"""Test the fixed patch based on ClearSight's approach."""
+from __future__ import annotations
+import os, pathlib, sys, torch
+os.environ["HF_HOME"] = "/home/anna2/.cache/huggingface"
+os.environ.setdefault("CUDA_VISIBLE_DEVICES", "2")
+SCRIPT_DIR = pathlib.Path(__file__).parent
+sys.path.insert(0, str(SCRIPT_DIR.parent))
+
+from transformers import AutoProcessor, LlavaForConditionalGeneration
+from datasets import load_dataset as hf_load
+import random
+import llava_attn_patch_fixed as patch
+
+MODEL_ID = "llava-hf/llava-1.5-7b-hf"
+
+print("Loading model...")
+model = LlavaForConditionalGeneration.from_pretrained(MODEL_ID, torch_dtype=torch.float16, device_map="auto").eval()
+processor = AutoProcessor.from_pretrained(MODEL_ID)
+
+# Load one sample
+ds = hf_load("lmms-lab/POPE", split="test")
+rows = [r for r in ds if str(r.get("category", "")).strip().lower() == "adversarial"]
+random.Random(42).shuffle(rows)
+sample = rows[0]
+image = sample["image"].convert("RGB")
+question = str(sample.get("question", "")).strip() + "\nAnswer with Yes or No only."
+
+prompt = processor.apply_chat_template([{"role": "user", "content": [{"type": "image"}, {"type": "text", "text": question}]}], add_generation_prompt=True)
+inputs = processor(images=image, text=prompt, return_tensors="pt").to(model.device)
+
+img_start, img_end = patch.get_image_token_range(inputs, model)
+print(f"Image tokens: [{img_start}, {img_end}] = {img_end - img_start + 1} tokens")
+print(f"System prompt ends at: {img_start - 1}")
+
+# Test 1: Baseline
+print("\n=== Test 1: Baseline ===")
+patch.patch_model(model, "baseline", 1.0, 1.0)
+patch.update_sample(img_start, img_end)
+with torch.no_grad():
+    out1 = model.generate(**inputs, max_new_tokens=5, do_sample=False)
+resp1 = processor.decode(out1[0], skip_special_tokens=True)
+print(f"Output: {resp1}")
+
+# Test 2: ClearSight parameters (enh=1.15, sup=0.95)
+print("\n=== Test 2: ClearSight parameters (enh=1.15, sup=0.95) ===")
+patch.patch_model(model, "srf", 1.15, 0.95)
+patch.update_sample(img_start, img_end)
+with torch.no_grad():
+    out2 = model.generate(**inputs, max_new_tokens=5, do_sample=False)
+resp2 = processor.decode(out2[0], skip_special_tokens=True)
+print(f"Output: {resp2}")
+
+# Test 3: Stronger enhancement
+print("\n=== Test 3: Stronger enhancement (enh=1.5, sup=0.9) ===")
+patch.patch_model(model, "srf", 1.5, 0.9)
+patch.update_sample(img_start, img_end)
+with torch.no_grad():
+    out3 = model.generate(**inputs, max_new_tokens=5, do_sample=False)
+resp3 = processor.decode(out3[0], skip_special_tokens=True)
+print(f"Output: {resp3}")
+
+# Check if outputs differ
+if torch.equal(out1, out2):
+    print("\n⚠️  ClearSight params produce same output as baseline")
+else:
+    print("\n✓ ClearSight params change output")
+
+if torch.equal(out1, out3):
+    print("⚠️  Stronger params produce same output as baseline")
+else:
+    print("✓ Stronger params change output")
+
+# Extract answers
+def extract_answer(response):
+    if "ASSISTANT:" in response:
+        return response.split("ASSISTANT:")[-1].strip().split()[0].lower()
+    return response.strip().split()[0].lower()
+
+ans1 = extract_answer(resp1)
+ans2 = extract_answer(resp2)
+ans3 = extract_answer(resp3)
+
+print(f"\nAnswers:")
+print(f"  Baseline: {ans1}")
+print(f"  ClearSight: {ans2}")
+print(f"  Stronger: {ans3}")
+
+patch.unpatch_model(model)
+print("\n✓ Test completed")

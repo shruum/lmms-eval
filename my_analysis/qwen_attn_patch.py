@@ -62,6 +62,11 @@ _STATE: dict = {
     "vaf_layer_start": 8,     # first decoder layer to apply VAF
     "vaf_layer_end":   15,    # last  decoder layer to apply VAF (inclusive)
     "current_layer":   -1,    # updated per self_attn forward-pre-hook
+    # ---- Layer-wise alpha multipliers (Strategy 1) ----
+    "use_layerwise":        False,   # enable layer-wise alpha scaling
+    "early_alpha_mult":     0.3,    # multiplier for early layers (before layer_start)
+    "mid_alpha_mult":       1.5,    # multiplier for middle layers (layer_start to layer_end)
+    "late_alpha_mult":      0.1,    # multiplier for late layers (after layer_end)
     # ---- salience-weighted boost (attn_salience / clip_salience) ----
     "salience_mask": None,    # float tensor (n_img_tokens,) in [0,1]; None = uniform
     # ---- SRF (Semantic Re-Focus) — complete method parameters ----
@@ -108,6 +113,10 @@ _STATE: dict = {
     "_capture_salience":  False,  # enable per-token attention accumulation
     "_salience_acc":      None,   # float tensor (n_img_tokens,) accumulated scores
     "_salience_count":    0,      # number of softmax calls accumulated
+    # ---- Enhanced absence detection (entropy-based) ----
+    "suppress_visual_on_absence": False,  # Enable visual token suppression when absence detected
+    "absence_detected":   False,   # Whether current sample has detected object absence
+    "absence_mode":       "legacy", # Absence detection mode: "legacy" or "entropy"
 }
 
 _ORIGINAL_SOFTMAX = None   # stores the real F.softmax before patching
@@ -308,12 +317,45 @@ def _patched_softmax(
                 if bias_mode == "additive_logit" and _phase_ok:
                     # Use boost_alpha directly as logit addition (same convention as vaf).
                     # SRF-V2: if per-layer alphas are set, use them (drift-adaptive alpha).
+                    # Layer-wise Strategy: apply multipliers based on layer stage (Strategy 1)
                     _layer_alphas = _STATE.get("srf_layer_alphas")
-                    alpha_val = (
+                    base_alpha = (
                         float(_layer_alphas[current_layer])
                         if (_layer_alphas and current_layer in _layer_alphas)
                         else float(value)
                     )
+
+                    # Apply layer-wise multipliers if enabled
+                    if _STATE.get("use_layerwise", False):
+                        layer_start = _STATE["vaf_layer_start"]
+                        layer_end = _STATE["vaf_layer_end"]
+                        early_mult = _STATE.get("early_alpha_mult", 0.3)
+                        mid_mult = _STATE.get("mid_alpha_mult", 1.5)
+                        late_mult = _STATE.get("late_alpha_mult", 0.1)
+
+                        if current_layer < layer_start:
+                            # Early layers: weak boost
+                            alpha_val = base_alpha * early_mult
+                        elif layer_start <= current_layer <= layer_end:
+                            # Middle layers: strong boost
+                            alpha_val = base_alpha * mid_mult
+                        else:
+                            # Late layers: minimal boost
+                            alpha_val = base_alpha * late_mult
+                    else:
+                        alpha_val = base_alpha
+
+                    # Debug logging for layer-wise strategy
+                    if _STATE.get("use_layerwise", False):
+                        layer_stage = (
+                            "EARLY" if current_layer < _STATE["vaf_layer_start"] else
+                            "MID" if current_layer <= _STATE["vaf_layer_end"] else
+                            "LATE"
+                        )
+                        mult_value = early_mult if layer_stage == 'EARLY' else mid_mult if layer_stage == 'MID' else late_mult
+                        print(f"[DEBUG LAYERWISE] Layer {current_layer}: {layer_stage} | "
+                              f"base_alpha={base_alpha:.4f} → alpha_val={alpha_val:.4f} "
+                              f"(mult={mult_value})", flush=True)
                     if sal is not None:
                         sal_dev  = sal.to(device=input.device, dtype=input.dtype)
                         bias_row = alpha_val * sal_dev - eps * (1.0 - sal_dev)
@@ -343,6 +385,16 @@ def _patched_softmax(
                     if e + 1 < n_kv:
                         # ALL heads — language prior is not head-specific
                         input[..., e + 1 :] = input[..., e + 1 :] - _text_beta
+
+    # ── Visual token suppression on absence detection (new feature) ──
+    # When object is absent detected, suppress ALL visual tokens to force
+    # reliance on language priors (which sometimes include "No" patterns).
+    # This is a backward-compatible addition: only activates when enabled.
+    if _STATE.get("suppress_visual_on_absent", False) and _STATE.get("absence_detected", False):
+        if e is not None and s is not None:
+            # Suppress all image token logits (make them much less likely to be attended to)
+            # This forces the model to rely on text tokens when object is absent
+            input[..., s : e + 1] = input[..., s : e + 1] - 10.0  # Strong suppression
 
     result = _ORIGINAL_SOFTMAX(input, dim=dim, dtype=dtype, **kwargs)
 

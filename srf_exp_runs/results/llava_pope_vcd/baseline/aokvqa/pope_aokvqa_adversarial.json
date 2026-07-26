@@ -1,0 +1,15 @@
+{
+  "dataset": "aokvqa_adversarial",
+  "file": "/home/anna2/shruthi/dataset/pope_vcd/aokvqa_adversarial.json",
+  "n_samples": 1315,
+  "baseline": {
+    "accuracy": 0.49809885931558934,
+    "precision": 0.6811926605504587,
+    "recall": 0.363080684596577,
+    "f1": 0.4736842105263158,
+    "tp": 297,
+    "tn": 358,
+    "fp": 139,
+    "fn": 521
+  }
+}

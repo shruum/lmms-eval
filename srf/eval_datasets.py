@@ -373,6 +373,122 @@ def load_mme(groups_filter: Optional[List[str]], n_samples: int) -> List[Dict]:
     return out
 
 
+def load_vlind_bench(groups_filter: Optional[List[str]], n_samples: int) -> List[Dict]:
+    """VLind-Bench — MM-Hallu/VLind-Bench.
+
+    Tests counterfactual reasoning: model must determine if statements are True/False
+    based on images, ignoring language priors.
+
+    Format:
+    - prompt: Statement to evaluate (e.g., "The swans are found in desert sands. Based on the image, is the given statement true or false?")
+    - image_type: "factual" → True, "counterfactual" → False
+    - existent_noun: Object present in image (for SRF saliency)
+    - concept: Bias category (e.g., habitat, folklore, size)
+
+    Objects always present in images — good fit for SRF saliency.
+    """
+    from datasets import load_dataset as hf_load
+
+    print("  Loading VLind-Bench (MM-Hallu/VLind-Bench)…")
+    ds = hf_load("MM-Hallu/VLind-Bench", split="train")
+
+    by_group: Dict[str, List[Dict]] = defaultdict(list)
+    for row in ds:
+        # Determine bias type group from concept field
+        concept = str(row.get("concept", "general")).strip().lower()
+        if groups_filter and concept not in groups_filter:
+            continue
+
+        # Extract image and prompt
+        img = row.get("image")
+        if img is None:
+            continue
+
+        prompt = str(row.get("prompt", "")).strip()
+        image_type = str(row.get("image_type", "")).strip()
+        existent_noun = str(row.get("existent_noun", "object")).strip()
+
+        # Ground truth: factual=True, counterfactual=False
+        gt_answer = "True" if image_type == "factual" else "False"
+
+        by_group[concept].append({
+            "image":        img.convert("RGB"),
+            "prompt":       prompt,
+            "ground_truth": gt_answer,
+            "group":        concept,
+            "existent_noun": existent_noun,  # For SRF noun extraction
+        })
+
+    rng = random.Random(SEED)
+    out = []
+    for concept, items in sorted(by_group.items()):
+        out.extend(rng.sample(items, min(n_samples, len(items))) if n_samples > 0 else items)
+
+    print(f"  → {len(out)} samples, {len(by_group)} groups")
+    return out
+
+
+def load_whatsup(groups_filter: Optional[List[str]], n_samples: int) -> List[Dict]:
+    """WhatsUp — ServiceNow/whatsup_all.
+
+    Tests spatial relationship reasoning. Objects always present.
+    Groups = subtask names: Controlled_Images_A, Controlled_Images_B, COCO_QA_one_obj, etc.
+    Correct answer is always caption index 0.
+    """
+    from datasets import load_dataset as hf_load
+
+    SUBTASKS = {
+        "controlled_a": "Controlled_Images_A",
+        "controlled_b": "Controlled_Images_B",
+        "coco_one":     "COCO_QA_one_obj",
+        "coco_two":     "COCO_QA_two_obj",
+        "vg_one":       "VG_QA_one_obj",
+        "vg_two":       "VG_QA_two_obj",
+    }
+
+    print("  Loading WhatsUp (ServiceNow/whatsup_all)…")
+
+    target_subtasks = groups_filter if groups_filter else list(SUBTASKS.keys())
+    out = []
+
+    for key in target_subtasks:
+        split = SUBTASKS.get(key, key)
+        try:
+            ds = hf_load("ServiceNow/whatsup_all", split=split)
+            rows = list(ds)
+
+            if n_samples > 0 and n_samples < len(rows):
+                rows = random.Random(SEED).sample(rows, n_samples)
+
+            for row in rows:
+                img = row.get("image_options")
+                if img is None:
+                    continue
+
+                captions = row.get("caption_options", [])
+                if not captions:
+                    continue
+
+                opts = "\n".join(f"{chr(65+i)}. {c}" for i, c in enumerate(captions))
+                prompt = f"Which caption best describes the image?\n{opts}\nAnswer with the option letter only."
+                gt = "A"  # Always index 0
+
+                out.append({
+                    "image":          img.convert("RGB"),
+                    "prompt":         prompt,
+                    "ground_truth":   gt,
+                    "group":          key,
+                    "caption_options": captions,  # Keep for noun extraction
+                })
+
+        except Exception as e:
+            print(f"    Warning: Could not load split {split}: {e}")
+            continue
+
+    print(f"  → {len(out)} samples, {len(target_subtasks)} subtasks")
+    return out
+
+
 # ---------------------------------------------------------------------------
 # Registry — maps dataset name → loader function
 # ---------------------------------------------------------------------------
@@ -386,4 +502,6 @@ LOADERS: Dict[str, Any] = {
     "mmvp":            load_mmvp,
     "hallusionbench":  load_hallusionbench,
     "mme":             load_mme,
+    "vlind":           load_vlind_bench,
+    "whatsup":         load_whatsup,
 }

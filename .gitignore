@@ -58,3 +58,32 @@ remote_code/*
 docs/plans/
 .opencode
 .worktrees/
+
+# Large binary/image files - exclude from commits
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.bmp
+*.tiff
+*.webp
+*.ttf
+*.pdf
+
+# Log files - too many/large to track
+*.log
+*.out
+
+# Large result files
+results/**/*.jsonl
+results/liuhaotian__*/
+results/attention/
+
+# Saliency image directories (lots of PNG visualizations)
+results/saliency_images_*/
+Saliency/
+
+# HF cache and large model caches
+hf_home/
+*.bin
+*.safetensors

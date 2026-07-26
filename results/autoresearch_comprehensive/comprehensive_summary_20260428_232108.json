@@ -1,0 +1,51 @@
+{
+  "baseline": 86.0,
+  "best_experiment": "baseline",
+  "best_accuracy": 86.0,
+  "best_delta": 0.0,
+  "n_samples": 50,
+  "all_results": [
+    {
+      "name": "baseline",
+      "accuracy": 86.0,
+      "params": "Original baseline (\u03b1=2.0, ViT-B/32)",
+      "timestamp": "2026-04-28T23:10:23.965488",
+      "output_file": "results/autoresearch_comprehensive/baseline/output.txt"
+    },
+    {
+      "name": "strong_boost_4",
+      "accuracy": 86.0,
+      "params": "Strong boost (\u03b1=4.0)",
+      "timestamp": "2026-04-28T23:12:13.899300",
+      "output_file": "results/autoresearch_comprehensive/strong_boost_4/output.txt"
+    },
+    {
+      "name": "strong_boost_6",
+      "accuracy": 86.0,
+      "params": "Stronger boost (\u03b1=6.0)",
+      "timestamp": "2026-04-28T23:14:38.984322",
+      "output_file": "results/autoresearch_comprehensive/strong_boost_6/output.txt"
+    },
+    {
+      "name": "fine_grid",
+      "accuracy": 86.0,
+      "params": "Fine grid (5\u00d75, \u03b1=4.0)",
+      "timestamp": "2026-04-28T23:16:42.186242",
+      "output_file": "results/autoresearch_comprehensive/fine_grid/output.txt"
+    },
+    {
+      "name": "no_absence_aware",
+      "accuracy": 86.0,
+      "params": "No absence-aware (thresh=0.0)",
+      "timestamp": "2026-04-28T23:19:20.616197",
+      "output_file": "results/autoresearch_comprehensive/no_absence_aware/output.txt"
+    },
+    {
+      "name": "higher_topk",
+      "accuracy": 86.0,
+      "params": "Higher top-k (50%)",
+      "timestamp": "2026-04-28T23:21:08.307196",
+      "output_file": "results/autoresearch_comprehensive/higher_topk/output.txt"
+    }
+  ]
+}

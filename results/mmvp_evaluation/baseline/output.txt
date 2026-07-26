@@ -1,0 +1,43 @@
+Loading llava-hf/llava-1.5-7b-hf…
+  Detected model type: llava
+  Model family: Unknown
+  Using LLaVA attention patch
+
+[BASELINE] Setup  model=llava-hf/llava-1.5-7b-hf  BASELINE (no intervention)
+
+============================================================
+DATASET: MMVP (150 pairs, 300 images, full)
+MODE: BASELINE (no intervention)
+============================================================
+  [ 60/300] base_pair=0.2667
+  [120/300] base_pair=0.2667
+  [180/300] base_pair=0.2556
+  [240/300] base_pair=0.2500
+  [300/300] base_pair=0.2667
+
+MMVP baseline:  pair=0.2667  img=0.6233
+  Saved → results/mmvp_evaluation/baseline/mmvp.json
+
+======================================================================
+FINAL SUMMARY — BASELINE RESULTS (no intervention)
+======================================================================
+Model: llava-hf/llava-1.5-7b-hf  |  method=baseline  |  BASELINE (no intervention)
+
+MMVP pair acc:  baseline=26.67%
+  Saved → results/mmvp_evaluation/baseline/summary.json
+
+All results saved to results/mmvp_evaluation/baseline/
+
+
+=== STDERR ===
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/huggingface_hub/file_download.py:949: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/transformers/models/llava/configuration_llava.py:103: FutureWarning: The `vocab_size` argument is deprecated and will be removed in v4.42, since it can be inferred from the `text_config`. Passing this argument has no effect
+  warnings.warn(
+
+Loading checkpoint shards:   0%|          | 0/3 [00:00<?, ?it/s]
+Loading checkpoint shards:  33%|███▎      | 1/3 [00:00<00:01,  1.55it/s]
+Loading checkpoint shards:  67%|██████▋   | 2/3 [00:01<00:00,  1.57it/s]
+Loading checkpoint shards: 100%|██████████| 3/3 [00:01<00:00,  1.89it/s]
+Loading checkpoint shards: 100%|██████████| 3/3 [00:01<00:00,  1.79it/s]
+Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.

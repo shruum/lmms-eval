@@ -1,0 +1,27 @@
+{
+  "dataset": "gqa_adversarial",
+  "file": "/home/anna2/shruthi/dataset/POPE_images/gqa_adversarial.json",
+  "n_samples": 3000,
+  "baseline": {
+    "accuracy": 0.6926666666666667,
+    "precision": 0.6282165039929015,
+    "recall": 0.944,
+    "f1": 0.7543953116675546,
+    "tp": 1416,
+    "tn": 662,
+    "fp": 838,
+    "fn": 84
+  },
+  "method": {
+    "0.0": {
+      "accuracy": 0.6873333333333334,
+      "precision": 0.6251113089937667,
+      "recall": 0.936,
+      "f1": 0.7495995728777363,
+      "tp": 1404,
+      "tn": 658,
+      "fp": 842,
+      "fn": 96
+    }
+  }
+}

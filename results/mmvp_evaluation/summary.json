@@ -1,0 +1,30 @@
+{
+  "model": "llava-hf/llava-1.5-7b-hf",
+  "dataset": "MMVP (150 pairs, 300 images)",
+  "srf_config": {
+    "alpha": 6.0,
+    "eps": 0.3,
+    "clip_coarse_grid": 7,
+    "clip_top_k_pct": 0.5,
+    "clip_suppress_thresh": 0.0
+  },
+  "results": [
+    {
+      "method": "baseline",
+      "dataset": "MMVP",
+      "pair_accuracy": 0.2667,
+      "image_accuracy": 0.6233,
+      "timestamp": "2026-04-30T14:38:22.045212",
+      "output_file": "results/mmvp_evaluation/baseline/output.txt"
+    },
+    {
+      "method": "srf",
+      "dataset": "MMVP",
+      "pair_accuracy": 0.2667,
+      "image_accuracy": 0.6233,
+      "timestamp": "2026-04-30T14:41:29.754814",
+      "output_file": "results/mmvp_evaluation/srf/output.txt"
+    }
+  ],
+  "timestamp": "2026-04-30T14:41:29.754837"
+}

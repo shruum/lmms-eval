@@ -1,0 +1,252 @@
+[
+  {
+    "question": "Is there a snowboard in the image?",
+    "answer": "yes",
+    "category": "adversarial",
+    "layer_analysis": {
+      "layer_10": {
+        "mean_diff": 0.0,
+        "std_diff": 0.0,
+        "max_diff": 0.0,
+        "norm_diff": 0.0
+      },
+      "layer_15": {
+        "mean_diff": 0.0,
+        "std_diff": 0.0,
+        "max_diff": 0.0,
+        "norm_diff": 0.0
+      },
+      "layer_18": {
+        "mean_diff": 0.0,
+        "std_diff": 0.0,
+        "max_diff": 0.0,
+        "norm_diff": 0.0
+      }
+    }
+  },
+  {
+    "question": "Is there a person in the image?",
+    "answer": "yes",
+    "category": "adversarial",
+    "layer_analysis": {
+      "layer_10": {
+        "mean_diff": 0.0,
+        "std_diff": 0.0,
+        "max_diff": 0.0,
+        "norm_diff": 0.0
+      },
+      "layer_15": {
+        "mean_diff": 0.0,
+        "std_diff": 0.0,
+        "max_diff": 0.0,
+        "norm_diff": 0.0
+      },
+      "layer_18": {
+        "mean_diff": 0.0,
+        "std_diff": 0.0,
+        "max_diff": 0.0,
+        "norm_diff": 0.0
+      }
+    }
+  },
+  {
+    "question": "Is there a skis in the image?",
+    "answer": "yes",
+    "category": "adversarial",
+    "layer_analysis": {
+      "layer_10": {
+        "mean_diff": 0.0,
+        "std_diff": 0.0,
+        "max_diff": 0.0,
+        "norm_diff": 0.0
+      },
+      "layer_15": {
+        "mean_diff": 0.0,
+        "std_diff": 0.0,
+        "max_diff": 0.0,
+        "norm_diff": 0.0
+      },
+      "layer_18": {
+        "mean_diff": 0.0,
+        "std_diff": 0.0,
+        "max_diff": 0.0,
+        "norm_diff": 0.0
+      }
+    }
+  },
+  {
+    "question": "Is there a truck in the image?",
+    "answer": "yes",
+    "category": "adversarial",
+    "layer_analysis": {
+      "layer_10": {
+        "mean_diff": 0.0,
+        "std_diff": 0.0,
+        "max_diff": 0.0,
+        "norm_diff": 0.0
+      },
+      "layer_15": {
+        "mean_diff": 0.0,
+        "std_diff": 0.0,
+        "max_diff": 0.0,
+        "norm_diff": 0.0
+      },
+      "layer_18": {
+        "mean_diff": 0.0,
+        "std_diff": 0.0,
+        "max_diff": 0.0,
+        "norm_diff": 0.0
+      }
+    }
+  },
+  {
+    "question": "Is there a person in the image?",
+    "answer": "yes",
+    "category": "adversarial",
+    "layer_analysis": {
+      "layer_10": {
+        "mean_diff": 0.0,
+        "std_diff": 0.0,
+        "max_diff": 0.0,
+        "norm_diff": 0.0
+      },
+      "layer_15": {
+        "mean_diff": 0.0,
+        "std_diff": 0.0,
+        "max_diff": 0.0,
+        "norm_diff": 0.0
+      },
+      "layer_18": {
+        "mean_diff": 0.0,
+        "std_diff": 0.0,
+        "max_diff": 0.0,
+        "norm_diff": 0.0
+      }
+    }
+  },
+  {
+    "question": "Is there a backpack in the image?",
+    "answer": "no",
+    "category": "adversarial",
+    "layer_analysis": {
+      "layer_10": {
+        "mean_diff": 0.0,
+        "std_diff": 0.0,
+        "max_diff": 0.0,
+        "norm_diff": 0.0
+      },
+      "layer_15": {
+        "mean_diff": 0.0,
+        "std_diff": 0.0,
+        "max_diff": 0.0,
+        "norm_diff": 0.0
+      },
+      "layer_18": {
+        "mean_diff": 0.0,
+        "std_diff": 0.0,
+        "max_diff": 0.0,
+        "norm_diff": 0.0
+      }
+    }
+  },
+  {
+    "question": "Is there a car in the image?",
+    "answer": "no",
+    "category": "adversarial",
+    "layer_analysis": {
+      "layer_10": {
+        "mean_diff": 0.0,
+        "std_diff": 0.0,
+        "max_diff": 0.0,
+        "norm_diff": 0.0
+      },
+      "layer_15": {
+        "mean_diff": 0.0,
+        "std_diff": 0.0,
+        "max_diff": 0.0,
+        "norm_diff": 0.0
+      },
+      "layer_18": {
+        "mean_diff": 0.0,
+        "std_diff": 0.0,
+        "max_diff": 0.0,
+        "norm_diff": 0.0
+      }
+    }
+  },
+  {
+    "question": "Is there a dog in the image?",
+    "answer": "no",
+    "category": "adversarial",
+    "layer_analysis": {
+      "layer_10": {
+        "mean_diff": 0.0,
+        "std_diff": 0.0,
+        "max_diff": 0.0,
+        "norm_diff": 0.0
+      },
+      "layer_15": {
+        "mean_diff": 0.0,
+        "std_diff": 0.0,
+        "max_diff": 0.0,
+        "norm_diff": 0.0
+      },
+      "layer_18": {
+        "mean_diff": 0.0,
+        "std_diff": 0.0,
+        "max_diff": 0.0,
+        "norm_diff": 0.0
+      }
+    }
+  },
+  {
+    "question": "Is there a car in the image?",
+    "answer": "no",
+    "category": "adversarial",
+    "layer_analysis": {
+      "layer_10": {
+        "mean_diff": 0.0,
+        "std_diff": 0.0,
+        "max_diff": 0.0,
+        "norm_diff": 0.0
+      },
+      "layer_15": {
+        "mean_diff": 0.0,
+        "std_diff": 0.0,
+        "max_diff": 0.0,
+        "norm_diff": 0.0
+      },
+      "layer_18": {
+        "mean_diff": 0.0,
+        "std_diff": 0.0,
+        "max_diff": 0.0,
+        "norm_diff": 0.0
+      }
+    }
+  },
+  {
+    "question": "Is there a dining table in the image?",
+    "answer": "no",
+    "category": "adversarial",
+    "layer_analysis": {
+      "layer_10": {
+        "mean_diff": 0.0,
+        "std_diff": 0.0,
+        "max_diff": 0.0,
+        "norm_diff": 0.0
+      },
+      "layer_15": {
+        "mean_diff": 0.0,
+        "std_diff": 0.0,
+        "max_diff": 0.0,
+        "norm_diff": 0.0
+      },
+      "layer_18": {
+        "mean_diff": 0.0,
+        "std_diff": 0.0,
+        "max_diff": 0.0,
+        "norm_diff": 0.0
+      }
+    }
+  }
+]

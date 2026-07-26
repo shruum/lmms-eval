@@ -1,0 +1,27 @@
+{
+  "dataset": "coco_popular",
+  "file": "/home/anna2/shruthi/RePOPE/annotations/coco_repope_popular.json",
+  "n_samples": 2727,
+  "baseline": {
+    "accuracy": 0.8668866886688669,
+    "precision": 0.8020378457059679,
+    "recall": 0.9237217099748533,
+    "f1": 0.8585897935333073,
+    "tp": 1102,
+    "tn": 1262,
+    "fp": 272,
+    "fn": 91
+  },
+  "method": {
+    "0.0": {
+      "accuracy": 0.8646864686468647,
+      "precision": 0.7989840348330914,
+      "recall": 0.922883487007544,
+      "f1": 0.8564760793465578,
+      "tp": 1101,
+      "tn": 1257,
+      "fp": 277,
+      "fn": 92
+    }
+  }
+}

@@ -124,6 +124,8 @@ def parse_args():
                    help="Attention logit boost magnitude (overrides dataset config)")
     p.add_argument("--eps",              type=float, default=None,
                    help="Background suppression epsilon (overrides dataset config)")
+    p.add_argument("--sys_beta",         type=float, default=None,
+                   help="System-prompt suppression strength (VAF-style, default: 0.1)")
     p.add_argument("--text_beta",        type=float, default=None,
                    help="Text-token suppression strength (default: 0.0 = disabled)")
     p.add_argument("--text_layer_start", type=int,   default=None,
@@ -368,16 +370,29 @@ def cleanup_qwen_temp_images(images: list) -> None:
 def get_img_range(input_ids: torch.Tensor, img_token_id: int) -> tuple[int, int]:
     """
     Find the range of image tokens in input_ids.
-    For Qwen-VL, image tokens might be handled differently, so we use special handling.
+
+    CRITICAL FIX: For LLaVA, single placeholder token expands to 576 actual tokens.
+    For Qwen-VL, image tokens might be handled differently.
     """
     ids = input_ids[0].tolist()
 
     # Try to find image tokens
     try:
-        # Standard approach: find first and last occurrence of img_token_id
-        start = next(i for i, t in enumerate(ids) if t == img_token_id)
-        end = len(ids) - 1 - next(i for i, t in enumerate(reversed(ids)) if t == img_token_id)
+        # Find placeholder position
+        placeholder_pos = next(i for i, t in enumerate(ids) if t == img_token_id)
+
+        # CRITICAL FIX: For LLaVA models, the placeholder expands to 576 actual tokens
+        # CLIP ViT-L/14 produces 24x24 = 576 image tokens
+        # The attention mechanism operates on these EXPANDED tokens, not the placeholder
+        grid_h, grid_w = 24, 24  # CLIP ViT-L/14 patch grid
+        num_image_tokens = grid_h * grid_w  # 576
+
+        start = placeholder_pos
+        end = placeholder_pos + num_image_tokens - 1  # [X, X+575]
+
+        print(f"    [IMG TOKENS FIXED] Placeholder at {placeholder_pos} → Actual tokens: [{start}, {end}] ({num_image_tokens} tokens)")
         return start, end
+
     except StopIteration:
         # For Qwen-VL, if image tokens are not explicit, estimate based on model config
         # This is a fallback - the actual range should be determined by the model
@@ -479,6 +494,7 @@ def _reset_overrides(args) -> dict:
         phase=args.phase,
         alpha=args.alpha,
         eps=args.eps,
+        sys_beta=args.sys_beta,
         text_beta=args.text_beta,
         text_layer_start=args.text_layer_start,
         text_layer_end=args.text_layer_end,

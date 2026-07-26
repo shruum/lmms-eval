@@ -1,0 +1,27 @@
+{
+  "dataset": "coco_popular",
+  "file": "/home/anna2/shruthi/dataset/POPE_images/coco_popular.json",
+  "n_samples": 3000,
+  "baseline": {
+    "accuracy": 0.8373333333333334,
+    "precision": 0.8104294478527607,
+    "recall": 0.8806666666666667,
+    "f1": 0.8440894568690096,
+    "tp": 1321,
+    "tn": 1191,
+    "fp": 309,
+    "fn": 179
+  },
+  "method": {
+    "0.0": {
+      "accuracy": 0.8403333333333334,
+      "precision": 0.8129981606376456,
+      "recall": 0.884,
+      "f1": 0.8470137336314276,
+      "tp": 1326,
+      "tn": 1195,
+      "fp": 305,
+      "fn": 174
+    }
+  }
+}

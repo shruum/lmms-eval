@@ -41,6 +41,9 @@ patch = None
 
 import clip_salience as clip_sal
 from noun_extract import extract_clip_noun
+from absence_detection import detect_absence_entropy, compute_saliency_statistics
+from peak_detection import detect_absence_peak_ratio, compute_peak_to_mean
+from multi_metric_detection import detect_absence_multi_metric
 
 
 def _apply_chat_template(processor, msgs: list, tokenize: bool = False, add_generation_prompt: bool = True) -> str:
@@ -75,13 +78,29 @@ def _apply_chat_template(processor, msgs: list, tokenize: bool = False, add_gene
             prompt = f"A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. USER: {user_text} ASSISTANT:"
             return prompt
 
-    # Standard chat template
-    if hasattr(processor, 'apply_chat_template') and callable(processor.apply_chat_template):
-        return processor.apply_chat_template(msgs, tokenize=tokenize, add_generation_prompt=add_generation_prompt)
-    elif hasattr(processor, 'tokenizer') and hasattr(processor.tokenizer, 'apply_chat_template'):
-        return processor.tokenizer.apply_chat_template(msgs, tokenize=tokenize, add_generation_prompt=add_generation_prompt)
-    else:
-        raise AttributeError(f"No apply_chat_template method found on processor {type(processor)}")
+    # Standard chat template with error handling
+    try:
+        if hasattr(processor, 'apply_chat_template') and callable(processor.apply_chat_template):
+            return processor.apply_chat_template(msgs, tokenize=tokenize, add_generation_prompt=add_generation_prompt)
+        elif hasattr(processor, 'tokenizer') and hasattr(processor.tokenizer, 'apply_chat_template'):
+            return processor.tokenizer.apply_chat_template(msgs, tokenize=tokenize, add_generation_prompt=add_generation_prompt)
+        else:
+            raise AttributeError(f"No apply_chat_template method found on processor {type(processor)}")
+    except (ValueError, AttributeError) as e:
+        # Fallback to manual format if chat template fails
+        print(f"[SRF] Chat template failed ({e}), using manual LLaVA format")
+        user_content = []
+        for msg in msgs:
+            if msg["role"] == "user":
+                for item in msg["content"]:
+                    if item["type"] == "image":
+                        user_content.append("<image>")
+                    elif item["type"] == "text":
+                        # Remove newlines and put text on same line as <image>
+                        user_content.append(item["text"].replace('\n', ' '))
+        user_text = " ".join(user_content)
+        # Return standard LLaVA format
+        return f"USER: {user_text} ASSISTANT:"
 import config as CFG
 
 # Global counter for saliency image saving (only save first N samples for debugging)
@@ -146,6 +165,14 @@ def _make_bias(dataset: str, overrides: dict) -> dict:
         "prob_floor":            d["prob_floor"],
         "img_scale":             d["img_scale"],
         "srf_apply_phase":       dp["phase"],
+        # Layer-wise alpha strategy (Strategy 1)
+        "use_layerwise":         False,  # Default: disabled
+        "early_alpha_mult":      0.3,     # Default: early multiplier
+        "mid_alpha_mult":        1.5,     # Default: mid multiplier
+        "late_alpha_mult":       0.1,     # Default: late multiplier
+        # Head selection strategy (Strategy 2)
+        "use_query_heads":       False,  # Default: disabled
+        "query_type":            "other", # Default query type
     }
 
     # Apply CLI overrides
@@ -157,6 +184,14 @@ def _make_bias(dataset: str, overrides: dict) -> dict:
     if overrides.get("layer_start")          is not None: b["layer_start"]             = overrides["layer_start"]
     if overrides.get("layer_end")            is not None: b["layer_end"]               = overrides["layer_end"]
     if overrides.get("head_top_k_pct")       is not None: b["head_top_k_pct"]          = overrides["head_top_k_pct"]
+    # Layer-wise alpha strategy (Strategy 1)
+    if overrides.get("use_layerwise")        is not None: b["use_layerwise"]          = overrides["use_layerwise"]
+    if overrides.get("early_alpha_mult")     is not None: b["early_alpha_mult"]       = overrides["early_alpha_mult"]
+    if overrides.get("mid_alpha_mult")       is not None: b["mid_alpha_mult"]         = overrides["mid_alpha_mult"]
+    if overrides.get("late_alpha_mult")      is not None: b["late_alpha_mult"]        = overrides["late_alpha_mult"]
+    # Head selection strategy (Strategy 2)
+    if overrides.get("use_query_heads")      is not None: b["use_query_heads"]        = overrides["use_query_heads"]
+    if overrides.get("query_type")           is not None: b["query_type"]             = overrides["query_type"]
 
     return b
 
@@ -172,7 +207,7 @@ def _make_saliency(overrides: dict) -> dict:
         "clip_top_k_pct":         arch["clip_top_k_pct"],
         "clip_use_soft":          True,   # always soft — hard mask hurts boundary tokens
         "clip_fallback_thresh":   arch["clip_fallback_thresh"],
-        "clip_upsample_to_tokens": False,  # disabled by default
+        "clip_upsample_to_tokens": arch.get("clip_upsample_to_tokens", False),  # Read from arch config
     }
     if overrides.get("clip_coarse_grid")       is not None: s["clip_coarse_grid"]       = overrides["clip_coarse_grid"]
     if overrides.get("clip_top_k_pct")         is not None: s["clip_top_k_pct"]         = overrides["clip_top_k_pct"]
@@ -187,7 +222,7 @@ def _make_saliency(overrides: dict) -> dict:
 
 def _build_calib_inputs(dataset: str, n: int, seed: int):
     """Build (inputs, img_ranges) for vision-aware head calibration."""
-    from qwen_vl_utils import process_vision_info as pvi
+    from qwen_vl_utils import process_vision_info as pvi_qwen
     from datasets import load_dataset as hf_load
 
     device = next(_model.parameters()).device
@@ -233,9 +268,32 @@ def _build_calib_inputs(dataset: str, n: int, seed: int):
             else:
                 text = _apply_chat_template(_processor, msgs, tokenize=False,
                                             add_generation_prompt=True)
-                vis, _ = pvi(msgs)
-                inp = _processor(text=[text], images=vis, return_tensors="pt",
-                                 padding=True).to(device)
+                # Extract images based on model type
+                if _model_id.startswith("llava") or "llava" in _model_id.lower():
+                    # LLaVA: extract images from messages
+                    vis = [item["image"] for msg in msgs if msg["role"] == "user"
+                           for item in msg.get("content", []) if item["type"] == "image"]
+                    print(f"[DEBUG LLaVA] Extracted {len(vis)} images, type: {type(vis[0]) if vis else 'None'}")
+                    if vis:
+                        print(f"[DEBUG LLaVA] Image size: {vis[0].size}, mode: {vis[0].mode}")
+                    print(f"[DEBUG LLaVA] Generated text: '{text}'")
+                else:
+                    # Qwen: use process_vision_info
+                    vis, _ = pvi_qwen(msgs)
+                    print(f"[DEBUG Qwen] Extracted {len(vis)} images")
+
+                # Debug processor call
+                print(f"[DEBUG] Calling processor with text list and {len(vis)} images")
+                print(f"[DEBUG] Processor patch_size: {_processor.patch_size if hasattr(_processor, 'patch_size') else 'N/A'}")
+                print(f"[DEBUG] Processor type: {type(_processor)}")
+                try:
+                    inp = _processor(text=[text], images=vis, return_tensors="pt",
+                                     padding=True).to(device)
+                    print(f"[DEBUG] Processor call successful")
+                except Exception as e:
+                    print(f"[DEBUG] Processor call failed: {e}")
+                    print(f"[DEBUG] Exception type: {type(e)}")
+                    raise
             ids = inp["input_ids"][0].tolist()
             # For Qwen-VL, image tokens might not be explicit in tokenized output
             # Use fallback: image region is after first few tokens
@@ -278,9 +336,32 @@ def _build_calib_inputs(dataset: str, n: int, seed: int):
             else:
                 text = _apply_chat_template(_processor, msgs, tokenize=False,
                                             add_generation_prompt=True)
-                vis, _ = pvi(msgs)
-                inp = _processor(text=[text], images=vis, return_tensors="pt",
-                                 padding=True).to(device)
+                # Extract images based on model type
+                if _model_id.startswith("llava") or "llava" in _model_id.lower():
+                    # LLaVA: extract images from messages
+                    vis = [item["image"] for msg in msgs if msg["role"] == "user"
+                           for item in msg.get("content", []) if item["type"] == "image"]
+                    print(f"[DEBUG LLaVA] Extracted {len(vis)} images, type: {type(vis[0]) if vis else 'None'}")
+                    if vis:
+                        print(f"[DEBUG LLaVA] Image size: {vis[0].size}, mode: {vis[0].mode}")
+                    print(f"[DEBUG LLaVA] Generated text: '{text}'")
+                else:
+                    # Qwen: use process_vision_info
+                    vis, _ = pvi_qwen(msgs)
+                    print(f"[DEBUG Qwen] Extracted {len(vis)} images")
+
+                # Debug processor call
+                print(f"[DEBUG] Calling processor with text list and {len(vis)} images")
+                print(f"[DEBUG] Processor patch_size: {_processor.patch_size if hasattr(_processor, 'patch_size') else 'N/A'}")
+                print(f"[DEBUG] Processor type: {type(_processor)}")
+                try:
+                    inp = _processor(text=[text], images=vis, return_tensors="pt",
+                                     padding=True).to(device)
+                    print(f"[DEBUG] Processor call successful")
+                except Exception as e:
+                    print(f"[DEBUG] Processor call failed: {e}")
+                    print(f"[DEBUG] Exception type: {type(e)}")
+                    raise
             ids = inp["input_ids"][0].tolist()
             # For Qwen-VL, image tokens might not be explicit
             if img_id in ids:
@@ -312,9 +393,32 @@ def _build_calib_inputs(dataset: str, n: int, seed: int):
             else:
                 text = _apply_chat_template(_processor, msgs, tokenize=False,
                                             add_generation_prompt=True)
-                vis, _ = pvi(msgs)
-                inp = _processor(text=[text], images=vis, return_tensors="pt",
-                                 padding=True).to(device)
+                # Extract images based on model type
+                if _model_id.startswith("llava") or "llava" in _model_id.lower():
+                    # LLaVA: extract images from messages
+                    vis = [item["image"] for msg in msgs if msg["role"] == "user"
+                           for item in msg.get("content", []) if item["type"] == "image"]
+                    print(f"[DEBUG LLaVA] Extracted {len(vis)} images, type: {type(vis[0]) if vis else 'None'}")
+                    if vis:
+                        print(f"[DEBUG LLaVA] Image size: {vis[0].size}, mode: {vis[0].mode}")
+                    print(f"[DEBUG LLaVA] Generated text: '{text}'")
+                else:
+                    # Qwen: use process_vision_info
+                    vis, _ = pvi_qwen(msgs)
+                    print(f"[DEBUG Qwen] Extracted {len(vis)} images")
+
+                # Debug processor call
+                print(f"[DEBUG] Calling processor with text list and {len(vis)} images")
+                print(f"[DEBUG] Processor patch_size: {_processor.patch_size if hasattr(_processor, 'patch_size') else 'N/A'}")
+                print(f"[DEBUG] Processor type: {type(_processor)}")
+                try:
+                    inp = _processor(text=[text], images=vis, return_tensors="pt",
+                                     padding=True).to(device)
+                    print(f"[DEBUG] Processor call successful")
+                except Exception as e:
+                    print(f"[DEBUG] Processor call failed: {e}")
+                    print(f"[DEBUG] Exception type: {type(e)}")
+                    raise
             ids = inp["input_ids"][0].tolist()
             # For Qwen-VL, image tokens might not be explicit in tokenized output
             if img_id in ids:
@@ -349,9 +453,32 @@ def _build_calib_inputs(dataset: str, n: int, seed: int):
             else:
                 text = _apply_chat_template(_processor, msgs, tokenize=False,
                                             add_generation_prompt=True)
-                vis, _ = pvi(msgs)
-                inp = _processor(text=[text], images=vis, return_tensors="pt",
-                                 padding=True).to(device)
+                # Extract images based on model type
+                if _model_id.startswith("llava") or "llava" in _model_id.lower():
+                    # LLaVA: extract images from messages
+                    vis = [item["image"] for msg in msgs if msg["role"] == "user"
+                           for item in msg.get("content", []) if item["type"] == "image"]
+                    print(f"[DEBUG LLaVA] Extracted {len(vis)} images, type: {type(vis[0]) if vis else 'None'}")
+                    if vis:
+                        print(f"[DEBUG LLaVA] Image size: {vis[0].size}, mode: {vis[0].mode}")
+                    print(f"[DEBUG LLaVA] Generated text: '{text}'")
+                else:
+                    # Qwen: use process_vision_info
+                    vis, _ = pvi_qwen(msgs)
+                    print(f"[DEBUG Qwen] Extracted {len(vis)} images")
+
+                # Debug processor call
+                print(f"[DEBUG] Calling processor with text list and {len(vis)} images")
+                print(f"[DEBUG] Processor patch_size: {_processor.patch_size if hasattr(_processor, 'patch_size') else 'N/A'}")
+                print(f"[DEBUG] Processor type: {type(_processor)}")
+                try:
+                    inp = _processor(text=[text], images=vis, return_tensors="pt",
+                                     padding=True).to(device)
+                    print(f"[DEBUG] Processor call successful")
+                except Exception as e:
+                    print(f"[DEBUG] Processor call failed: {e}")
+                    print(f"[DEBUG] Exception type: {type(e)}")
+                    raise
             ids = inp["input_ids"][0].tolist()
             # For Qwen-VL, image tokens might not be explicit in tokenized output
             if img_id in ids:
@@ -363,17 +490,65 @@ def _build_calib_inputs(dataset: str, n: int, seed: int):
                 e = min(256, len(ids) - 1)
             calib_inputs.append(inp); img_ranges.append((s, e))
 
+    elif dataset == "vlind":
+        # VLind-Bench — True/False counterfactual reasoning
+        ds = hf_load("MM-Hallu/VLind-Bench", split="train")
+        rows = list(ds); rng.shuffle(rows)
+        for r in rows[:n]:
+            prompt = str(r.get("prompt", "")).strip()
+            img   = r["image"].convert("RGB")
+            msgs = [{"role": "user", "content": [{"type": "image", "image": img},
+                                                 {"type": "text",  "text":  prompt}]}]
+            text = _apply_chat_template(_processor, msgs, tokenize=False, add_generation_prompt=True)
+            vis = [item["image"] for msg in msgs if msg["role"] == "user"
+                   for item in msg.get("content", []) if item["type"] == "image"]
+            inp = _processor(text=[text], images=vis, return_tensors="pt", padding=True).to(device)
+            ids = inp["input_ids"][0].tolist()
+            if img_id in ids:
+                s = ids.index(img_id)
+                e = len(ids) - 1 - ids[::-1].index(img_id)
+            else:
+                s = 1
+                e = min(256, len(ids) - 1)
+            calib_inputs.append(inp); img_ranges.append((s, e))
+
+    elif dataset == "whatsup":
+        # WhatsUp — Spatial relationship MCQ (use largest split for calibration)
+        ds = hf_load("ServiceNow/whatsup_all", split="COCO_QA_one_obj")
+        rows = list(ds); rng.shuffle(rows)
+        for r in rows[:n]:
+            captions = r.get("caption_options", [])
+            if not captions:
+                continue
+            opts = "\n".join(f"{chr(65+i)}. {c}" for i, c in enumerate(captions))
+            question = f"Which caption best describes the image?\n{opts}\nAnswer with the option letter only."
+            img = r["image_options"].convert("RGB")
+            msgs = [{"role": "user", "content": [{"type": "image", "image": img},
+                                                 {"type": "text",  "text":  question}]}]
+            text = _apply_chat_template(_processor, msgs, tokenize=False, add_generation_prompt=True)
+            vis = [item["image"] for msg in msgs if msg["role"] == "user"
+                   for item in msg.get("content", []) if item["type"] == "image"]
+            inp = _processor(text=[text], images=vis, return_tensors="pt", padding=True).to(device)
+            ids = inp["input_ids"][0].tolist()
+            if img_id in ids:
+                s = ids.index(img_id)
+                e = len(ids) - 1 - ids[::-1].index(img_id)
+            else:
+                s = 1
+                e = min(256, len(ids) - 1)
+            calib_inputs.append(inp); img_ranges.append((s, e))
+
     else:
         raise ValueError(f"Unknown calib dataset: {dataset!r}. "
-                         f"Supported: pope, mmvp, vlmbias, mme, hallusionbench")
+                         f"Supported: pope, mmvp, vlmbias, mme, hallusionbench, vlind, whatsup")
 
     return calib_inputs, img_ranges
 
 
 def _sync_patch_state() -> None:
     """Push current BIAS values into the shared patch state dict."""
-    patch._STATE["vaf_layer_start"]      = BIAS["layer_start"]
-    patch._STATE["vaf_layer_end"]        = BIAS["layer_end"]
+    patch._STATE["layer_start"]          = BIAS["layer_start"]    # FIXED: was "vaf_layer_start"
+    patch._STATE["layer_end"]            = BIAS["layer_end"]      # FIXED: was "vaf_layer_end"
     patch._STATE["vaf_beta"]             = BIAS["sys_beta"]
     patch._STATE["srf_background_eps"]   = BIAS["background_eps"]
     patch._STATE["srf_bias_mode"]        = BIAS["bias_mode"]
@@ -385,6 +560,16 @@ def _sync_patch_state() -> None:
     patch._STATE["srf_text_layer_start"] = BIAS["text_layer_start"]
     patch._STATE["srf_text_layer_end"]   = BIAS["text_layer_end"]
     patch._STATE["srf_layer_alphas"]     = None
+
+    # Layer-wise alpha strategy (Strategy 1)
+    patch._STATE["use_layerwise"]        = BIAS.get("use_layerwise", False)
+    patch._STATE["early_alpha_mult"]     = BIAS.get("early_alpha_mult", 0.3)
+    patch._STATE["mid_alpha_mult"]       = BIAS.get("mid_alpha_mult", 1.5)
+    patch._STATE["late_alpha_mult"]      = BIAS.get("late_alpha_mult", 0.1)
+
+    # Head selection strategy (Strategy 2)
+    patch._STATE["use_query_heads"]       = BIAS.get("use_query_heads", False)
+    patch._STATE["query_type"]            = BIAS.get("query_type", "other")
 
 
 # ---------------------------------------------------------------------------
@@ -427,7 +612,12 @@ def setup(model, processor, calib_dataset: str = "pope") -> None:
     del calib_inputs, img_ranges
     torch.cuda.empty_cache()
 
-    patch.patch_model(model, "srf", max(float(BIAS["boost_alpha"]), 1e-6))
+    # Debug: print sys_beta value
+    sys_beta_val = float(BIAS.get("sys_beta", 0.1))
+    sup_para_val = 1.0 - sys_beta_val
+    print(f"  [SRF DEBUG] sys_beta={sys_beta_val:.3f}, sup_para={sup_para_val:.3f}")
+
+    patch.patch_model(model, "srf", max(float(BIAS["boost_alpha"]), 1e-6), sup_para=sup_para_val, text_beta=float(BIAS.get("text_beta", 0.0)))
     _sync_patch_state()
 
 
@@ -438,6 +628,8 @@ def reset_for_dataset(
     phase:    str   | None = None,
     alpha:    float | None = None,
     eps:      float | None = None,
+    # system-prompt suppression (VAF-style)
+    sys_beta: float | None = None,
     # text-token suppression
     text_beta:        float | None = None,
     text_layer_start: int   | None = None,
@@ -453,6 +645,14 @@ def reset_for_dataset(
     # Absence-aware parameters
     clip_suppress_thresh:  float | None = None,
     clip_suppress_alpha:   float | None = None,
+    # Layer-wise alpha strategy (Strategy 1)
+    use_layerwise:        bool | None = None,
+    early_alpha_mult:     float | None = None,
+    mid_alpha_mult:       float | None = None,
+    late_alpha_mult:      float | None = None,
+    # Head selection strategy (Strategy 2)
+    use_query_heads:      bool | None = None,
+    query_type:           str | None = None,
     # Upsampling option
     clip_upsample_to_tokens: bool | None = None,
 ) -> None:
@@ -478,6 +678,7 @@ def reset_for_dataset(
         "phase":                phase,
         "alpha":                alpha,
         "eps":                  eps,
+        "sys_beta":             sys_beta,
         "text_beta":            text_beta,
         "text_layer_start":     text_layer_start,
         "text_layer_end":       text_layer_end,
@@ -490,6 +691,14 @@ def reset_for_dataset(
         "clip_suppress_thresh": clip_suppress_thresh,
         "clip_suppress_alpha":  clip_suppress_alpha,
         "clip_upsample_to_tokens": clip_upsample_to_tokens,
+        # Layer-wise alpha strategy (Strategy 1)
+        "use_layerwise":       use_layerwise,
+        "early_alpha_mult":    early_alpha_mult,
+        "mid_alpha_mult":      mid_alpha_mult,
+        "late_alpha_mult":     late_alpha_mult,
+        # Head selection strategy (Strategy 2)
+        "use_query_heads":     use_query_heads,
+        "query_type":          query_type,
     }
 
     BIAS     = _make_bias(dataset, overrides)
@@ -513,7 +722,10 @@ def reset_for_dataset(
 
 
 def prepare_sample(inputs, img_start: int, img_end: int,
-                   image, question: str, model, processor) -> None:
+                   image, question: str, model, processor,
+                   absence_mode: str = "legacy",
+                   entropy_thresh: float = 3.5,
+                   suppress_on_absent: bool = False) -> None:
     """
     Per-sample setup: compute CLIP saliency and configure patch state.
     Must be called before every model forward pass.
@@ -535,6 +747,45 @@ def prepare_sample(inputs, img_start: int, img_end: int,
     grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial, model_type)
     noun   = extract_clip_noun(question, mode=_noun_mode)
 
+
+    # Head selection strategy (Strategy 2): Query-conditioned head selection
+    if BIAS.get("use_query_heads", False):
+        # Import relative to current directory
+        try:
+            from query_classifier import classify_query, get_head_params
+        except ImportError:
+            # Fallback for different execution contexts
+            import sys
+            from pathlib import Path
+            srf_dir = Path(__file__).parent
+            if str(srf_dir) not in sys.path:
+                sys.path.insert(0, str(srf_dir))
+            from query_classifier import classify_query, get_head_params
+
+        # Classify query type
+        query_type = classify_query(question)
+
+        # If specific query type is forced, use it instead
+        if BIAS.get("query_type") and BIAS["query_type"] != "other":
+            query_type = BIAS["query_type"]
+
+        # Get query-specific head parameters
+        head_params = get_head_params(query_type)
+
+        # Override head selection for this sample
+        patch._STATE["layer_start"] = head_params["layer_start"]    # FIXED: was "vaf_layer_start"
+        patch._STATE["layer_end"] = head_params["layer_end"]        # FIXED: was "vaf_layer_end"
+        patch._STATE["vaf_head_top_k_pct"] = head_params["head_top_k_pct"]
+
+        # Debug logging
+        head_pct = head_params["head_top_k_pct"]
+        layer_s = head_params["layer_start"]
+        layer_e = head_params["layer_end"]
+        desc = head_params["description"]
+        print(f"[QUERY HEADS] Type: {query_type} | "
+              f"head%={head_pct}, "
+              f"layers={layer_s}-{layer_e} | "
+              f"Reasoning: {desc}", flush=True)
     # Optional upsampling to match actual image token count
     target_n_tokens = None
     if SALIENCY.get("clip_upsample_to_tokens", False):
@@ -670,22 +921,115 @@ def prepare_sample(inputs, img_start: int, img_end: int,
     # Absence-aware conditional boost/suppress (key innovation)
     # When object likely absent → use LOW enh_para to suppress all image tokens
     # When object likely present → use HIGH enh_para to boost salient tokens
-    suppress_thresh = BIAS.get("clip_suppress_thresh", 0.0)
-    suppress_alpha  = BIAS.get("clip_suppress_alpha", 5.0)
 
-    if suppress_thresh > 0.0:
+    suppress_thresh = BIAS.get("clip_suppress_thresh", 0.0)
+    suppress_alpha = BIAS.get("clip_suppress_alpha", 5.0)
+
+    # Enhanced absence detection with entropy
+    if absence_mode == "entropy" and suppress_thresh > 0.0:
+        # Use entropy-based detection (more robust)
+        mode, entropy, info = detect_absence_entropy(
+            result.saliency,  # Fixed: use saliency instead of saliency_map
+            result.max_sim,
+            entropy_thresh=entropy_thresh
+        )
+
+        # Set patch state for suppression if requested
+        if suppress_on_absent:
+            patch._STATE["absence_detected"] = (mode == "absent")
+            patch._STATE["absence_mode"] = absence_mode
+        else:
+            patch._STATE["absence_detected"] = False
+
+        if mode == "absent":
+            # Object absent → strong suppression
+            patch._STATE["enh_para"] = 1.0 / (1.0 + abs(suppress_alpha))
+            print(f"[DEBUG SRF] Entropy-based: ABSENT (entropy={entropy:.2f}, conf={info['confidence']:.3f}) → SUPPRESSING (enh_para={patch._STATE['enh_para']:.4f})", flush=True)
+        elif mode == "present":
+            # Object present → boost
+            patch._STATE["enh_para"] = 1.0 + abs(BIAS["boost_alpha"])
+            print(f"[DEBUG SRF] Entropy-based: PRESENT (entropy={entropy:.2f}, conf={info['confidence']:.3f}) → BOOSTING (enh_para={patch._STATE['enh_para']:.4f})", flush=True)
+        else:
+            # Uncertain → mild boost (conservative)
+            patch._STATE["enh_para"] = 1.0 + abs(BIAS["boost_alpha"]) * 0.5
+            print(f"[DEBUG SRF] Entropy-based: UNCERTAIN (entropy={entropy:.2f}, conf={info['confidence']:.3f}) → MILD BOOST (enh_para={patch._STATE['enh_para']:.4f})", flush=True)
+
+    elif absence_mode == "peak_ratio" and suppress_thresh > 0.0:
+        # Use peak-to-mean ratio detection (best separator: Cohen's d = 0.838)
+        mode, peak_ratio, info = detect_absence_peak_ratio(
+            result.saliency,  # Fixed: use saliency instead of saliency_map
+            result.max_sim,
+            peak_thresh=entropy_thresh,  # Reuse entropy_thresh as peak_thresh
+            conf_thresh_low=suppress_thresh,  # Reuse suppress_thresh as conf_low
+            conf_thresh_high=suppress_thresh + 0.07  # conf_high = conf_low + 0.07
+        )
+
+        # Set patch state for suppression if requested
+        if suppress_on_absent:
+            patch._STATE["absence_detected"] = (mode == "absent")
+            patch._STATE["absence_mode"] = absence_mode
+        else:
+            patch._STATE["absence_detected"] = False
+
+        if mode == "absent":
+            # Object absent → strong suppression
+            patch._STATE["enh_para"] = 1.0 / (1.0 + abs(suppress_alpha))
+            print(f"[DEBUG SRF] Peak-ratio: ABSENT (peak_ratio={peak_ratio:.2f}, conf={info['confidence']:.3f}) → SUPPRESSING (enh_para={patch._STATE['enh_para']:.4f})", flush=True)
+        elif mode == "present":
+            # Object present → boost
+            patch._STATE["enh_para"] = 1.0 + abs(BIAS["boost_alpha"])
+            print(f"[DEBUG SRF] Peak-ratio: PRESENT (peak_ratio={peak_ratio:.2f}, conf={info['confidence']:.3f}) → BOOSTING (enh_para={patch._STATE['enh_para']:.4f})", flush=True)
+        else:
+            # Uncertain → mild boost (conservative)
+            patch._STATE["enh_para"] = 1.0 + abs(BIAS["boost_alpha"]) * 0.5
+            print(f"[DEBUG SRF] Peak-ratio: UNCERTAIN (peak_ratio={peak_ratio:.2f}, conf={info['confidence']:.3f}) → MILD BOOST (enh_para={patch._STATE['enh_para']:.4f})", flush=True)
+
+    elif absence_mode == "multi_metric" and suppress_thresh > 0.0:
+        # Multi-metric detection combining 4 signals
+        mode, votes, info = detect_absence_multi_metric(
+            result.saliency,  # Fixed: use saliency instead of saliency_map
+            result.max_sim,
+            peak_thresh=entropy_thresh,  # Reuse as peak threshold
+            mean_thresh=0.49,  # Fixed threshold from analysis
+            top_conc_thresh=0.182,  # Fixed threshold from analysis
+            conf_thresh_low=suppress_thresh,
+            conf_thresh_high=suppress_thresh + 0.07
+        )
+
+        # Set patch state for suppression if requested
+        if suppress_on_absent:
+            patch._STATE["absence_detected"] = (mode == "absent")
+            patch._STATE["absence_mode"] = absence_mode
+        else:
+            patch._STATE["absence_detected"] = False
+
+        vote_str = f"{votes['absent_votes']}A-{votes['present_votes']}P"
+
+        if mode == "absent":
+            patch._STATE["enh_para"] = 1.0 / (1.0 + abs(suppress_alpha))
+            print(f"[DEBUG SRF] Multi-metric: ABSENT (votes={vote_str}, peak={info['peak_to_mean']:.2f}, mean={info['mean_saliency']:.2f}, conf={info['confidence']:.3f}) → SUPPRESSING (enh_para={patch._STATE['enh_para']:.4f})", flush=True)
+        elif mode == "present":
+            patch._STATE["enh_para"] = 1.0 + abs(BIAS["boost_alpha"])
+            print(f"[DEBUG SRF] Multi-metric: PRESENT (votes={vote_str}, peak={info['peak_to_mean']:.2f}, mean={info['mean_saliency']:.2f}, conf={info['confidence']:.3f}) → BOOSTING (enh_para={patch._STATE['enh_para']:.4f})", flush=True)
+        else:
+            # Uncertain → mild boost
+            patch._STATE["enh_para"] = 1.0 + abs(BIAS["boost_alpha"]) * 0.5
+            print(f"[DEBUG SRF] Multi-metric: UNCERTAIN (votes={vote_str}, peak={info['peak_to_mean']:.2f}, mean={info['mean_saliency']:.2f}, conf={info['confidence']:.3f}) → MILD BOOST (enh_para={patch._STATE['enh_para']:.4f})", flush=True)
+
+    elif suppress_thresh > 0.0:
+        # Legacy mode: threshold-only detection
         if result.max_sim < suppress_thresh:
             # Object likely absent → strong suppression (multiplier << 1.0)
             # Use 1.0 / (1.0 + suppress_alpha) to get a small positive value
             patch._STATE["enh_para"] = 1.0 / (1.0 + abs(suppress_alpha))
-            print(f"[DEBUG SRF] Absence-aware: SUPPRESSING (enh_para={patch._STATE['enh_para']:.4f})", flush=True)
+            print(f"[DEBUG SRF] Legacy: ABSENT (conf={result.max_sim:.3f} < {suppress_thresh}) → SUPPRESSING (enh_para={patch._STATE['enh_para']:.4f})", flush=True)
         else:
             # Object likely present → gentle boost
-            patch._STATE["enh_para"] = abs(BIAS["boost_alpha"])
-            print(f"[DEBUG SRF] Absence-aware: BOOSTING (enh_para={patch._STATE['enh_para']:.4f})", flush=True)
+            patch._STATE["enh_para"] = 1.0 + abs(BIAS["boost_alpha"])
+            print(f"[DEBUG SRF] Legacy: PRESENT (conf={result.max_sim:.3f} >= {suppress_thresh}) → BOOSTING (enh_para={patch._STATE['enh_para']:.4f})", flush=True)
     else:
         # Absence-aware disabled → always boost
-        patch._STATE["enh_para"] = BIAS["boost_alpha"]
+        patch._STATE["enh_para"] = 1.0 + BIAS["boost_alpha"]
         print(f"[DEBUG SRF] enh_para: {patch._STATE['enh_para']:.4f}", flush=True)
 
 

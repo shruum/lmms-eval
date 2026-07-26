@@ -1,0 +1,36 @@
+{
+  "baseline": 86.0,
+  "best_experiment": "baseline",
+  "best_accuracy": 86.0,
+  "best_delta": 0.0,
+  "all_results": [
+    {
+      "name": "baseline",
+      "accuracy": 86.0,
+      "config": "Original baseline (ViT-B/32, multiplicative)",
+      "timestamp": "2026-04-28T23:10:31.397137",
+      "output_file": "results/autoresearch_advanced_cl/baseline/output.txt"
+    },
+    {
+      "name": "clip_large",
+      "accuracy": 86.0,
+      "config": "Large CLIP model (ViT-L/14)",
+      "timestamp": "2026-04-28T23:12:51.121781",
+      "output_file": "results/autoresearch_advanced_cl/clip_large/output.txt"
+    },
+    {
+      "name": "clip_large_strong",
+      "accuracy": 86.0,
+      "config": "Large CLIP + strong boost (ViT-L/14, \u03b1=4.0)",
+      "timestamp": "2026-04-28T23:15:01.477304",
+      "output_file": "results/autoresearch_advanced_cl/clip_large_strong/output.txt"
+    },
+    {
+      "name": "clip_large_fine",
+      "accuracy": 86.0,
+      "config": "Large CLIP + fine grid (ViT-L/14, 5\u00d75, \u03b1=4.0)",
+      "timestamp": "2026-04-28T23:17:02.811519",
+      "output_file": "results/autoresearch_advanced_cl/clip_large_fine/output.txt"
+    }
+  ]
+}

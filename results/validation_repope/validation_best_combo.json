@@ -1,0 +1,17 @@
+{
+  "config": {
+    "name": "best_combo",
+    "alpha": 4.0,
+    "eps": 0.2,
+    "enable_v3_gate": true,
+    "layer_start": 8,
+    "layer_end": 15,
+    "head_top_k_pct": 0.2,
+    "description": "Autoresearch best + v3 gate"
+  },
+  "split": "adversarial",
+  "n_samples": 100,
+  "stdout": "",
+  "stderr": "Traceback (most recent call last):\n  File \"srf/eval.py\", line 61, in <module>\n    from transformers import AutoProcessor, AutoConfig, AutoModelForCausalLM, LlavaForConditionalGeneration\nModuleNotFoundError: No module named 'transformers'\n",
+  "returncode": 1
+}

@@ -1,0 +1,44 @@
+{
+  "model": "Qwen/Qwen-VL-Chat",
+  "baseline": 81.0,
+  "best_experiment": "baseline",
+  "best_accuracy": 81.0,
+  "best_delta": 0.0,
+  "all_results": [
+    {
+      "name": "baseline",
+      "accuracy": 81.0,
+      "params": "Qwen-VL baseline (\u03b1=2.0)",
+      "timestamp": "2026-04-29T13:30:26.177900",
+      "output_file": "results/autoresearch_qwen/baseline/output.txt"
+    },
+    {
+      "name": "coarse_grid",
+      "accuracy": 80.0,
+      "params": "Coarse grid (+1% on LLaVA)",
+      "timestamp": "2026-04-29T13:42:18.319293",
+      "output_file": "results/autoresearch_qwen/coarse_grid/output.txt"
+    },
+    {
+      "name": "no_absence_aware",
+      "accuracy": 79.0,
+      "params": "No absence-aware (+1% on LLaVA)",
+      "timestamp": "2026-04-29T13:33:25.097146",
+      "output_file": "results/autoresearch_qwen/no_absence_aware/output.txt"
+    },
+    {
+      "name": "fine_grid",
+      "accuracy": 79.0,
+      "params": "Fine grid (+1% on LLaVA)",
+      "timestamp": "2026-04-29T13:36:19.924503",
+      "output_file": "results/autoresearch_qwen/fine_grid/output.txt"
+    },
+    {
+      "name": "strong_boost",
+      "accuracy": 79.0,
+      "params": "Strong boost (\u03b1=6.0)",
+      "timestamp": "2026-04-29T13:39:17.967514",
+      "output_file": "results/autoresearch_qwen/strong_boost/output.txt"
+    }
+  ]
+}

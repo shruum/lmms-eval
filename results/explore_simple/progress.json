@@ -1,0 +1,62 @@
+{
+  "results": [
+    {
+      "config": "vlind_l8-12_h0.5_a8.0_e0.5",
+      "accuracy": null
+    },
+    {
+      "config": "vlind_l10-15_h0.5_a8.0_e0.5",
+      "accuracy": null
+    },
+    {
+      "config": "vlind_l12-18_h0.5_a8.0_e0.5",
+      "accuracy": null
+    },
+    {
+      "config": "whatsup_l8-12_h0.5_a4.0_e0.2",
+      "accuracy": null
+    },
+    {
+      "config": "whatsup_l10-15_h0.5_a4.0_e0.2",
+      "accuracy": null
+    },
+    {
+      "config": "whatsup_l12-18_h0.5_a4.0_e0.2",
+      "accuracy": null
+    },
+    {
+      "config": "vlind_l10-15_h0.3_a8.0_e0.5",
+      "accuracy": null
+    },
+    {
+      "config": "vlind_l10-15_h0.7_a8.0_e0.5",
+      "accuracy": null
+    },
+    {
+      "config": "whatsup_l10-15_h0.3_a4.0_e0.2",
+      "accuracy": null
+    },
+    {
+      "config": "whatsup_l10-15_h0.7_a4.0_e0.2",
+      "accuracy": null
+    },
+    {
+      "config": "vlind_l10-15_h0.5_a4.0_e0.3",
+      "accuracy": null
+    },
+    {
+      "config": "vlind_l10-15_h0.5_a12.0_e0.5",
+      "accuracy": null
+    },
+    {
+      "config": "whatsup_l10-15_h0.5_a2.0_e0.1",
+      "accuracy": null
+    },
+    {
+      "config": "whatsup_l10-15_h0.5_a8.0_e0.5",
+      "accuracy": null
+    }
+  ],
+  "completed": 14,
+  "total": 14
+}

@@ -1,0 +1,27 @@
+{
+  "dataset": "aokvqa_random",
+  "file": "/home/anna2/shruthi/dataset/POPE_images/aokvqa_random.json",
+  "n_samples": 3000,
+  "baseline": {
+    "accuracy": 0.8546666666666667,
+    "precision": 0.7998872604284104,
+    "recall": 0.946,
+    "f1": 0.8668295662797801,
+    "tp": 1419,
+    "tn": 1145,
+    "fp": 355,
+    "fn": 81
+  },
+  "method": {
+    "0.0": {
+      "accuracy": 0.854,
+      "precision": 0.7986501687289089,
+      "recall": 0.9466666666666667,
+      "f1": 0.8663819402074434,
+      "tp": 1420,
+      "tn": 1142,
+      "fp": 358,
+      "fn": 80
+    }
+  }
+}

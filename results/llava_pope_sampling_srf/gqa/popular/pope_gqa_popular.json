@@ -1,0 +1,27 @@
+{
+  "dataset": "gqa_popular",
+  "file": "/home/anna2/shruthi/dataset/POPE_images/gqa_popular.json",
+  "n_samples": 3000,
+  "baseline": {
+    "accuracy": 0.7293333333333333,
+    "precision": 0.6615023474178404,
+    "recall": 0.9393333333333334,
+    "f1": 0.7763085399449038,
+    "tp": 1409,
+    "tn": 779,
+    "fp": 721,
+    "fn": 91
+  },
+  "method": {
+    "0.0": {
+      "accuracy": 0.728,
+      "precision": 0.6596638655462185,
+      "recall": 0.942,
+      "f1": 0.7759472817133443,
+      "tp": 1413,
+      "tn": 771,
+      "fp": 729,
+      "fn": 87
+    }
+  }
+}

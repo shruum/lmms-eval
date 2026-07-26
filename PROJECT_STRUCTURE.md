@@ -1,5 +1,7 @@
 # Project Documentation Structure
 
+**Last Updated:** 2025-06-15
+
 ## **Core Documentation Files** (For Multi-Agent Collaboration)
 
 ### **Essential Reading** (Start Here)
@@ -34,13 +36,21 @@ lmms-eval/
 lmms-eval/
 ├── srf/                     # SRF method implementation
 │   ├── srf.py, srf_e.py    # Core code (STABLE)
+│   ├── eval.py             # Main evaluation script (STABLE)
+│   ├── saliency/           # CLIP saliency computation
+│   ├── methods/            # Method implementations
+│   │   └── vaf.py         # VAF implementation
 │   ├── README.md            # SRF-specific docs
 │   └── investigations/      # SRF-specific analysis
-├── vcd_reproduction/        # VCD reproduction work
-│   ├── README.md
-│   └── results/
-├── memvr_reproduction/      # MemVR reproduction work
-├── vaf_reproduction/        # VAF reproduction work
+├── scripts/                 # All scripts organized by type
+│   ├── session_scripts/    # Session-specific validation scripts
+│   ├── experiment_scripts/ # Method evaluation scripts
+│   └── analysis/           # Analysis and comparison scripts
+├── data/                    # Dataset configurations and metadata
+│   └── validation_sets/    # Validation set configurations
+├── results/                 # All experiment results
+│   ├── session_logs/       # Timestamped session results
+│   └── saliency_analysis/  # Saliency analysis outputs
 └── info/                    # Dataset info & guides
     ├── POPE_LLAVA_GUIDE.md
     └── POPE_BASELINE_COMPARISON.md

@@ -1,0 +1,27 @@
+{
+  "dataset": "GPU verification test",
+  "file": "/home/anna2/shruthi/RePOPE/annotations/coco_repope_adversarial.json",
+  "n_samples": 2684,
+  "baseline": {
+    "accuracy": 0.8040238450074516,
+    "precision": 0.7144711226476315,
+    "recall": 0.9275484414490311,
+    "f1": 0.8071847507331379,
+    "tp": 1101,
+    "tn": 1057,
+    "fp": 440,
+    "fn": 86
+  },
+  "method": {
+    "0.0": {
+      "accuracy": 0.8032786885245902,
+      "precision": 0.7138221933809215,
+      "recall": 0.9267059814658803,
+      "f1": 0.8064516129032259,
+      "tp": 1100,
+      "tn": 1056,
+      "fp": 441,
+      "fn": 87
+    }
+  }
+}

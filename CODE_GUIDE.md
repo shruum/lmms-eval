@@ -1,6 +1,6 @@
 # Code Guide - Architecture, Important Files, and How to Modify
 
-**Last Updated:** 2026-06-11
+**Last Updated:** 2025-06-15
 
 ---
 
@@ -24,11 +24,49 @@ lmms-eval/
 │   │   ├── clip_salience.py     # CLIP saliency (FIXED June 2026)
 │   │   └── noun_extract.py      # Query noun extraction
 │   ├── config.py                 # Default parameters
+│   ├── methods/                  # Method implementations
+│   │   └── vaf.py               # VAF (Visual Amplification Fusion)
 │   └── investigations/          # Analysis reports
-├── info/                         # Dataset guides
-├── results/                      # All experiment results
-└── dataset/POPE_images/          # POPE benchmark data
+├── scripts/                      # All scripts organized by type
+│   ├── session_scripts/         # Session-specific validation scripts
+│   ├── experiment_scripts/      # Experiment evaluation scripts
+│   │   └── eval_vaf_pope.py    # VAF evaluation on POPE
+│   ├── analysis/                # Analysis and comparison scripts
+│   │   ├── compare_repope.py   # RePOPE comparison
+│   │   └── test_repoe_impact.py # Impact testing
+│   └── experiment_scripts/      # Historical experiment scripts
+├── data/                        # Dataset configurations and metadata
+│   └── validation_sets/         # Validation set configurations
+│       ├── balanced_validation_set.json
+│       ├── diverse_validation_set.json
+│       └── negative_validation_set.json
+├── results/                     # All experiment results
+│   ├── session_logs/           # Timestamped session results
+│   │   └── validation_repope_TIMESTAMP/
+│   │       ├── config_results/ # JSON outputs per config
+│   │       └── validation_summary.txt
+│   └── saliency_analysis/      # Saliency analysis outputs
+│       └── comprehensive_analysis_results.json
+├── info/                        # Dataset guides
+└── dataset/POPE_images/         # POPE benchmark data
 ```
+
+### **Scripts Organization**
+All scripts are organized by type in `scripts/`:
+
+**`scripts/session_scripts/`** - Session-specific validation scripts
+- Temporary scripts for current session validation
+- Example: `validate_repoe_proper.sh` - Test configs before full experiments
+
+**`scripts/experiment_scripts/`** - Method evaluation scripts
+- Stable scripts for running specific methods
+- Example: `eval_vaf_pope.py` - VAF evaluation on POPE
+
+**`scripts/analysis/`** - Analysis and comparison scripts
+- Scripts for analyzing results and comparing methods
+- Examples: `compare_repope.py`, `test_repoe_impact.py`
+
+**Rule:** New scripts go in appropriate subfolder, never in base directory
 
 ---
 

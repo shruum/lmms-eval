@@ -1,0 +1,69 @@
+{
+  "n": 2784,
+  "baseline": 0.1882183908045977,
+  "method": {
+    "0.0": 0.19360632183908047
+  },
+  "cat_baseline": {
+    "Animals": {
+      "correct": 0,
+      "total": 546
+    },
+    "Chess Pieces": {
+      "correct": 0,
+      "total": 288
+    },
+    "Flags": {
+      "correct": 54,
+      "total": 240
+    },
+    "Game Boards": {
+      "correct": 15,
+      "total": 168
+    },
+    "Logos": {
+      "correct": 30,
+      "total": 414
+    },
+    "Optical Illusion": {
+      "correct": 381,
+      "total": 792
+    },
+    "Patterned Grid": {
+      "correct": 44,
+      "total": 336
+    }
+  },
+  "cat_srf": {
+    "0.0": {
+      "Animals": {
+        "correct": 0,
+        "total": 0
+      },
+      "Chess Pieces": {
+        "correct": 0,
+        "total": 0
+      },
+      "Flags": {
+        "correct": 34,
+        "total": 0
+      },
+      "Game Boards": {
+        "correct": 17,
+        "total": 0
+      },
+      "Logos": {
+        "correct": 38,
+        "total": 0
+      },
+      "Optical Illusion": {
+        "correct": 403,
+        "total": 0
+      },
+      "Patterned Grid": {
+        "correct": 47,
+        "total": 0
+      }
+    }
+  }
+}

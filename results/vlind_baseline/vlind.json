@@ -1,0 +1,63 @@
+{
+  "n": 723,
+  "baseline": {
+    "accuracy": 0.41770401106500693,
+    "by_concept": {
+      "habitat": {
+        "accuracy": 0.4827586206896552,
+        "correct": 42,
+        "total": 87
+      },
+      "folklore": {
+        "accuracy": 0.4642857142857143,
+        "correct": 13,
+        "total": 28
+      },
+      "size": {
+        "accuracy": 0.46774193548387094,
+        "correct": 29,
+        "total": 62
+      },
+      "diet": {
+        "accuracy": 0.4942528735632184,
+        "correct": 43,
+        "total": 87
+      },
+      "climate": {
+        "accuracy": 0.3559322033898305,
+        "correct": 21,
+        "total": 59
+      },
+      "weight": {
+        "accuracy": 0.4186046511627907,
+        "correct": 36,
+        "total": 86
+      },
+      "history": {
+        "accuracy": 0.3484848484848485,
+        "correct": 23,
+        "total": 66
+      },
+      "time": {
+        "accuracy": 0.4482758620689655,
+        "correct": 39,
+        "total": 87
+      },
+      "color": {
+        "accuracy": 0.24074074074074073,
+        "correct": 13,
+        "total": 54
+      },
+      "landmark": {
+        "accuracy": 0.4,
+        "correct": 26,
+        "total": 65
+      },
+      "location": {
+        "accuracy": 0.40476190476190477,
+        "correct": 17,
+        "total": 42
+      }
+    }
+  }
+}

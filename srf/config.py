@@ -110,6 +110,8 @@ SRF_ARCH_PARAMS = {
         "clip_coarse_grid":     7,
         "clip_top_k_pct":       0.30,
         "clip_fallback_thresh": 0.20,
+        "saliency_mode":        "clip_full_gate_v3",  # ← ADDED: Use improved v3 system
+        "clip_model":           "openai/clip-vit-base-patch32",
         # per-dataset layer_end fine-tuning (overrides layer_end above)
         "dataset_layer_end":    {"mmvp": 15, "pope": 15, "vlmbias": 14, "mme": 15, "vlind": 14, "whatsup": 15},
     },
@@ -124,6 +126,8 @@ SRF_ARCH_PARAMS = {
         "clip_coarse_grid":     7,
         "clip_top_k_pct":       0.30,
         "clip_fallback_thresh": 0.20,
+        "saliency_mode":        "clip_full_gate_v3",  # ← ADDED: Use improved v3 system
+        "clip_model":           "openai/clip-vit-base-patch32",
         "dataset_layer_end":    {"mmvp": 17, "pope": 17, "vlmbias": 16, "mme": 17, "vlind": 16, "whatsup": 17},
     },
     "Qwen/Qwen-VL-Chat": {
@@ -138,6 +142,8 @@ SRF_ARCH_PARAMS = {
         "clip_coarse_grid":     7,
         "clip_top_k_pct":       0.30,
         "clip_fallback_thresh": 0.20,
+        "saliency_mode":        "clip_full_gate_v3",  # ← ADDED: Use improved v3 system
+        "clip_model":           "openai/clip-vit-base-patch32",
         "dataset_layer_end":    {"mmvp": 17, "pope": 17, "vlmbias": 16, "mme": 17, "vlind": 16, "whatsup": 17},
     },
     "llava-hf/llava-1.5-7b-hf": {

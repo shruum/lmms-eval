@@ -55930,3 +55930,5 @@ AttributeError: module 'srf' has no attribute '_STATE'
 [ma 27 jul 2026 12:10:00 CEST] GPU 7 has 48650MB free - checking queue
 [ma 27 jul 2026 12:10:00 CEST] Queue empty - GPU 7 available but no experiments
 [ma 27 jul 2026 12:10:00 CEST] Status check - Queue: 5/0 experiments launched
+[ma 27 jul 2026 14:30:01 CEST] Status check - Queue: 5/0 experiments launched
+[ma 27 jul 2026 14:50:01 CEST] Status check - Queue: 5/0 experiments launched

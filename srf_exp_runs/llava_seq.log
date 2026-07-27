@@ -1,0 +1,540 @@
+========================================
+LLaVA MME - SEQUENTIAL SWEEP
+========================================
+GPU: 2
+Total experiments: 8
+Strategy: Run one at a time
+========================================
+
+[1/8] SRF - Original baseline (layers 10-14, alpha=2.0)
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/huggingface_hub/file_download.py:949: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/transformers/models/llava/configuration_llava.py:103: FutureWarning: The `vocab_size` argument is deprecated and will be removed in v4.42, since it can be inferred from the `text_config`. Passing this argument has no effect
+  warnings.warn(
+Loading llava-hf/llava-1.5-7b-hf…
+  Detected model type: llava
+  Model family: Unknown
+  Using LLaVA attention patch
+Loading checkpoint shards:   0%|          | 0/3 [00:00<?, ?it/s]Loading checkpoint shards:  33%|███▎      | 1/3 [00:00<00:01,  1.60it/s]Loading checkpoint shards:  67%|██████▋   | 2/3 [00:01<00:00,  1.61it/s]Loading checkpoint shards: 100%|██████████| 3/3 [00:01<00:00,  1.59it/s]Loading checkpoint shards: 100%|██████████| 3/3 [00:01<00:00,  1.59it/s]
+Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/huggingface_hub/file_download.py:949: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+
+[SRF] Setup  model=llava-hf/llava-1.5-7b-hf  base
+  [SRF] Calibrating on mme (n=20, seed=0)…
+  [SRF] arch: llava-hf/llava-1.5-7b-hf  layer_start=8  layer_end=20  head_top_k=0.2  clip_grid=6  clip_topk=0.3
+  [CALIB] Registered [<torch.utils.hooks.RemovableHandle object at 0x7fbd416cceb0>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cfb50>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cf700>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cf7c0>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cf8b0>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416ce620>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416ce680>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cefb0>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cd660>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416ced40>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cfa00>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cf580>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cf490>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cf340>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cf100>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cd8a0>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416ce260>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cdf90>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416ccf70>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cd630>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cc070>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cfb20>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cfa60>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cfc70>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416ce500>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cfdf0>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cff10>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cef20>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cce50>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416ccc40>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cc940>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cc730>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cc040>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cee90>] hooks
+  [CALIB] Captured 640 softmax calls
+  [SRF] 6 vision-aware heads (top 20%)
+
+============================================================
+DATASET: MME (2374 Yes/No, 14 categories, full)
+============================================================
+
+  [SRF] reset → dataset=mme  phase=both  alpha=2.0  eps=0.0  layers=[10,14]  head_topk=0.2  clip_grid=6  clip_topk=0.2
+  [CALIB] Registered [<torch.utils.hooks.RemovableHandle object at 0x7fbd416cceb0>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cfb50>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cf700>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cf7c0>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cf8b0>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416ce620>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416ce680>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cefb0>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cd660>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416ced40>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cfa00>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cf580>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cf490>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cf340>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cf100>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cd8a0>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416ce260>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cdf90>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416ccf70>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cd630>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cc070>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cfb20>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cfa60>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cfc70>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416ce500>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cfdf0>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cff10>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cef20>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cce50>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416ccc40>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cc940>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cc730>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cc040>, <torch.utils.hooks.RemovableHandle object at 0x7fbd416cee90>] hooks
+  [CALIB] Captured 640 softmax calls
+  Loaded 2374 MME samples
+  [clip_salience] Loading openai/clip-vit-base-patch32 on cpu (one-time, infers on cuda)…
+  [ 500/2374] base=0.6900  β=0.0:0.6920
+  [1000/2374] base=0.6540  β=0.0:0.6560
+  [1500/2374] base=0.6640  β=0.0:0.6647
+  [2000/2374] base=0.6880  β=0.0:0.6885
+  [2374/2374] base=0.6950  β=0.0:0.6950
+
+MME baseline:  acc=0.6950  pair=0.3960
+  MME score: 1650 / 2374  (perception=1500, cognition=150)
+  SRF: acc=0.6950  pair=0.3951  Δ=+0.0000  score=1650 (perc=1500, cogn=150)
+
+  Per-category (baseline | SRF):
+    [P] OCR                         : base= 28/40  β=0.0:28
+    [P] artwork                     : base=284/400  β=0.0:285
+    [P] celebrity                   : base=200/340  β=0.0:201
+    [C] code_reasoning              : base= 21/40  β=0.0:21
+    [P] color                       : base= 52/60  β=0.0:52
+    [C] commonsense_reasoning       : base= 89/140  β=0.0:89
+    [P] count                       : base= 44/60  β=0.0:44
+    [P] existence                   : base= 57/60  β=0.0:57
+    [P] landmark                    : base=275/400  β=0.0:274
+    [C] numerical_calculation       : base= 20/40  β=0.0:20
+    [P] position                    : base= 44/60  β=0.0:44
+    [P] posters                     : base=201/294  β=0.0:200
+    [P] scene                       : base=315/400  β=0.0:315
+    [C] text_translation            : base= 20/40  β=0.0:20
+
+======================================================================
+FINAL SUMMARY — SRF vs Baseline
+======================================================================
+Model: llava-hf/llava-1.5-7b-hf  |  method=srf  |  base
+
+MME (n=2374):  baseline score=1650  acc=69.50%  pair=39.60%
+  Perception=1500  Cognition=150
+  SRF: score=1650  acc=69.50%  Δ=0.00%  perc=1500  cogn=150
+✓ Exp 1 complete
+
+[2/8] SRF - Earlier fusion (layers 8-14)
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/huggingface_hub/file_download.py:949: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/transformers/models/llava/configuration_llava.py:103: FutureWarning: The `vocab_size` argument is deprecated and will be removed in v4.42, since it can be inferred from the `text_config`. Passing this argument has no effect
+  warnings.warn(
+Loading llava-hf/llava-1.5-7b-hf…
+  Detected model type: llava
+  Model family: Unknown
+  Using LLaVA attention patch
+Loading checkpoint shards:   0%|          | 0/3 [00:00<?, ?it/s]Loading checkpoint shards:  33%|███▎      | 1/3 [00:00<00:01,  1.68it/s]Loading checkpoint shards:  67%|██████▋   | 2/3 [00:01<00:00,  1.56it/s]Loading checkpoint shards: 100%|██████████| 3/3 [00:01<00:00,  1.83it/s]Loading checkpoint shards: 100%|██████████| 3/3 [00:01<00:00,  1.76it/s]
+Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/huggingface_hub/file_download.py:949: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+
+[SRF] Setup  model=llava-hf/llava-1.5-7b-hf  base
+  [SRF] Calibrating on mme (n=20, seed=0)…
+  [SRF] arch: llava-hf/llava-1.5-7b-hf  layer_start=8  layer_end=20  head_top_k=0.2  clip_grid=6  clip_topk=0.3
+  [CALIB] Registered [<torch.utils.hooks.RemovableHandle object at 0x7f0d242f8e80>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fbb20>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fb6d0>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fb790>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fb880>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fa5f0>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fa650>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242faf80>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242f9630>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fad10>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fb9d0>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fb550>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fb460>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fb310>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fb0d0>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242f9870>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fa230>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242f9f60>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242f8f40>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242f9600>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242f8040>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fbaf0>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fba30>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fbc40>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fa4d0>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fbdc0>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fbee0>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fbfa0>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fbd60>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242f8cd0>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242f8a30>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242f8790>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242f8580>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fae60>] hooks
+  [CALIB] Captured 640 softmax calls
+  [SRF] 6 vision-aware heads (top 20%)
+
+============================================================
+DATASET: MME (2374 Yes/No, 14 categories, full)
+============================================================
+
+  [SRF] reset → dataset=mme  phase=both  alpha=2.0  eps=0.0  layers=[8,14]  head_topk=0.2  clip_grid=6  clip_topk=0.2
+  [CALIB] Registered [<torch.utils.hooks.RemovableHandle object at 0x7f0d242f8e80>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fbb20>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fb6d0>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fb790>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fb880>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fa5f0>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fa650>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242faf80>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242f9630>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fad10>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fb9d0>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fb550>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fb460>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fb310>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fb0d0>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242f9870>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fa230>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242f9f60>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242f8f40>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242f9600>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242f8040>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fbaf0>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fba30>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fbc40>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fa4d0>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fbdc0>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fbee0>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fbfa0>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fbd60>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242f8cd0>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242f8a30>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242f8790>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242f8580>, <torch.utils.hooks.RemovableHandle object at 0x7f0d242fae60>] hooks
+  [CALIB] Captured 640 softmax calls
+  Loaded 2374 MME samples
+  [clip_salience] Loading openai/clip-vit-base-patch32 on cpu (one-time, infers on cuda)…
+  [ 500/2374] base=0.6900  β=0.0:0.6920
+  [1000/2374] base=0.6540  β=0.0:0.6560
+  [1500/2374] base=0.6640  β=0.0:0.6647
+  [2000/2374] base=0.6880  β=0.0:0.6885
+  [2374/2374] base=0.6950  β=0.0:0.6950
+
+MME baseline:  acc=0.6950  pair=0.3960
+  MME score: 1650 / 2374  (perception=1500, cognition=150)
+  SRF: acc=0.6950  pair=0.3951  Δ=+0.0000  score=1650 (perc=1500, cogn=150)
+
+  Per-category (baseline | SRF):
+    [P] OCR                         : base= 28/40  β=0.0:28
+    [P] artwork                     : base=284/400  β=0.0:285
+    [P] celebrity                   : base=200/340  β=0.0:201
+    [C] code_reasoning              : base= 21/40  β=0.0:21
+    [P] color                       : base= 52/60  β=0.0:52
+    [C] commonsense_reasoning       : base= 89/140  β=0.0:89
+    [P] count                       : base= 44/60  β=0.0:44
+    [P] existence                   : base= 57/60  β=0.0:57
+    [P] landmark                    : base=275/400  β=0.0:274
+    [C] numerical_calculation       : base= 20/40  β=0.0:20
+    [P] position                    : base= 44/60  β=0.0:44
+    [P] posters                     : base=201/294  β=0.0:200
+    [P] scene                       : base=315/400  β=0.0:315
+    [C] text_translation            : base= 20/40  β=0.0:20
+
+======================================================================
+FINAL SUMMARY — SRF vs Baseline
+======================================================================
+Model: llava-hf/llava-1.5-7b-hf  |  method=srf  |  base
+
+MME (n=2374):  baseline score=1650  acc=69.50%  pair=39.60%
+  Perception=1500  Cognition=150
+  SRF: score=1650  acc=69.50%  Δ=0.00%  perc=1500  cogn=150
+✓ Exp 2 complete
+
+[3/8] SRF - Wider fusion (layers 8-16)
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/huggingface_hub/file_download.py:949: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/transformers/models/llava/configuration_llava.py:103: FutureWarning: The `vocab_size` argument is deprecated and will be removed in v4.42, since it can be inferred from the `text_config`. Passing this argument has no effect
+  warnings.warn(
+Loading llava-hf/llava-1.5-7b-hf…
+  Detected model type: llava
+  Model family: Unknown
+  Using LLaVA attention patch
+Loading checkpoint shards:   0%|          | 0/3 [00:00<?, ?it/s]Loading checkpoint shards:  33%|███▎      | 1/3 [00:08<00:16,  8.10s/it]Loading checkpoint shards:  67%|██████▋   | 2/3 [00:12<00:06,  6.05s/it]Loading checkpoint shards: 100%|██████████| 3/3 [00:16<00:00,  4.87s/it]Loading checkpoint shards: 100%|██████████| 3/3 [00:16<00:00,  5.39s/it]
+Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/huggingface_hub/file_download.py:949: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+
+[SRF] Setup  model=llava-hf/llava-1.5-7b-hf  base
+  [SRF] Calibrating on mme (n=20, seed=0)…
+  [SRF] arch: llava-hf/llava-1.5-7b-hf  layer_start=8  layer_end=20  head_top_k=0.2  clip_grid=6  clip_topk=0.3
+  [CALIB] Registered [<torch.utils.hooks.RemovableHandle object at 0x7f3ee99f8e50>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fbaf0>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fb6a0>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fb760>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fb850>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fa5c0>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fa620>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99faf50>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99f9600>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99face0>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fb9a0>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fb520>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fb430>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fb2e0>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fb0a0>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99f9840>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fa200>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99f9f30>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99f8f10>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99f95d0>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99f8040>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fbac0>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fba00>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fbc10>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fa4a0>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fbd90>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fbeb0>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fbf70>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fb970>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99f8190>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99f8ac0>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99f87f0>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99f8640>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99f8220>] hooks
+  [CALIB] Captured 640 softmax calls
+  [SRF] 6 vision-aware heads (top 20%)
+
+============================================================
+DATASET: MME (2374 Yes/No, 14 categories, full)
+============================================================
+
+  [SRF] reset → dataset=mme  phase=both  alpha=2.0  eps=0.0  layers=[8,16]  head_topk=0.2  clip_grid=6  clip_topk=0.2
+  [CALIB] Registered [<torch.utils.hooks.RemovableHandle object at 0x7f3ee99f8e50>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fbaf0>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fb6a0>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fb760>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fb850>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fa5c0>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fa620>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99faf50>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99f9600>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99face0>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fb9a0>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fb520>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fb430>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fb2e0>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fb0a0>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99f9840>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fa200>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99f9f30>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99f8f10>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99f95d0>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99f8040>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fbac0>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fba00>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fbc10>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fa4a0>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fbd90>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fbeb0>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fbf70>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99fb970>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99f8190>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99f8ac0>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99f87f0>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99f8640>, <torch.utils.hooks.RemovableHandle object at 0x7f3ee99f8220>] hooks
+  [CALIB] Captured 640 softmax calls
+  Loaded 2374 MME samples
+  [clip_salience] Loading openai/clip-vit-base-patch32 on cpu (one-time, infers on cuda)…
+  [ 500/2374] base=0.6900  β=0.0:0.6920
+  [1000/2374] base=0.6540  β=0.0:0.6560
+  [1500/2374] base=0.6640  β=0.0:0.6647
+  [2000/2374] base=0.6880  β=0.0:0.6885
+  [2374/2374] base=0.6950  β=0.0:0.6950
+
+MME baseline:  acc=0.6950  pair=0.3960
+  MME score: 1650 / 2374  (perception=1500, cognition=150)
+  SRF: acc=0.6950  pair=0.3951  Δ=+0.0000  score=1650 (perc=1500, cogn=150)
+
+  Per-category (baseline | SRF):
+    [P] OCR                         : base= 28/40  β=0.0:28
+    [P] artwork                     : base=284/400  β=0.0:285
+    [P] celebrity                   : base=200/340  β=0.0:201
+    [C] code_reasoning              : base= 21/40  β=0.0:21
+    [P] color                       : base= 52/60  β=0.0:52
+    [C] commonsense_reasoning       : base= 89/140  β=0.0:89
+    [P] count                       : base= 44/60  β=0.0:44
+    [P] existence                   : base= 57/60  β=0.0:57
+    [P] landmark                    : base=275/400  β=0.0:274
+    [C] numerical_calculation       : base= 20/40  β=0.0:20
+    [P] position                    : base= 44/60  β=0.0:44
+    [P] posters                     : base=201/294  β=0.0:200
+    [P] scene                       : base=315/400  β=0.0:315
+    [C] text_translation            : base= 20/40  β=0.0:20
+
+======================================================================
+FINAL SUMMARY — SRF vs Baseline
+======================================================================
+Model: llava-hf/llava-1.5-7b-hf  |  method=srf  |  base
+
+MME (n=2374):  baseline score=1650  acc=69.50%  pair=39.60%
+  Perception=1500  Cognition=150
+  SRF: score=1650  acc=69.50%  Δ=0.00%  perc=1500  cogn=150
+✓ Exp 3 complete
+
+[4/8] SRF - Late fusion (layers 13-16)
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/huggingface_hub/file_download.py:949: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/transformers/models/llava/configuration_llava.py:103: FutureWarning: The `vocab_size` argument is deprecated and will be removed in v4.42, since it can be inferred from the `text_config`. Passing this argument has no effect
+  warnings.warn(
+Loading llava-hf/llava-1.5-7b-hf…
+  Detected model type: llava
+  Model family: Unknown
+  Using LLaVA attention patch
+Loading checkpoint shards:   0%|          | 0/3 [00:00<?, ?it/s]Loading checkpoint shards:  33%|███▎      | 1/3 [00:08<00:17,  8.99s/it]Loading checkpoint shards:  67%|██████▋   | 2/3 [00:13<00:06,  6.48s/it]Loading checkpoint shards: 100%|██████████| 3/3 [00:17<00:00,  5.34s/it]Loading checkpoint shards: 100%|██████████| 3/3 [00:17<00:00,  5.90s/it]
+Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/huggingface_hub/file_download.py:949: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+
+[SRF] Setup  model=llava-hf/llava-1.5-7b-hf  base
+  [SRF] Calibrating on mme (n=20, seed=0)…
+  [SRF] arch: llava-hf/llava-1.5-7b-hf  layer_start=8  layer_end=20  head_top_k=0.2  clip_grid=6  clip_topk=0.3
+  [CALIB] Registered [<torch.utils.hooks.RemovableHandle object at 0x7f8e743cd0f0>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743ccfa0>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cdc60>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cf0d0>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743ced70>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cea40>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743ce7a0>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743ce2f0>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cc250>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cd030>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cc400>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cc2e0>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cd000>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743ccaf0>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cc4f0>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cdae0>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cdcf0>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cfa00>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cfd00>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743ccf40>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cf130>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cf8e0>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cf940>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743ccf10>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cdba0>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cdf60>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cdb70>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cfac0>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743ce080>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743ccd00>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cc670>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743ccbe0>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cda20>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cffa0>] hooks
+  [CALIB] Captured 640 softmax calls
+  [SRF] 6 vision-aware heads (top 20%)
+
+============================================================
+DATASET: MME (2374 Yes/No, 14 categories, full)
+============================================================
+
+  [SRF] reset → dataset=mme  phase=both  alpha=3.0  eps=0.0  layers=[13,16]  head_topk=0.5  clip_grid=6  clip_topk=0.25
+  [CALIB] Registered [<torch.utils.hooks.RemovableHandle object at 0x7f8e743cd0f0>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743ccfa0>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cdc60>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cf0d0>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743ced70>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cea40>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743ce7a0>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743ce2f0>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cc250>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cd030>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cc400>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cc2e0>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cd000>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743ccaf0>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cc4f0>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cdae0>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cdcf0>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cfa00>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cfd00>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743ccf40>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cf130>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cf8e0>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cf940>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743ccf10>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cdba0>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cdf60>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cdb70>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cfac0>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743ce080>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743ccd00>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cc670>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743ccbe0>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cda20>, <torch.utils.hooks.RemovableHandle object at 0x7f8e743cffa0>] hooks
+  [CALIB] Captured 640 softmax calls
+  Loaded 2374 MME samples
+  [clip_salience] Loading openai/clip-vit-base-patch32 on cpu (one-time, infers on cuda)…
+  [ 500/2374] base=0.6900  β=0.0:0.6920
+  [1000/2374] base=0.6540  β=0.0:0.6560
+  [1500/2374] base=0.6640  β=0.0:0.6653
+  [2000/2374] base=0.6880  β=0.0:0.6890
+  [2374/2374] base=0.6950  β=0.0:0.6955
+
+MME baseline:  acc=0.6950  pair=0.3960
+  MME score: 1650 / 2374  (perception=1500, cognition=150)
+  SRF: acc=0.6955  pair=0.3960  Δ=+0.0004  score=1651 (perc=1501, cogn=150)
+
+  Per-category (baseline | SRF):
+    [P] OCR                         : base= 28/40  β=0.0:28
+    [P] artwork                     : base=284/400  β=0.0:285
+    [P] celebrity                   : base=200/340  β=0.0:201
+    [C] code_reasoning              : base= 21/40  β=0.0:21
+    [P] color                       : base= 52/60  β=0.0:52
+    [C] commonsense_reasoning       : base= 89/140  β=0.0:89
+    [P] count                       : base= 44/60  β=0.0:44
+    [P] existence                   : base= 57/60  β=0.0:57
+    [P] landmark                    : base=275/400  β=0.0:275
+    [C] numerical_calculation       : base= 20/40  β=0.0:20
+    [P] position                    : base= 44/60  β=0.0:44
+    [P] posters                     : base=201/294  β=0.0:200
+    [P] scene                       : base=315/400  β=0.0:315
+    [C] text_translation            : base= 20/40  β=0.0:20
+
+======================================================================
+FINAL SUMMARY — SRF vs Baseline
+======================================================================
+Model: llava-hf/llava-1.5-7b-hf  |  method=srf  |  base
+
+MME (n=2374):  baseline score=1650  acc=69.50%  pair=39.60%
+  Perception=1500  Cognition=150
+  SRF: score=1651  acc=69.55%  Δ=0.04%  perc=1501  cogn=150
+✓ Exp 4 complete
+
+[5/8] SRF - Stronger boost (alpha=3.0)
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/huggingface_hub/file_download.py:949: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/transformers/models/llava/configuration_llava.py:103: FutureWarning: The `vocab_size` argument is deprecated and will be removed in v4.42, since it can be inferred from the `text_config`. Passing this argument has no effect
+  warnings.warn(
+Loading llava-hf/llava-1.5-7b-hf…
+  Detected model type: llava
+  Model family: Unknown
+  Using LLaVA attention patch
+Loading checkpoint shards:   0%|          | 0/3 [00:00<?, ?it/s]Loading checkpoint shards:  33%|███▎      | 1/3 [00:00<00:01,  1.61it/s]Loading checkpoint shards:  67%|██████▋   | 2/3 [00:01<00:00,  1.56it/s]Loading checkpoint shards: 100%|██████████| 3/3 [00:01<00:00,  1.85it/s]Loading checkpoint shards: 100%|██████████| 3/3 [00:01<00:00,  1.77it/s]
+Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/huggingface_hub/file_download.py:949: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+
+[SRF] Setup  model=llava-hf/llava-1.5-7b-hf  base
+  [SRF] Calibrating on mme (n=20, seed=0)…
+  [SRF] arch: llava-hf/llava-1.5-7b-hf  layer_start=8  layer_end=20  head_top_k=0.2  clip_grid=6  clip_topk=0.3
+  [CALIB] Registered [<torch.utils.hooks.RemovableHandle object at 0x7fd8742ace80>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742afb20>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742af6d0>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742af790>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742af880>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742ae5f0>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742ae650>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742aef80>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742ad630>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742aed10>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742af9d0>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742af550>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742af460>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742af310>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742af0d0>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742ad870>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742ae230>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742adf60>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742acf40>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742ad600>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742ac040>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742afaf0>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742afa30>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742afc40>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742ae4d0>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742afdc0>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742afee0>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742affa0>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742afd60>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742accd0>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742aca30>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742ac790>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742ac580>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742aee60>] hooks
+  [CALIB] Captured 640 softmax calls
+  [SRF] 6 vision-aware heads (top 20%)
+
+============================================================
+DATASET: MME (2374 Yes/No, 14 categories, full)
+============================================================
+
+  [SRF] reset → dataset=mme  phase=both  alpha=3.0  eps=0.0  layers=[10,14]  head_topk=0.2  clip_grid=6  clip_topk=0.2
+  [CALIB] Registered [<torch.utils.hooks.RemovableHandle object at 0x7fd8742ace80>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742afb20>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742af6d0>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742af790>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742af880>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742ae5f0>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742ae650>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742aef80>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742ad630>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742aed10>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742af9d0>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742af550>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742af460>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742af310>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742af0d0>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742ad870>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742ae230>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742adf60>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742acf40>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742ad600>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742ac040>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742afaf0>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742afa30>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742afc40>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742ae4d0>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742afdc0>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742afee0>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742affa0>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742afd60>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742accd0>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742aca30>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742ac790>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742ac580>, <torch.utils.hooks.RemovableHandle object at 0x7fd8742aee60>] hooks
+  [CALIB] Captured 640 softmax calls
+  Loaded 2374 MME samples
+  [clip_salience] Loading openai/clip-vit-base-patch32 on cpu (one-time, infers on cuda)…
+  [ 500/2374] base=0.6900  β=0.0:0.6920
+  [1000/2374] base=0.6540  β=0.0:0.6560
+  [1500/2374] base=0.6640  β=0.0:0.6653
+  [2000/2374] base=0.6880  β=0.0:0.6890
+  [2374/2374] base=0.6950  β=0.0:0.6955
+
+MME baseline:  acc=0.6950  pair=0.3960
+  MME score: 1650 / 2374  (perception=1500, cognition=150)
+  SRF: acc=0.6955  pair=0.3960  Δ=+0.0004  score=1651 (perc=1501, cogn=150)
+
+  Per-category (baseline | SRF):
+    [P] OCR                         : base= 28/40  β=0.0:28
+    [P] artwork                     : base=284/400  β=0.0:285
+    [P] celebrity                   : base=200/340  β=0.0:201
+    [C] code_reasoning              : base= 21/40  β=0.0:21
+    [P] color                       : base= 52/60  β=0.0:52
+    [C] commonsense_reasoning       : base= 89/140  β=0.0:89
+    [P] count                       : base= 44/60  β=0.0:44
+    [P] existence                   : base= 57/60  β=0.0:57
+    [P] landmark                    : base=275/400  β=0.0:275
+    [C] numerical_calculation       : base= 20/40  β=0.0:20
+    [P] position                    : base= 44/60  β=0.0:44
+    [P] posters                     : base=201/294  β=0.0:200
+    [P] scene                       : base=315/400  β=0.0:315
+    [C] text_translation            : base= 20/40  β=0.0:20
+
+======================================================================
+FINAL SUMMARY — SRF vs Baseline
+======================================================================
+Model: llava-hf/llava-1.5-7b-hf  |  method=srf  |  base
+
+MME (n=2374):  baseline score=1650  acc=69.50%  pair=39.60%
+  Perception=1500  Cognition=150
+  SRF: score=1651  acc=69.55%  Δ=0.04%  perc=1501  cogn=150
+✓ Exp 5 complete
+
+[6/8] SRF - Focused CLIP (top_k=15%)
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/huggingface_hub/file_download.py:949: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/transformers/models/llava/configuration_llava.py:103: FutureWarning: The `vocab_size` argument is deprecated and will be removed in v4.42, since it can be inferred from the `text_config`. Passing this argument has no effect
+  warnings.warn(
+Loading llava-hf/llava-1.5-7b-hf…
+  Detected model type: llava
+  Model family: Unknown
+  Using LLaVA attention patch
+Loading checkpoint shards:   0%|          | 0/3 [00:00<?, ?it/s]Loading checkpoint shards:  33%|███▎      | 1/3 [00:00<00:01,  1.71it/s]Loading checkpoint shards:  67%|██████▋   | 2/3 [00:01<00:00,  1.61it/s]Loading checkpoint shards: 100%|██████████| 3/3 [00:01<00:00,  1.88it/s]Loading checkpoint shards: 100%|██████████| 3/3 [00:01<00:00,  1.81it/s]
+Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/huggingface_hub/file_download.py:949: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+
+[SRF] Setup  model=llava-hf/llava-1.5-7b-hf  base
+  [SRF] Calibrating on mme (n=20, seed=0)…
+  [SRF] arch: llava-hf/llava-1.5-7b-hf  layer_start=8  layer_end=20  head_top_k=0.2  clip_grid=6  clip_topk=0.3
+  [CALIB] Registered [<torch.utils.hooks.RemovableHandle object at 0x7f681025cf10>, <torch.utils.hooks.RemovableHandle object at 0x7f681025fbb0>, <torch.utils.hooks.RemovableHandle object at 0x7f681025f760>, <torch.utils.hooks.RemovableHandle object at 0x7f681025f820>, <torch.utils.hooks.RemovableHandle object at 0x7f681025f910>, <torch.utils.hooks.RemovableHandle object at 0x7f681025e680>, <torch.utils.hooks.RemovableHandle object at 0x7f681025e6e0>, <torch.utils.hooks.RemovableHandle object at 0x7f681025f010>, <torch.utils.hooks.RemovableHandle object at 0x7f681025d6c0>, <torch.utils.hooks.RemovableHandle object at 0x7f681025eda0>, <torch.utils.hooks.RemovableHandle object at 0x7f681025fa60>, <torch.utils.hooks.RemovableHandle object at 0x7f681025f5e0>, <torch.utils.hooks.RemovableHandle object at 0x7f681025f4f0>, <torch.utils.hooks.RemovableHandle object at 0x7f681025f3a0>, <torch.utils.hooks.RemovableHandle object at 0x7f681025f160>, <torch.utils.hooks.RemovableHandle object at 0x7f681025d900>, <torch.utils.hooks.RemovableHandle object at 0x7f681025e2c0>, <torch.utils.hooks.RemovableHandle object at 0x7f681025dff0>, <torch.utils.hooks.RemovableHandle object at 0x7f681025cfd0>, <torch.utils.hooks.RemovableHandle object at 0x7f681025d690>, <torch.utils.hooks.RemovableHandle object at 0x7f681025c040>, <torch.utils.hooks.RemovableHandle object at 0x7f681025fb80>, <torch.utils.hooks.RemovableHandle object at 0x7f681025fac0>, <torch.utils.hooks.RemovableHandle object at 0x7f681025fcd0>, <torch.utils.hooks.RemovableHandle object at 0x7f681025e560>, <torch.utils.hooks.RemovableHandle object at 0x7f681025fe50>, <torch.utils.hooks.RemovableHandle object at 0x7f681025ff70>, <torch.utils.hooks.RemovableHandle object at 0x7f681025fdf0>, <torch.utils.hooks.RemovableHandle object at 0x7f681025c250>, <torch.utils.hooks.RemovableHandle object at 0x7f681025cb80>, <torch.utils.hooks.RemovableHandle object at 0x7f681025c8b0>, <torch.utils.hooks.RemovableHandle object at 0x7f681025c700>, <torch.utils.hooks.RemovableHandle object at 0x7f681025c070>, <torch.utils.hooks.RemovableHandle object at 0x7f681025eef0>] hooks
+  [CALIB] Captured 640 softmax calls
+  [SRF] 6 vision-aware heads (top 20%)
+
+============================================================
+DATASET: MME (2374 Yes/No, 14 categories, full)
+============================================================
+
+  [SRF] reset → dataset=mme  phase=both  alpha=2.0  eps=0.0  layers=[8,14]  head_topk=0.2  clip_grid=6  clip_topk=0.15
+  [CALIB] Registered [<torch.utils.hooks.RemovableHandle object at 0x7f681025cf10>, <torch.utils.hooks.RemovableHandle object at 0x7f681025fbb0>, <torch.utils.hooks.RemovableHandle object at 0x7f681025f760>, <torch.utils.hooks.RemovableHandle object at 0x7f681025f820>, <torch.utils.hooks.RemovableHandle object at 0x7f681025f910>, <torch.utils.hooks.RemovableHandle object at 0x7f681025e680>, <torch.utils.hooks.RemovableHandle object at 0x7f681025e6e0>, <torch.utils.hooks.RemovableHandle object at 0x7f681025f010>, <torch.utils.hooks.RemovableHandle object at 0x7f681025d6c0>, <torch.utils.hooks.RemovableHandle object at 0x7f681025eda0>, <torch.utils.hooks.RemovableHandle object at 0x7f681025fa60>, <torch.utils.hooks.RemovableHandle object at 0x7f681025f5e0>, <torch.utils.hooks.RemovableHandle object at 0x7f681025f4f0>, <torch.utils.hooks.RemovableHandle object at 0x7f681025f3a0>, <torch.utils.hooks.RemovableHandle object at 0x7f681025f160>, <torch.utils.hooks.RemovableHandle object at 0x7f681025d900>, <torch.utils.hooks.RemovableHandle object at 0x7f681025e2c0>, <torch.utils.hooks.RemovableHandle object at 0x7f681025dff0>, <torch.utils.hooks.RemovableHandle object at 0x7f681025cfd0>, <torch.utils.hooks.RemovableHandle object at 0x7f681025d690>, <torch.utils.hooks.RemovableHandle object at 0x7f681025c040>, <torch.utils.hooks.RemovableHandle object at 0x7f681025fb80>, <torch.utils.hooks.RemovableHandle object at 0x7f681025fac0>, <torch.utils.hooks.RemovableHandle object at 0x7f681025fcd0>, <torch.utils.hooks.RemovableHandle object at 0x7f681025e560>, <torch.utils.hooks.RemovableHandle object at 0x7f681025fe50>, <torch.utils.hooks.RemovableHandle object at 0x7f681025ff70>, <torch.utils.hooks.RemovableHandle object at 0x7f681025fdf0>, <torch.utils.hooks.RemovableHandle object at 0x7f681025c250>, <torch.utils.hooks.RemovableHandle object at 0x7f681025cb80>, <torch.utils.hooks.RemovableHandle object at 0x7f681025c8b0>, <torch.utils.hooks.RemovableHandle object at 0x7f681025c700>, <torch.utils.hooks.RemovableHandle object at 0x7f681025c070>, <torch.utils.hooks.RemovableHandle object at 0x7f681025eef0>] hooks
+  [CALIB] Captured 640 softmax calls
+  Loaded 2374 MME samples
+  [clip_salience] Loading openai/clip-vit-base-patch32 on cpu (one-time, infers on cuda)…
+  [ 500/2374] base=0.6900  β=0.0:0.6920
+  [1000/2374] base=0.6540  β=0.0:0.6560
+  [1500/2374] base=0.6640  β=0.0:0.6647
+  [2000/2374] base=0.6880  β=0.0:0.6885
+  [2374/2374] base=0.6950  β=0.0:0.6950
+
+MME baseline:  acc=0.6950  pair=0.3960
+  MME score: 1650 / 2374  (perception=1500, cognition=150)
+  SRF: acc=0.6950  pair=0.3951  Δ=+0.0000  score=1650 (perc=1500, cogn=150)
+
+  Per-category (baseline | SRF):
+    [P] OCR                         : base= 28/40  β=0.0:28
+    [P] artwork                     : base=284/400  β=0.0:285
+    [P] celebrity                   : base=200/340  β=0.0:201
+    [C] code_reasoning              : base= 21/40  β=0.0:21
+    [P] color                       : base= 52/60  β=0.0:52
+    [C] commonsense_reasoning       : base= 89/140  β=0.0:89
+    [P] count                       : base= 44/60  β=0.0:44
+    [P] existence                   : base= 57/60  β=0.0:57
+    [P] landmark                    : base=275/400  β=0.0:274
+    [C] numerical_calculation       : base= 20/40  β=0.0:20
+    [P] position                    : base= 44/60  β=0.0:44
+    [P] posters                     : base=201/294  β=0.0:200
+    [P] scene                       : base=315/400  β=0.0:315
+    [C] text_translation            : base= 20/40  β=0.0:20
+
+======================================================================
+FINAL SUMMARY — SRF vs Baseline
+======================================================================
+Model: llava-hf/llava-1.5-7b-hf  |  method=srf  |  base
+
+MME (n=2374):  baseline score=1650  acc=69.50%  pair=39.60%
+  Perception=1500  Cognition=150
+  SRF: score=1650  acc=69.50%  Δ=0.00%  perc=1500  cogn=150
+✓ Exp 6 complete
+
+[7/8] SRF-E - Moderate contrastive (beta=1.5)
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/huggingface_hub/file_download.py:949: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/transformers/models/llava/configuration_llava.py:103: FutureWarning: The `vocab_size` argument is deprecated and will be removed in v4.42, since it can be inferred from the `text_config`. Passing this argument has no effect
+  warnings.warn(
+Loading llava-hf/llava-1.5-7b-hf…
+  Detected model type: llava
+  Model family: Unknown
+  Using LLaVA attention patch
+Loading checkpoint shards:   0%|          | 0/3 [00:00<?, ?it/s]Loading checkpoint shards:  33%|███▎      | 1/3 [00:00<00:01,  1.61it/s]Loading checkpoint shards:  67%|██████▋   | 2/3 [00:01<00:00,  1.58it/s]Loading checkpoint shards: 100%|██████████| 3/3 [00:01<00:00,  1.84it/s]Loading checkpoint shards: 100%|██████████| 3/3 [00:01<00:00,  1.76it/s]
+Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/huggingface_hub/file_download.py:949: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+
+[SRFE] Setup  model=llava-hf/llava-1.5-7b-hf  β=[1.5]
+  [SRF] Calibrating on mme (n=20, seed=0)…
+  [SRF] arch: llava-hf/llava-1.5-7b-hf  layer_start=8  layer_end=20  head_top_k=0.2  clip_grid=6  clip_topk=0.3
+  [CALIB] Registered [<torch.utils.hooks.RemovableHandle object at 0x7f4d001182b0>, <torch.utils.hooks.RemovableHandle object at 0x7f4d001198d0>, <torch.utils.hooks.RemovableHandle object at 0x7f4d00118970>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011b940>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011a080>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011b6d0>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011bf70>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011beb0>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011b610>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011bca0>, <torch.utils.hooks.RemovableHandle object at 0x7f4d00119870>, <torch.utils.hooks.RemovableHandle object at 0x7f4d00118520>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011af20>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011ad10>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011aa10>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011a800>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011a020>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011a0e0>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011afb0>, <torch.utils.hooks.RemovableHandle object at 0x7f4d00119f60>, <torch.utils.hooks.RemovableHandle object at 0x7f4d00118730>, <torch.utils.hooks.RemovableHandle object at 0x7f4d00118400>, <torch.utils.hooks.RemovableHandle object at 0x7f4d00118b80>, <torch.utils.hooks.RemovableHandle object at 0x7f4d001194b0>, <torch.utils.hooks.RemovableHandle object at 0x7f4d001191e0>, <torch.utils.hooks.RemovableHandle object at 0x7f4d00119030>, <torch.utils.hooks.RemovableHandle object at 0x7f4d001189a0>, <torch.utils.hooks.RemovableHandle object at 0x7f4d001186d0>, <torch.utils.hooks.RemovableHandle object at 0x7f4d00118df0>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011bb50>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011bb80>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011bee0>, <torch.utils.hooks.RemovableHandle object at 0x7f4cc3f9da50>, <torch.utils.hooks.RemovableHandle object at 0x7f4cc3f9e710>] hooks
+  [CALIB] Captured 640 softmax calls
+  [SRF] 6 vision-aware heads (top 20%)
+
+============================================================
+DATASET: MME (2374 Yes/No, 14 categories, full)
+============================================================
+
+  [SRF] reset → dataset=mme  phase=both  alpha=2.0  eps=0.0  layers=[10,14]  head_topk=0.2  clip_grid=6  clip_topk=0.2
+  [CALIB] Registered [<torch.utils.hooks.RemovableHandle object at 0x7f4d001182b0>, <torch.utils.hooks.RemovableHandle object at 0x7f4d001198d0>, <torch.utils.hooks.RemovableHandle object at 0x7f4d00118970>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011b940>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011a080>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011b6d0>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011bf70>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011beb0>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011b610>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011bca0>, <torch.utils.hooks.RemovableHandle object at 0x7f4d00119870>, <torch.utils.hooks.RemovableHandle object at 0x7f4d00118520>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011af20>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011ad10>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011aa10>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011a800>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011a020>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011a0e0>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011afb0>, <torch.utils.hooks.RemovableHandle object at 0x7f4d00119f60>, <torch.utils.hooks.RemovableHandle object at 0x7f4d00118730>, <torch.utils.hooks.RemovableHandle object at 0x7f4d00118400>, <torch.utils.hooks.RemovableHandle object at 0x7f4d00118b80>, <torch.utils.hooks.RemovableHandle object at 0x7f4d001194b0>, <torch.utils.hooks.RemovableHandle object at 0x7f4d001191e0>, <torch.utils.hooks.RemovableHandle object at 0x7f4d00119030>, <torch.utils.hooks.RemovableHandle object at 0x7f4d001189a0>, <torch.utils.hooks.RemovableHandle object at 0x7f4d001186d0>, <torch.utils.hooks.RemovableHandle object at 0x7f4d00118df0>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011bb50>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011bb80>, <torch.utils.hooks.RemovableHandle object at 0x7f4d0011bee0>, <torch.utils.hooks.RemovableHandle object at 0x7f4cc3f9da50>, <torch.utils.hooks.RemovableHandle object at 0x7f4cc3f9e710>] hooks
+  [CALIB] Captured 640 softmax calls
+  Loaded 2374 MME samples
+  [clip_salience] Loading openai/clip-vit-base-patch32 on cpu (one-time, infers on cuda)…
+  [ 500/2374] base=0.6900  β=1.5:0.6640
+  [1000/2374] base=0.6540  β=1.5:0.6890
+  [1500/2374] base=0.6640  β=1.5:0.7133
+  [2000/2374] base=0.6880  β=1.5:0.7465
+  [2374/2374] base=0.6950  β=1.5:0.7574
+
+MME baseline:  acc=0.6950  pair=0.3960
+  MME score: 1650 / 2374  (perception=1500, cognition=150)
+  β=1.5: acc=0.7574  pair=0.5392  Δ=+0.0623  score=1798 (perc=1636, cogn=162)
+
+  Per-category (baseline | SRF):
+    [P] OCR                         : base= 28/40  β=1.5:23
+    [P] artwork                     : base=284/400  β=1.5:257
+    [P] celebrity                   : base=200/340  β=1.5:274
+    [C] code_reasoning              : base= 21/40  β=1.5:21
+    [P] color                       : base= 52/60  β=1.5:43
+    [C] commonsense_reasoning       : base= 89/140  β=1.5:101
+    [P] count                       : base= 44/60  β=1.5:38
+    [P] existence                   : base= 57/60  β=1.5:55
+    [P] landmark                    : base=275/400  β=1.5:328
+    [C] numerical_calculation       : base= 20/40  β=1.5:20
+    [P] position                    : base= 44/60  β=1.5:40
+    [P] posters                     : base=201/294  β=1.5:235
+    [P] scene                       : base=315/400  β=1.5:343
+    [C] text_translation            : base= 20/40  β=1.5:20
+
+======================================================================
+FINAL SUMMARY — SRFE vs Baseline
+======================================================================
+Model: llava-hf/llava-1.5-7b-hf  |  method=srfe  |  β=[1.5]
+
+MME (n=2374):  baseline score=1650  acc=69.50%  pair=39.60%
+  Perception=1500  Cognition=150
+  β=1.5: score=1798  acc=75.74%  Δ=6.23%  perc=1636  cogn=162
+✓ Exp 7 complete
+
+[8/8] SRF-E - Strong contrastive + late fusion
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/huggingface_hub/file_download.py:949: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/transformers/models/llava/configuration_llava.py:103: FutureWarning: The `vocab_size` argument is deprecated and will be removed in v4.42, since it can be inferred from the `text_config`. Passing this argument has no effect
+  warnings.warn(
+Loading llava-hf/llava-1.5-7b-hf…
+  Detected model type: llava
+  Model family: Unknown
+  Using LLaVA attention patch
+Loading checkpoint shards:   0%|          | 0/3 [00:00<?, ?it/s]Loading checkpoint shards:  33%|███▎      | 1/3 [00:08<00:17,  8.80s/it]Loading checkpoint shards:  67%|██████▋   | 2/3 [00:13<00:06,  6.25s/it]Loading checkpoint shards: 100%|██████████| 3/3 [00:16<00:00,  4.87s/it]Loading checkpoint shards: 100%|██████████| 3/3 [00:16<00:00,  5.50s/it]
+Special tokens have been added in the vocabulary, make sure the associated word embeddings are fine-tuned or trained.
+/home/anna2/miniconda3/envs/mllm/lib/python3.10/site-packages/huggingface_hub/file_download.py:949: FutureWarning: `resume_download` is deprecated and will be removed in version 1.0.0. Downloads always resume when possible. If you want to force a new download, use `force_download=True`.
+  warnings.warn(
+
+[SRFE] Setup  model=llava-hf/llava-1.5-7b-hf  β=[1.5]
+  [SRF] Calibrating on mme (n=20, seed=0)…
+  [SRF] arch: llava-hf/llava-1.5-7b-hf  layer_start=8  layer_end=20  head_top_k=0.2  clip_grid=6  clip_topk=0.3
+  [CALIB] Registered [<torch.utils.hooks.RemovableHandle object at 0x7f82405e4340>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e58a0>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e4940>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e7910>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e6050>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e76a0>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e7f40>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e7e80>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e75e0>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e7c70>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e5840>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e4520>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e6ef0>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e6ce0>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e69e0>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e67d0>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e5ff0>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e60b0>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e6f80>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e5f30>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e7fa0>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e4d00>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e5660>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e53c0>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e5120>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e4f10>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e4a30>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e41c0>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e7af0>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e7dc0>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e7c40>, <torch.utils.hooks.RemovableHandle object at 0x7f82404e9b70>, <torch.utils.hooks.RemovableHandle object at 0x7f82404e9900>, <torch.utils.hooks.RemovableHandle object at 0x7f82404eafe0>] hooks
+  [CALIB] Captured 640 softmax calls
+  [SRF] 6 vision-aware heads (top 20%)
+
+============================================================
+DATASET: MME (2374 Yes/No, 14 categories, full)
+============================================================
+
+  [SRF] reset → dataset=mme  phase=both  alpha=3.0  eps=0.0  layers=[13,16]  head_topk=0.5  clip_grid=6  clip_topk=0.25
+  [CALIB] Registered [<torch.utils.hooks.RemovableHandle object at 0x7f82405e4340>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e58a0>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e4940>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e7910>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e6050>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e76a0>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e7f40>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e7e80>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e75e0>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e7c70>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e5840>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e4520>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e6ef0>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e6ce0>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e69e0>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e67d0>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e5ff0>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e60b0>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e6f80>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e5f30>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e7fa0>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e4d00>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e5660>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e53c0>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e5120>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e4f10>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e4a30>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e41c0>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e7af0>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e7dc0>, <torch.utils.hooks.RemovableHandle object at 0x7f82405e7c40>, <torch.utils.hooks.RemovableHandle object at 0x7f82404e9b70>, <torch.utils.hooks.RemovableHandle object at 0x7f82404e9900>, <torch.utils.hooks.RemovableHandle object at 0x7f82404eafe0>] hooks
+  [CALIB] Captured 640 softmax calls
+  Loaded 2374 MME samples
+  [clip_salience] Loading openai/clip-vit-base-patch32 on cpu (one-time, infers on cuda)…
+  [ 500/2374] base=0.6900  β=1.5:0.6660
+  [1000/2374] base=0.6540  β=1.5:0.6890
+  [1500/2374] base=0.6640  β=1.5:0.7133
+  [2000/2374] base=0.6880  β=1.5:0.7465
+  [2374/2374] base=0.6950  β=1.5:0.7574
+
+MME baseline:  acc=0.6950  pair=0.3960
+  MME score: 1650 / 2374  (perception=1500, cognition=150)
+  β=1.5: acc=0.7574  pair=0.5392  Δ=+0.0623  score=1798 (perc=1635, cogn=163)
+
+  Per-category (baseline | SRF):
+    [P] OCR                         : base= 28/40  β=1.5:23
+    [P] artwork                     : base=284/400  β=1.5:258
+    [P] celebrity                   : base=200/340  β=1.5:273
+    [C] code_reasoning              : base= 21/40  β=1.5:21
+    [P] color                       : base= 52/60  β=1.5:43
+    [C] commonsense_reasoning       : base= 89/140  β=1.5:102
+    [P] count                       : base= 44/60  β=1.5:38
+    [P] existence                   : base= 57/60  β=1.5:55
+    [P] landmark                    : base=275/400  β=1.5:327
+    [C] numerical_calculation       : base= 20/40  β=1.5:20
+    [P] position                    : base= 44/60  β=1.5:40
+    [P] posters                     : base=201/294  β=1.5:235
+    [P] scene                       : base=315/400  β=1.5:343
+    [C] text_translation            : base= 20/40  β=1.5:20
+
+======================================================================
+FINAL SUMMARY — SRFE vs Baseline
+======================================================================
+Model: llava-hf/llava-1.5-7b-hf  |  method=srfe  |  β=[1.5]
+
+MME (n=2374):  baseline score=1650  acc=69.50%  pair=39.60%
+  Perception=1500  Cognition=150
+  β=1.5: score=1798  acc=75.74%  Δ=6.23%  perc=1635  cogn=163
+✓ Exp 8 complete
+
+========================================
+✓ ALL LLaVA EXPERIMENTS COMPLETE!
+Results: results/llava_mme_seq/
+========================================

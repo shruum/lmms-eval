@@ -1,0 +1,86 @@
+==========================================
+🔍 LAYER-SPECIFIC MODULATION SWEEP
+==========================================
+GPUs: 0 1 2 6
+Samples per category: 10
+Baseline: 19.00%
+Target: >21.00% (Δ=+2.0%)
+==========================================
+
+🚀 Launching Experiment 1/4 on GPU 0
+   Config: late_20-27_textBeta0.8
+   Output: results/vlmbias_layer_specific/late_20-27_textBeta0.8/
+   ✅ Started: late_20-27_textBeta0.8 (PID: 1609441)
+
+🚀 Launching Experiment 2/4 on GPU 1
+   Config: late_16-27_textBeta0.6
+   Output: results/vlmbias_layer_specific/late_16-27_textBeta0.6/
+   ✅ Started: late_16-27_textBeta0.6 (PID: 1609443)
+
+🚀 Launching Experiment 3/4 on GPU 2
+   Config: mid_8-15_textBeta0.0
+   Output: results/vlmbias_layer_specific/mid_8-15_textBeta0.0/
+   ✅ Started: mid_8-15_textBeta0.0 (PID: 1609445)
+
+🚀 Launching Experiment 4/4 on GPU 6
+   Config: wide_8-27_textBeta0.5
+   Output: results/vlmbias_layer_specific/wide_8-27_textBeta0.5/
+   ✅ Started: wide_8-27_textBeta0.5 (PID: 1609447)
+
+==========================================
+⏳ All experiments launched
+==========================================
+  Exp 1: GPU 0 (PID: 1609441) - late_20-27_textBeta0.8
+  Exp 2: GPU 1 (PID: 1609443) - late_16-27_textBeta0.6
+  Exp 3: GPU 2 (PID: 1609445) - mid_8-15_textBeta0.0
+  Exp 4: GPU 6 (PID: 1609447) - wide_8-27_textBeta0.5
+
+Monitoring progress...
+Press Ctrl+C to stop all experiments
+
+[17:50:23] Running: 4/4 | Elapsed: 0s
+[17:51:23] Running: 4/4 | Elapsed: 60s
+[17:52:24] Running: 4/4 | Elapsed: 120s
+[17:53:24] Running: 4/4 | Elapsed: 180s
+[17:54:24] Running: 4/4 | Elapsed: 240s
+[17:55:25] Running: 4/4 | Elapsed: 300s
+[17:56:25] Running: 4/4 | Elapsed: 360s
+[17:57:25] Running: 4/4 | Elapsed: 420s
+[17:58:26] Running: 4/4 | Elapsed: 480s
+[17:59:26] Running: 4/4 | Elapsed: 540s
+[18:00:27] Running: 4/4 | Elapsed: 600s
+[18:01:27] Running: 4/4 | Elapsed: 660s
+[18:02:27] Running: 4/4 | Elapsed: 720s
+[18:03:28] Running: 4/4 | Elapsed: 780s
+[18:04:28] Running: 4/4 | Elapsed: 840s
+[18:05:28] Running: 0/4 | Elapsed: 900s
+
+==========================================
+✅ All experiments completed!
+==========================================
+
+==========================================
+📊 FINAL RESULTS
+==========================================
+
+Experiment: wide_8-27_textBeta0.5
+  Accuracy: 
+  Time: s
+
+Experiment: mid_8-15_textBeta0.0
+  Accuracy: 
+  Time: s
+
+Experiment: late_16-27_textBeta0.6
+  Accuracy: 
+  Time: s
+
+Experiment: late_20-27_textBeta0.8
+  Accuracy: 
+  Time: s
+
+==========================================
+📁 Results saved to: results/vlmbias_layer_specific/
+==========================================
+
+==========================================

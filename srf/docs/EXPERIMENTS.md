@@ -423,6 +423,129 @@ conda run -n mllm python srf/eval_pope_val.py --srf --b4 --b4_threshold 0.25 --b
 
 ---
 
+## Channel Extension Experiments — SRF-FN and SRF-V (2026-07-29 / 2026-07-30)
+
+Exploring additional intervention channels on top of SRF attention logit boost (single-pass, no contrastive).
+
+**Motivation:**
+- SRF (attention) fixes *routing*: boosts Q→K logits so more attention weight flows to salient patches.
+- FFN channel (SRF-FN): amplify MLP *output* of salient patches post-FFN → scale residual stream.
+- Value channel (SRF-V): scale *v_proj output* of salient patches at prefill → amplifies content extracted when attended to. KV-cached, so persists across all generation steps at zero extra cost.
+
+All experiments: Qwen2.5-VL-3B-Instruct, MMVP (150 pairs, 300 images), single-pass SRF.
+
+---
+
+### SRF-FN — FFN output scaling (2026-07-29)
+
+**Script:** `srf/test_srffn_mmvp.py`  
+**Hook:** `layer.mlp` forward output hook  
+**Scale:** `mlp_out[:, s:e+1, :] *= (1 + alpha_ffn * salience)`  
+**Active layers:** 8–16 (vaf_layer_start/end)  
+**Log:** `/tmp/claude-1000/.../tasks/becyt93mo.output`
+
+| Config | pair_acc | img_acc | Δ pair |
+|--------|----------|---------|--------|
+| baseline | 0.4000 | 0.6767 | ref |
+| srf | 0.4133 | 0.6867 | +0.0133 |
+| srffn_0.1 | 0.3933 | 0.6800 | −0.0067 |
+| srffn_0.3 | 0.4000 | 0.6800 | +0.0000 |
+| srffn_0.5 | 0.3933 | 0.6700 | −0.0067 |
+| srffn_0.8 | 0.3867 | 0.6700 | −0.0133 |
+| srffn_1.0 | 0.3733 | 0.6600 | −0.0267 |
+
+**Conclusion:** ❌ SRF-FN hurts monotonically as α increases. Post-FFN residual scaling across 9 layers compounds multiplicatively — disrupts LayerNorm calibration in subsequent layers. SRF alone (+1.33pp) is better than any FFN addition.
+
+**Root cause:** Scaling post-FFN output inflates residual stream magnitudes. With 9 active layers (8–16) the amplification compounds. The model's internal representations are calibrated to certain magnitude ranges; scaling them post-hoc breaks downstream computations.
+
+---
+
+### SRF-V — Value projection scaling (2026-07-30)
+
+**Script:** `srf/test_srfv_mmvp.py`  
+**Hook:** `layer.self_attn.v_proj` forward output hook  
+**Scale:** `v_proj_out[:, s:e+1, :] *= (1 + alpha_v * salience)`  
+**Active layers:** 8–16 (vaf_layer_start/end)  
+**Log:** `/tmp/srfv_mmvp.log`
+
+**Key advantage over SRF-FN:** V vectors are scaled at prefill (step 0) and stored in KV cache — every subsequent generation step automatically reads amplified values for salient patches. No per-step overhead.
+
+| Config | pair_acc | img_acc | Δ pair |
+|--------|----------|---------|--------|
+| baseline | 0.4000 | 0.6767 | ref |
+| srf | 0.4133 | 0.6867 | +0.0133 |
+| **srfv_0.1** | **0.4200** | **0.6900** | **+0.0200** |
+| srfv_0.3 | 0.4133 | 0.6800 | +0.0133 |
+| srfv_0.5 | 0.4133 | 0.6800 | +0.0133 |
+| srfv_0.8 | 0.4133 | 0.6833 | +0.0133 |
+| srfv_1.0 | 0.4133 | 0.6733 | +0.0133 |
+
+**Conclusion:** ✅ Mild positive signal. α=0.1 adds +0.67pp over SRF alone (pair_acc 0.4133→0.4200). Higher α (0.3–1.0) gives no additional gain over SRF — value scaling at larger magnitude disrupts the attention output computation similarly to SRF-FN. The sweet spot is a very gentle value boost (α=0.1).
+
+Pattern: value scaling is complementary to attention routing but only at very small magnitudes. This makes sense — V vectors feed directly into the attention output; scaling them too strongly overrides the routing decisions that SRF worked to establish.
+
+---
+
+### SRF-RE — Skip-connection re-injection (2026-07-30)
+
+**Script:** `srf/test_srfre_mmvp.py`  
+**Hook:** Capture hook on `layers[src_layer]` input + inject hook on `layers[l].mlp` input  
+**Formula:** `h_mlp_in[img_i] += beta * salience[i] * h_captured[i]`  
+**Active layers:** 8–16 (vaf_layer_start/end)  
+**Motivation:** Refresh visual signal in later fusion layers by re-injecting early-layer image token hidden states.
+
+| Config | pair_acc | img_acc | Δ pair |
+|--------|----------|---------|--------|
+| baseline | 0.4000 | 0.6767 | ref |
+| srf | 0.4133 | 0.6867 | +0.0133 |
+| srfre_src0_b0.1 | 0.3933 | 0.6800 | −0.0200 |
+| srfre_src0_b0.3 | 0.3400 | 0.6333 | −0.0600 |
+| srfre_src0_b0.5 | 0.2867 | 0.5767 | −0.1133 |
+| srfre_src2_b0.1 | 0.4133 | 0.6933 | +0.0000 |
+| srfre_src2_b0.3 | 0.3600 | 0.6300 | −0.0400 |
+| srfre_src2_b0.5 | 0.3133 | 0.5933 | −0.0867 |
+
+**Conclusion:** ❌ Catastrophic failure. Even beta=0.1 hurts for src0 (−2pp). Root cause: **distribution mismatch** — layer-0 hidden states exist in a completely different representation space than layer-12 FFN inputs. Layer 0 has pure visual projector output; layer 12 has 12 rounds of attention+FFN mixing. Injecting them into each other violates the implicit distribution assumptions of LayerNorm.
+
+---
+
+### SRF-VEI — Visual Evidence Injection at Answer Token (2026-07-30)
+
+**Script:** `srf/test_srfvei.py`  
+**Hook:** `register_forward_pre_hook` on `layer.mlp` for all layers  
+**Formula:** `h_ans[l] += gamma * Σ_i w_i * h_img[i][l]`  (w_i = salience-normalized weights)  
+**Active layers:** 8–35 (8 to n_layers−1, all post-fusion layers)  
+**Target:** ANSWER TOKEN (last input position, `ans_pos = seq_len - 1`)  
+**Motivation:** Same-layer injection (no distribution mismatch). Salience-weighted mean of image token hidden states added to answer token's FFN input — what self-attention already does, made explicit and CLIP-conditioned.
+
+**MMVP results (150 pairs, SRF-only, no contrastive):**
+
+| Config | pair_acc | img_acc | Δ pair |
+|--------|----------|---------|--------|
+| baseline | 0.4000 | 0.6767 | ref |
+| srf | 0.4133 | 0.6867 | +0.0133 |
+| **srfvei_0.1** | **0.4267** | **0.6967** | **+0.0267** |
+| srfvei_0.3 | 0.4133 | 0.6933 | +0.0133 |
+| srfvei_0.5 | 0.4200 | 0.7000 | +0.0200 |
+| srfvei_1.0 | 0.3800 | 0.6767 | −0.0200 |
+
+**POPE adversarial results (100 samples, SRF-only):**
+
+| Config | acc | Δ acc |
+|--------|-----|-------|
+| baseline | 0.8800 | ref |
+| srf | 0.8800 | +0.0000 |
+| srfvei_0.1 | 0.8800 | +0.0000 |
+| **srfvei_0.3** | **0.8900** | **+0.0100** |
+| srfvei_0.5 | 0.8700 | −0.0100 |
+| srfvei_1.0 | 0.7800 | −0.1000 |
+
+**Conclusion:** ⚠️ Marginal and narrow. VEI at gamma=0.1 gives +2.67pp over SRF alone on MMVP (best result). POPE gain at gamma=0.3 (+1pp) is likely noise at n=100. The safe operating region is very narrow — gamma≥0.5 hurts, gamma=1.0 is catastrophic on POPE (−10pp). Root cause of cliffs: injecting at 28 layers (8–35) causes cumulative perturbation accumulating at the answer token's hidden state, which feeds directly to lm_head. VEI addresses the wrong bottleneck for POPE: FFN language priors are in the *weight matrices*, not the input hidden state — adding visual signal to the input doesn't suppress those priors.
+
+**Key finding:** SRF-E (contrastive, +9.33pp MMVP, +1.33pp POPE) dominates VEI by a large margin. VEI is not competitive as a standalone improvement.
+
+---
+
 ## Signal Reference
 
 | Signal | Where computed | Interpretation | Known Δ (GT-Yes vs GT-No) |

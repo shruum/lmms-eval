@@ -175,7 +175,7 @@ def _build_calib_inputs(dataset: str, n: int, seed: int):
     from qwen_vl_utils import process_vision_info as pvi
     from datasets import load_dataset as hf_load
 
-    device = next(_model.parameters()).device
+    device = next(p for p in _model.parameters() if p.is_cuda).device
     arch   = _get_arch()
     # LLaVA-style: image_token is None → use model.config.image_token_index
     if arch["image_token"] is not None:
@@ -315,6 +315,10 @@ def _build_calib_inputs(dataset: str, n: int, seed: int):
                 continue
             from PIL import Image as _PIL_Image
             _img  = _PIL_Image.open(_img_path).convert("RGB")
+            # VLIND images are 1024×1024 — resize to 224×224 for calibration only.
+            # At 1024×1024 the ViT generates ~5000 tokens and OOMs on 11 GiB GPUs.
+            # 224×224 → 256 ViT patches → safe attention footprint.
+            _img  = _img.resize((224, 224), _PIL_Image.LANCZOS)
             _q    = (f"Only respond in True or False.\n"
                      f"Statement: {_item['true_statement']}\n"
                      f"Based on the image, is the given statement true or false?")
@@ -442,6 +446,9 @@ def reset_for_dataset(
     # B1: visual reliance compensation
     vr_target:            float | None = None,
     vr_k:                 float | None = None,
+    # Override which dataset is used for head re-calibration (when layer_end/head_top_k changes).
+    # Default: same as `dataset`. Set to "pope" to avoid OOM on high-res datasets like vlind.
+    calib_dataset:        str   | None = None,
     **kwargs,   # absorb method-specific params (vcd/vaf) passed via _reset_overrides
 ) -> None:
     """
@@ -518,7 +525,8 @@ def reset_for_dataset(
         # layer_end changes which layers are scored → different vision-aware head ranking.
         n    = CFG.SRF_DEFAULTS["calib_n"]
         seed = CFG.SRF_DEFAULTS["calib_seed"]
-        calib_inputs, img_ranges = _build_calib_inputs(dataset, n=n, seed=seed)
+        _calib_ds = calib_dataset if calib_dataset is not None else dataset
+        calib_inputs, img_ranges = _build_calib_inputs(_calib_ds, n=n, seed=seed)
         patch.identify_visual_heads(_model, calib_inputs, img_ranges, new_topk)
         del calib_inputs, img_ranges
         torch.cuda.empty_cache()
@@ -531,7 +539,8 @@ def reset_for_dataset(
 
 def prepare_sample(inputs, img_start: int, img_end: int,
                    image, question: str, model, processor,
-                   noun_override: str | None = None) -> None:
+                   noun_override: str | None = None,
+                   gate_noun_override: str | None = None) -> None:
     """
     Per-sample setup: compute saliency and configure patch state.
     Saliency source is controlled by SALIENCY["saliency_mode"]:
@@ -539,8 +548,10 @@ def prepare_sample(inputs, img_start: int, img_end: int,
       "hssa" — Qwen hidden-state cosine similarity (extra forward pass, better alignment)
     Must be called before every model forward pass.
 
-    noun_override: if provided, skip noun extraction from question and use this directly
-                   for CLIP saliency (e.g. VLind-Bench provides existent_noun directly).
+    noun_override:      if provided, use this noun for saliency MAP (subject localisation).
+    gate_noun_override: if provided, use this noun for presence GATE (context detection).
+                        When both are set (VLind-Bench), saliency focuses on the subject
+                        but the gate checks whether the counterfactual context is present.
     """
     patch.update_sample(img_start, img_end)
     patch._STATE["value"]             = BIAS["boost_alpha"]
@@ -698,6 +709,7 @@ def prepare_sample(inputs, img_start: int, img_end: int,
             clip_model_name=SALIENCY.get("clip_model", clip_sal._CLIP_DEFAULT_MODEL),
             backup=backup,
             full_img_thresh=v3_thresh,
+            gate_noun=gate_noun_override,
         )
         last_clip_result["object_present"] = result.object_present
         last_clip_result["full_img_sim"]   = result.full_img_sim

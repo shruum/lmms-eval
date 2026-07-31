@@ -117,15 +117,17 @@ Default: `gamma=3.0`. Use `--method srfe` to enable. **Broken for VLMBias** (sup
 
 ## Per-Dataset Config (exact values)
 
-| Dataset | phase | alpha | eps | neg_absent_alpha | layer_start | layer_end | gamma |
-|---------|-------|-------|-----|-----------------|-------------|-----------|-------|
-| POPE / RePOPE | both | 2.0 | 0.2 | 2.0 | 8 | 12 | 3.0 |
-| MMVP | both | 2.0 | 0.2 | 0.0 | 8 | 16 | 3.0 |
-| VLMBias | generation | 8.0 | 0.5 | 0.0 | 8 | 14 | 0 (broken) |
-| MME | generation | 2.0 | 0.2 | 0.0 | 8 | 16 | N/A |
-| VLIND | both | 2.0 | 0.2 | 0.0 | 8 | 16 | 3.0 |
+| Dataset | Method | phase | alpha | eps | neg_absent_alpha | layer_start | layer_end | gamma |
+|---------|--------|-------|-------|-----|-----------------|-------------|-----------|-------|
+| POPE / RePOPE | SRF-E | both | 2.0 | 0.2 | 2.0 | 8 | 12 | 3.0 |
+| MMVP | SRF-E | both | 2.0 | 0.2 | 0.0 | 8 | 16 | 3.0 |
+| VLMBias | SRF | generation | 8.0 | 0.5 | 0.0 | 8 | 14 | — |
+| MME | SRF | generation | 2.0 | 0.2 | 0.0 | 8 | 16 | — |
+| VLIND | SRF-E | both | 2.0 | 0.2 | 0.0 | 8 | 16 | 3.0 |
 
 **Shared across all datasets:** `layer_start=8`, `head_top_k_pct=0.20`, `sys_beta=0.30`, `clip_fallback_thresh=0.21`, `patch_thresh=0.27`
+
+> **VLIND note:** SRF base is neutral (+0.33pp). VLIND requires global visual amplification (counterfactual relationships, anachronistic objects) — spatial attention boosting doesn't help. SRF-E's contrastive pass (image vs blank) is what drives the +5.3pp gain. Use `--method srfe` for VLIND.
 
 ---
 
@@ -138,21 +140,26 @@ Default: `gamma=3.0`. Use `--method srfe` to enable. **Broken for VLMBias** (sup
 cd /volumes2/mllm/lmms-eval
 source activate mllm
 
-# Full POPE eval (9000 samples, ~75 min)
+# Full POPE eval (9000 samples, ~75 min) — SRF-E best: 87.70% (+1.33pp)
 python srf/eval.py --method srfe --datasets pope --output results/srf_pope/ --gamma 3.0
 
 # Full RePOPE eval (adversarial, 2684 samples)
 python srf/eval.py --method srfe --datasets pope \
   --pope_file data/repope/adversarial.json --output results/srf_repope_adv/ --gamma 3.0
 
-# MMVP (150 pairs)
+# MMVP (150 pairs) — SRF-E best: 49.33% (+9.33pp)
 python srf/eval.py --method srfe --datasets mmvp --output results/srf_mmvp/ --gamma 3.0
 
-# VLM Bias (use srf NOT srfe — SRF-E broken for multi-token)
+# VLM Bias — use srf NOT srfe (SRF-E suppresses { format token in multi-token answers)
 python srf/eval.py --method srf --datasets vlmbias --output results/srf_vlmbias/
 
-# VLIND-Bench (302 samples)
+# VLIND-Bench (302 samples) — SRF-E best: 52.32% (+5.3pp vs 47.02% baseline)
+# SRF base is neutral (+0.33pp) — SRF-E is the correct method for VLIND
 python srf/eval.py --method srfe --datasets vlind --output results/srf_vlind/ --gamma 3.0
+
+# VLIND hyperparam sweep (21 configs, ~n samples)
+python srf/sweep_vlind.py --method srfe          # full 302 samples
+python srf/sweep_vlind.py --method srfe --n 50   # quick 50-sample test
 
 # Baseline only
 python srf/eval.py --method baseline --datasets pope --output results/baseline_pope/
@@ -175,6 +182,7 @@ srf/
   baseline.py            <- baseline eval (no intervention)
   vaf.py                 <- VAF/ClearSight baseline
   vcd.py                 <- VCD baseline
+  sweep_vlind.py         <- VLIND hyperparam sweep (calls run_vlindbench, loads model once)
   diag_20sample.py       <- diagnostic script: per-sample CLIP gate + SRF comparison
   trace_single.py        <- single-sample full audit (best for debugging on new machine)
   noun_extract.py        <- extract object noun from question

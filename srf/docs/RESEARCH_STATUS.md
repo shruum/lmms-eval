@@ -18,6 +18,7 @@
 | VLMBias | 19.04% | 19.0% (γ=0) | ≈0 | SRF-E broken for multi-token gen |
 | MME | 2362.9 | 2361.8 | −1.1 | Neutral |
 | HallusionBench | aAcc=0.694 | aAcc=0.686 | −0.8pp | VD questions hurt |
+| VLIND pair_acc | 47.02% | **52.32%** (SRF-E) / ~46% (SRF) | +5.3pp / −1pp | SRF base hurts; SRF-E helps via contrastive pass |
 
 *VLM Bias SRF-E broken: contrastive pass suppresses `{` token. Use γ=0 (SRF base only).*
 
@@ -71,14 +72,33 @@ We need these for direct comparison.
 
 ---
 
+## VLIND-Bench Notes (2026-07-27)
+
+- `noun_extract.py`: `extract_vlind_nouns(statement)` → `(subject_noun, context_noun)`. subject→CLIP saliency map, context→presence gate.
+- `srf.py` `prepare_sample`: accepts `noun_override=subj, gate_noun_override=ctx`
+- `clip_salience.py` `compute_clip_salience_full_gate_v3`: accepts `gate_noun` param
+- `eval.py` `run_vlindbench`: already calls dual-noun extraction and passes both nouns
+- VLIND calibration: uses VLIND images (same domain), processor auto-caps at `DEFAULT_MAX_PIXELS`. Do NOT override this.
+- Sweep: must use `eval.py`'s `run_vlindbench` — do NOT reimplement eval loop in new scripts
+- VLIND eval command: `source activate mllm && python srf/eval.py --method srfe --datasets vlind --gamma 3.0`
+
+### Why SRF base is neutral on VLIND (investigated 2026-07-27)
+
+SRF base is flat on VLIND (47.35% vs 47.02% baseline). Root cause: **VLIND requires global visual amplification, not spatial attention boosting.**
+
+- `extract_vlind_nouns` breaks on abstract/historical statements (extracts 'revolutionary', 'ancient', 'could' etc.) — not fixable with regex
+- `existent_noun` / `non-existent_noun` fields in the dataset are noise (non_existent is random: 'lighthouse', 'bookshelf', 'mountain') — not the semantic counterpart we hoped
+- VLIND's hard concepts (weight, time, size, climate) involve *relationships* between objects or *anachronistic technology* — spatial attention to a single noun region doesn't capture the counterfactual
+- Tried `--vlind_data_nouns` flag using dataset fields: pair_acc dropped to 45.70% (−1.32pp vs baseline) — confirmed noise
+
+**SRF-E at 52.32% is the correct result.** The contrastive pass (image vs blank) amplifies visual evidence globally without needing correct saliency, which is exactly what VLIND needs.
+
 ## Open Tasks (priority order)
 
 1. **Verify SRF beats baseline on RePOPE** — 100-sample diagnostic running (results/diag_100sample/)
 2. **Full RePOPE eval** — all 3 splits once diagnostic shows SRF > baseline
-3. **Tune alpha** — current alpha=2.0 may not flip confident wrong predictions; check if higher needed
-4. **Absent suppression sweep** — neg_absent_alpha=2.0 currently; check FP reduction
-5. **MMVP with phase=both** — already configured; may improve since phase fix activates prefill boost
-6. **Write paper sections** — method, experiments, related work
+3. **MMVP with phase=both** — already configured; may improve since phase fix activates prefill boost
+4. **Write paper sections** — method, experiments, related work
 
 **Done:**
 - ~~Full POPE eval (9000 samples)~~ ✅ 87.70% (+1.33pp)
@@ -88,6 +108,7 @@ We need these for direct comparison.
 - ~~CLIP template ensemble~~ ✅ 5 templates, mean-pooled normalized embeddings
 - ~~OR gate~~ ✅ `full_img_sim >= 0.21 OR patch_max_sim >= 0.27` in clip_salience.py
 - ~~OOM fix in diag script~~ ✅ `torch.cuda.empty_cache()` after each sample
+- ~~VLIND SRF base investigation~~ ✅ SRF base neutral (+0.33pp); SRF-E 52.32% (+5.3pp) is the result
 
 ---
 

@@ -964,6 +964,7 @@ def compute_clip_salience_full_gate_v3(
     backup: str = "none",
     full_img_thresh: Optional[float] = None,
     patch_thresh: float = 0.27,
+    gate_noun: Optional[str] = None,
 ) -> ClipSalienceResult:
     """
     Full-gate v3: three new independent presence signals, single GPU block.
@@ -1044,18 +1045,26 @@ def compute_clip_salience_full_gate_v3(
             f_mean = f_mean / f_mean.norm(dim=-1, keepdim=True) # re-normalize
         return f_mean.cpu()
 
-    txt_feat = _enc_text_ensemble(noun)                 # (1, d)
+    txt_feat = _enc_text_ensemble(noun)                 # (1, d) — used for saliency map
+
+    # gate_noun: separate noun for presence gate (e.g. VLind context noun).
+    # When set, full_img_sim is computed against gate_noun (the counterfactual
+    # environment) while patch saliency is still guided by the subject noun.
+    if gate_noun is not None and gate_noun != noun:
+        gate_feat = _enc_text_ensemble(gate_noun)        # (1, d)
+    else:
+        gate_feat = txt_feat
 
     # Full-image: encode real image (+ blurred only when needed for blur_delta backup)
     if backup == "blur_delta":
         from PIL import ImageFilter as _ImageFilter
         blurred     = image.filter(_ImageFilter.GaussianBlur(radius=_BLUR_RADIUS))
         full_feats  = _enc_imgs([image, blurred])        # (2, d)
-        full_img_sim = float((full_feats[0:1] @ txt_feat.T).item())
-        sim_blurred  = float((full_feats[1:2] @ txt_feat.T).item())
+        full_img_sim = float((full_feats[0:1] @ gate_feat.T).item())
+        sim_blurred  = float((full_feats[1:2] @ gate_feat.T).item())
     else:
         full_feats   = _enc_imgs([image])                # (1, d)
-        full_img_sim = float((full_feats[0:1] @ txt_feat.T).item())
+        full_img_sim = float((full_feats[0:1] @ gate_feat.T).item())
         sim_blurred  = 0.0                               # unused
 
     # Patch scales: raw cosine sims (unnormalized) for each scale

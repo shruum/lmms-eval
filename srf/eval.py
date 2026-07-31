@@ -52,6 +52,7 @@ sys.path.insert(0, str(_SRF_DIR))
 sys.path.insert(0, str(_ANALYSIS_DIR))
 
 import config as CFG
+from noun_extract import extract_vlind_nouns
 os.environ.setdefault("HF_HOME", CFG.HF_HOME)
 os.environ.setdefault("CUDA_VISIBLE_DEVICES", "0")
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
@@ -93,6 +94,8 @@ def parse_args():
                    help="VLM Bias samples per category (0=all)")
     p.add_argument("--vlind_download", action="store_true", default=False,
                    help="Download missing VLind-Bench images from HF (slow, ~3.8GB)")
+    p.add_argument("--vlind_n", type=int, default=None,
+                   help="Limit VLIND samples for quick sweeps (None=all 302)")
     p.add_argument("--output",   default=None,
                    help="Directory to save JSON results")
 
@@ -779,6 +782,13 @@ def run_vlindbench(method_mod, model, processor, img_token_id, device, args) -> 
     ]
     print(f"  Valid samples (≥{thresh} votes): {len(valid_items)} / {len(items)}")
 
+    if getattr(args, "vlind_n", None) is not None:
+        import random as _rng
+        _rng.seed(getattr(args, "seed", 42))
+        _rng.shuffle(valid_items)
+        valid_items = valid_items[:args.vlind_n]
+        print(f"  Subsetting to {len(valid_items)} samples (vlind_n={args.vlind_n})")
+
     def _load_image(item: dict):
         cf_dir = (data_dir / "images" / "counterfactual"
                   / item["concept"]
@@ -802,15 +812,24 @@ def run_vlindbench(method_mod, model, processor, img_token_id, device, args) -> 
             total_q -= 2
             continue
 
-        existent_noun = item["existent_noun"]
-        concept       = item["concept"]
+        concept = item["concept"]
+
+        # Extract dual nouns per statement:
+        #   subject_noun  → saliency MAP  (localise the subject in the image)
+        #   context_noun  → presence GATE (is the counterfactual environment present?)
+        # Q1 (TRUE):  context should be IN the image → gate fires → boost subject tokens
+        # Q2 (FALSE): context should NOT be in image → gate fails → suppression/baseline
+        q1_subj, q1_ctx = extract_vlind_nouns(item["true_statement"])
+        q2_subj, q2_ctx = extract_vlind_nouns(item["false_statement"])
+        noun_pairs = [(q1_subj, q1_ctx), (q2_subj, q2_ctx)]
 
         q1_text = _prompt_template.format(statement=item["true_statement"])
         q2_text = _prompt_template.format(statement=item["false_statement"])
 
         pair_results: dict[float, bool] = {}
 
-        for qi, (q_text, gt) in enumerate([(q1_text, "true"), (q2_text, "false")]):
+        for qi, (q_text, gt, (subj_noun, ctx_noun)) in enumerate(
+                zip([q1_text, q2_text], ["true", "false"], noun_pairs)):
             msgs  = [{"role": "user", "content": [{"type": "image", "image": image},
                                                    {"type": "text",  "text":  q_text}]}]
             text  = processor.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True)
@@ -819,9 +838,10 @@ def run_vlindbench(method_mod, model, processor, img_token_id, device, args) -> 
                                padding=True).to(device)
             s, e   = get_img_range(inp["input_ids"], img_token_id)
 
-            # Pass existent_noun directly — avoids unreliable extraction from the statement
+            # subject_noun → saliency map; context_noun → presence gate
             method_mod.prepare_sample(inp, s, e, image, q_text, model, processor,
-                                      noun_override=existent_noun)
+                                      noun_override=subj_noun,
+                                      gate_noun_override=ctx_noun)
 
             for gamma in gammas:
                 tok_ids = method_generate(method_mod, model, inp, processor, gamma,

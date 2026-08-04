@@ -27,6 +27,18 @@ import torch
 import torch.nn.functional as F
 from PIL import Image
 
+
+def _get_image_features(model: "CLIPModel", **kwargs) -> torch.Tensor:
+    """Compat wrapper: transformers 4.x returns a tensor, 5.x returns BaseModelOutputWithPooling."""
+    out = model.get_image_features(**kwargs)
+    return out.pooler_output if hasattr(out, "pooler_output") else out
+
+
+def _get_text_features(model: "CLIPModel", **kwargs) -> torch.Tensor:
+    """Compat wrapper: transformers 4.x returns a tensor, 5.x returns BaseModelOutputWithPooling."""
+    out = model.get_text_features(**kwargs)
+    return out.pooler_output if hasattr(out, "pooler_output") else out
+
 _CLIP_MODEL      = None
 _CLIP_PROCESSOR  = None
 _CLIP_MODEL_NAME = None   # track which model is currently loaded
@@ -333,9 +345,9 @@ def compute_clip_salience(
                                    padding=True, truncation=True,
                                    max_length=77).to(_CLIP_INFER_DEVICE)
 
-        img_feats  = model.get_image_features(**img_inputs)      # (n_patches, d)
+        img_feats  = _get_image_features(model, **img_inputs)     # (n_patches, d)
         img_feats  = img_feats / img_feats.norm(dim=-1, keepdim=True)
-        txt_feat   = model.get_text_features(**txt_inputs)        # (1, d)
+        txt_feat   = _get_text_features(model, **txt_inputs)     # (1, d)
         txt_feat   = txt_feat / txt_feat.norm(dim=-1, keepdim=True)
 
         sims = (img_feats @ txt_feat.T).squeeze(-1).cpu()         # (n_patches,)
@@ -469,9 +481,9 @@ def compute_full_image_sim(
                                 padding=True, truncation=True,
                                 max_length=77).to(_CLIP_INFER_DEVICE)
 
-        img_feat  = model.get_image_features(**img_inp)
+        img_feat  = _get_image_features(model, **img_inp)
         img_feat  = img_feat / img_feat.norm(dim=-1, keepdim=True)
-        txt_feats = model.get_text_features(**txt_inp)              # (n_templates, d)
+        txt_feats = _get_text_features(model, **txt_inp)            # (n_templates, d)
         txt_feats = txt_feats / txt_feats.norm(dim=-1, keepdim=True)
         txt_feat  = txt_feats.mean(dim=0, keepdim=True)
         txt_feat  = txt_feat / txt_feat.norm(dim=-1, keepdim=True)
@@ -512,8 +524,8 @@ def _compute_full_image_contrastive(
                                 padding=True, truncation=True,
                                 max_length=77).to(_CLIP_INFER_DEVICE)
 
-        img_feat = model.get_image_features(**img_inp)
-        txt_feat = model.get_text_features(**txt_inp)
+        img_feat = _get_image_features(model, **img_inp)
+        txt_feat = _get_text_features(model, **txt_inp)
         img_feat = img_feat / img_feat.norm(dim=-1, keepdim=True)
         txt_feat = txt_feat / txt_feat.norm(dim=-1, keepdim=True)
         sims = (img_feat @ txt_feat.T).squeeze(0).cpu()   # shape: (3,)
@@ -883,13 +895,13 @@ def compute_clip_gradcam(
     try:
         # Text features — no gradient needed
         with torch.no_grad():
-            txt_feat = model.get_text_features(**txt_inputs).float()
+            txt_feat = _get_text_features(model, **txt_inputs).float()
             txt_feat = txt_feat / txt_feat.norm(dim=-1, keepdim=True)
 
         # Image features — with gradient tracking for GradCAM
         model.zero_grad()
         with torch.enable_grad():
-            img_feat   = model.get_image_features(**img_inputs).float()
+            img_feat   = _get_image_features(model, **img_inputs).float()
             img_feat_n = img_feat / img_feat.norm(dim=-1, keepdim=True)
             sim        = (img_feat_n * txt_feat.detach()).sum()
             sim.backward()
@@ -1026,7 +1038,7 @@ def compute_clip_salience_full_gate_v3(
             else:
                 inp = proc(images=imgs, return_tensors="pt",
                            padding=True).to(_CLIP_INFER_DEVICE)
-            f = model.get_image_features(**inp).float()
+            f = _get_image_features(model, **inp).float()
             return (f / f.norm(dim=-1, keepdim=True)).cpu()
 
     def _enc_text_ensemble(n: str) -> torch.Tensor:
@@ -1039,7 +1051,7 @@ def compute_clip_salience_full_gate_v3(
             else:
                 inp = proc(text=prompts, return_tensors="pt", padding=True,
                            truncation=True, max_length=77).to(_CLIP_INFER_DEVICE)
-            f = model.get_text_features(**inp).float()          # (n_templates, d)
+            f = _get_text_features(model, **inp).float()        # (n_templates, d)
             f = f / f.norm(dim=-1, keepdim=True)
             f_mean = f.mean(dim=0, keepdim=True)                # (1, d)
             f_mean = f_mean / f_mean.norm(dim=-1, keepdim=True) # re-normalize
@@ -1182,9 +1194,17 @@ def compute_clip_salience_full_gate_v3(
     )
 
 
-def get_grid_dims(inputs: dict, spatial_merge_size: int = 2) -> tuple[int, int]:
-    """Extract (grid_h, grid_w) from Qwen processor inputs."""
-    thw    = inputs["image_grid_thw"][0]
-    grid_h = int(thw[1].item()) // spatial_merge_size
-    grid_w = int(thw[2].item()) // spatial_merge_size
-    return grid_h, grid_w
+def get_grid_dims(inputs: dict, spatial_merge_size: int = 2,
+                  model_type: str = "qwen") -> tuple[int, int]:
+    """Extract (grid_h, grid_w) from processor inputs (Qwen2-VL, Qwen-VL v1, or LLaVA)."""
+    if model_type == "llava":
+        # LLaVA-1.5: 336px images → 24×24 patch grid → 6×6 coarse CLIP grid used for saliency.
+        return 6, 6
+    # Qwen2-VL: image_grid_thw holds (temporal, height, width) grid dims.
+    if "image_grid_thw" in inputs and inputs["image_grid_thw"] is not None:
+        thw    = inputs["image_grid_thw"][0]
+        grid_h = int(thw[1].item()) // spatial_merge_size
+        grid_w = int(thw[2].item()) // spatial_merge_size
+        return grid_h, grid_w
+    # Qwen-VL v1: no image_grid_thw — use fixed 7×7 coarse grid.
+    return 7, 7

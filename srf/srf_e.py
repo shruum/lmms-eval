@@ -34,7 +34,7 @@ sys.path.insert(0, str(_SRF_DIR))                         # config, noun_extract
 sys.path.insert(0, str(_ANALYSIS_DIR))                    # qwen_attn_patch
 
 import torch
-import qwen_attn_patch as patch
+patch = None  # set by eval.py via method_mod.patch = patch before setup()
 
 # Re-export entire SRF base interface — callers can import from srf_e exclusively
 from srf import (

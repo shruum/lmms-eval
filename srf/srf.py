@@ -36,7 +36,7 @@ sys.path.insert(0, str(_ANALYSIS_DIR))                    # qwen_attn_patch
 
 import os
 import torch
-import qwen_attn_patch as patch
+patch = None  # set by eval.py via srf_mod.patch = patch before setup()
 import clip_salience as clip_sal
 import hssa_salience as hssa_sal
 import lta_salience as lta_sal
@@ -141,6 +141,7 @@ def _make_saliency(overrides: dict) -> dict:
         "clip_top_k_pct":       arch["clip_top_k_pct"],
         "clip_use_soft":        True,   # always soft — hard mask hurts boundary tokens
         "clip_fallback_thresh": arch["clip_fallback_thresh"],
+        "clip_patch_thresh":    arch["clip_patch_thresh"],
         "clip_model":           arch.get("clip_model", clip_sal._CLIP_DEFAULT_MODEL),
         "saliency_mode":        arch.get("saliency_mode", "clip"),
         "hssa_layer_idx":       arch.get("hssa_layer_idx", 12),
@@ -154,6 +155,7 @@ def _make_saliency(overrides: dict) -> dict:
     if overrides.get("clip_coarse_grid")     is not None: s["clip_coarse_grid"]     = overrides["clip_coarse_grid"]
     if overrides.get("clip_top_k_pct")       is not None: s["clip_top_k_pct"]       = overrides["clip_top_k_pct"]
     if overrides.get("clip_fallback_thresh") is not None: s["clip_fallback_thresh"] = overrides["clip_fallback_thresh"]
+    if overrides.get("clip_patch_thresh")   is not None: s["clip_patch_thresh"]   = overrides["clip_patch_thresh"]
     if overrides.get("clip_model")           is not None: s["clip_model"]           = overrides["clip_model"]
     if overrides.get("saliency_mode")        is not None: s["saliency_mode"]        = overrides["saliency_mode"]
     if overrides.get("hssa_layer_idx")       is not None: s["hssa_layer_idx"]       = overrides["hssa_layer_idx"]
@@ -175,34 +177,51 @@ def _build_calib_inputs(dataset: str, n: int, seed: int):
     from qwen_vl_utils import process_vision_info as pvi
     from datasets import load_dataset as hf_load
 
-    device = next(p for p in _model.parameters() if p.is_cuda).device
-    arch   = _get_arch()
+    device    = next(p for p in _model.parameters() if p.is_cuda).device
+    arch      = _get_arch()
+    is_llava  = "llava" in _model_id.lower()
+
     # LLaVA-style: image_token is None → use model.config.image_token_index
     if arch["image_token"] is not None:
         img_id = _processor.tokenizer.convert_tokens_to_ids(arch["image_token"])
     else:
         img_id = _model.config.image_token_index
 
+    def _llava_encode(img, question: str):
+        """Build a single LLaVA input dict and return (inp, img_start, img_end)."""
+        prompt = (
+            "A chat between a curious user and an artificial intelligence assistant. "
+            "The assistant gives helpful, detailed, and polite answers to the user's questions. "
+            f"USER: <image>\n{question}\nASSISTANT:"
+        )
+        inp = _processor(text=prompt, images=[img],
+                         return_tensors="pt", padding=True).to(device)
+        s, e = patch.get_image_token_range(inp, _model)
+        return inp, s, e
+
     rng = random.Random(seed)
     calib_inputs, img_ranges = [], []
 
     if dataset == "pope":
         ds   = hf_load("lmms-lab/POPE", split="test")
-        rows = list(ds)   # all splits — calibration doesn't need to match eval split
+        rows = list(ds)
         rng.shuffle(rows)
         for r in rows[:n]:
-            q    = str(r["question"]).strip() + "\nAnswer with Yes or No only."
-            img  = r["image"].convert("RGB")
-            msgs = [{"role": "user", "content": [{"type": "image", "image": img},
-                                                  {"type": "text",  "text":  q}]}]
-            text = _processor.apply_chat_template(msgs, tokenize=False,
-                                                   add_generation_prompt=True)
-            vis, _ = pvi(msgs)
-            inp = _processor(text=[text], images=vis, return_tensors="pt",
-                             padding=True).to(device)
-            ids = inp["input_ids"][0].tolist()
-            s = ids.index(img_id)
-            e = len(ids) - 1 - ids[::-1].index(img_id)
+            q   = str(r["question"]).strip() + "\nAnswer with Yes or No only."
+            img = r["image"].convert("RGB")
+            if is_llava:
+                inp, s, e = _llava_encode(img, q)
+            else:
+                msgs = [{"role": "user", "content": [{"type": "image", "image": img},
+                                                      {"type": "text",  "text":  q}]}]
+                text = _processor.apply_chat_template(msgs, tokenize=False,
+                                                       add_generation_prompt=True)
+                vis, _ = pvi(msgs)
+                inp = _processor(text=[text], images=vis, return_tensors="pt",
+                                 padding=True).to(device)
+                ids = inp["input_ids"][0].tolist()
+                s = ids.index(img_id)
+                e = len(ids) - 1 - ids[::-1].index(img_id)
             calib_inputs.append(inp); img_ranges.append((s, e))
 
     elif dataset == "mmvp":
@@ -219,58 +238,65 @@ def _build_calib_inputs(dataset: str, n: int, seed: int):
             opt_text = "\n".join(f"{m[0].upper()}. {m[1].strip()}" for m in opts)
             prompt   = (f"{row['Question']}\n{opt_text}\n"
                         "Answer with the option's letter directly.")
-            msgs = [{"role": "user", "content": [{"type": "image", "image": img},
-                                                  {"type": "text",  "text":  prompt}]}]
-            text = _processor.apply_chat_template(msgs, tokenize=False,
-                                                   add_generation_prompt=True)
-            vis, _ = pvi(msgs)
-            inp = _processor(text=[text], images=vis, return_tensors="pt",
-                             padding=True).to(device)
-            ids = inp["input_ids"][0].tolist()
-            s = ids.index(img_id)
-            e = len(ids) - 1 - ids[::-1].index(img_id)
+            if is_llava:
+                inp, s, e = _llava_encode(img, prompt)
+            else:
+                msgs = [{"role": "user", "content": [{"type": "image", "image": img},
+                                                      {"type": "text",  "text":  prompt}]}]
+                text = _processor.apply_chat_template(msgs, tokenize=False,
+                                                       add_generation_prompt=True)
+                vis, _ = pvi(msgs)
+                inp = _processor(text=[text], images=vis, return_tensors="pt",
+                                 padding=True).to(device)
+                ids = inp["input_ids"][0].tolist()
+                s = ids.index(img_id)
+                e = len(ids) - 1 - ids[::-1].index(img_id)
             calib_inputs.append(inp); img_ranges.append((s, e))
 
     elif dataset == "vlmbias":
         ds   = hf_load("anvo25/vlms-are-biased", split="main")
         rows = list(ds); rng.shuffle(rows)
         for r in rows[:n]:
-            img  = r["image"].convert("RGB")
-            # Cap resolution: VLMBias images up to 2.1M px; cap to ~POPE size to avoid OOM
-            msgs = [{"role": "user", "content": [{"type": "image", "image": img,
-                                                   "max_pixels": 400 * 400},
-                                                  {"type": "text",  "text":  r["prompt"]}]}]
-            text = _processor.apply_chat_template(msgs, tokenize=False,
-                                                   add_generation_prompt=True)
-            vis, _ = pvi(msgs)
-            inp = _processor(text=[text], images=vis, return_tensors="pt",
-                             padding=True).to(device)
-            ids = inp["input_ids"][0].tolist()
-            s = ids.index(img_id)
-            e = len(ids) - 1 - ids[::-1].index(img_id)
+            img = r["image"].convert("RGB")
+            if is_llava:
+                inp, s, e = _llava_encode(img, r["prompt"])
+            else:
+                # Cap resolution: VLMBias images up to 2.1M px; cap to ~POPE size to avoid OOM
+                msgs = [{"role": "user", "content": [{"type": "image", "image": img,
+                                                       "max_pixels": 400 * 400},
+                                                      {"type": "text",  "text":  r["prompt"]}]}]
+                text = _processor.apply_chat_template(msgs, tokenize=False,
+                                                       add_generation_prompt=True)
+                vis, _ = pvi(msgs)
+                inp = _processor(text=[text], images=vis, return_tensors="pt",
+                                 padding=True).to(device)
+                ids = inp["input_ids"][0].tolist()
+                s = ids.index(img_id)
+                e = len(ids) - 1 - ids[::-1].index(img_id)
             calib_inputs.append(inp); img_ranges.append((s, e))
 
     elif dataset in ("mme", "hallusionbench"):
-        # MME / HallusionBench — Yes/No questions, use same format as POPE calibration
         ds   = hf_load("lmms-lab/MME", split="test")
         rows = list(ds); rng.shuffle(rows)
         for r in rows[:n]:
-            q    = str(r.get("question", "")).strip()
-            img  = r["image"].convert("RGB")
-            msgs = [{"role": "user", "content": [{"type": "image", "image": img},
-                                                  {"type": "text",  "text":  q}]}]
-            text = _processor.apply_chat_template(msgs, tokenize=False,
-                                                   add_generation_prompt=True)
-            vis, _ = pvi(msgs)
-            inp = _processor(text=[text], images=vis, return_tensors="pt",
-                             padding=True).to(device)
-            ids = inp["input_ids"][0].tolist()
-            s = ids.index(img_id)
-            e = len(ids) - 1 - ids[::-1].index(img_id)
+            q   = str(r.get("question", "")).strip()
+            img = r["image"].convert("RGB")
+            if is_llava:
+                inp, s, e = _llava_encode(img, q)
+            else:
+                msgs = [{"role": "user", "content": [{"type": "image", "image": img},
+                                                      {"type": "text",  "text":  q}]}]
+                text = _processor.apply_chat_template(msgs, tokenize=False,
+                                                       add_generation_prompt=True)
+                vis, _ = pvi(msgs)
+                inp = _processor(text=[text], images=vis, return_tensors="pt",
+                                 padding=True).to(device)
+                ids = inp["input_ids"][0].tolist()
+                s = ids.index(img_id)
+                e = len(ids) - 1 - ids[::-1].index(img_id)
             calib_inputs.append(inp); img_ranges.append((s, e))
 
-    elif dataset in ("mmbench", "hallusionbench"):
-        # MMBench / HallusionBench — use MMBench validation images for calibration
+    elif dataset in ("mmbench",):
         ds   = hf_load("HuggingFaceM4/MMBench", split="validation")
         rows = list(ds); rng.shuffle(rows)
         for r in rows[:n]:
@@ -283,17 +309,20 @@ def _build_calib_inputs(dataset: str, n: int, seed: int):
             )
             prompt = (f"{hint}\n{q}\n{opts}" if hint and hint != "None"
                       else f"{q}\n{opts}") + "\nAnswer with A, B, C, or D only."
-            img  = r["image"].convert("RGB")
-            msgs = [{"role": "user", "content": [{"type": "image", "image": img},
-                                                  {"type": "text",  "text": prompt}]}]
-            text = _processor.apply_chat_template(msgs, tokenize=False,
-                                                   add_generation_prompt=True)
-            vis, _ = pvi(msgs)
-            inp = _processor(text=[text], images=vis, return_tensors="pt",
-                             padding=True).to(device)
-            ids = inp["input_ids"][0].tolist()
-            s = ids.index(img_id)
-            e = len(ids) - 1 - ids[::-1].index(img_id)
+            img = r["image"].convert("RGB")
+            if is_llava:
+                inp, s, e = _llava_encode(img, prompt)
+            else:
+                msgs = [{"role": "user", "content": [{"type": "image", "image": img},
+                                                      {"type": "text",  "text": prompt}]}]
+                text = _processor.apply_chat_template(msgs, tokenize=False,
+                                                       add_generation_prompt=True)
+                vis, _ = pvi(msgs)
+                inp = _processor(text=[text], images=vis, return_tensors="pt",
+                                 padding=True).to(device)
+                ids = inp["input_ids"][0].tolist()
+                s = ids.index(img_id)
+                e = len(ids) - 1 - ids[::-1].index(img_id)
             calib_inputs.append(inp); img_ranges.append((s, e))
 
     elif dataset == "vlind":
@@ -307,38 +336,45 @@ def _build_calib_inputs(dataset: str, n: int, seed: int):
             _items = _json.load(_f)
         rng.shuffle(_items)
         for _item in _items:
-            _concept = _item["concept"]
-            _cf_dir  = (_vlind_root / "images" / "counterfactual"
-                        / _concept / f"{_item['context_id']}_{_item['context']}")
+            _concept  = _item["concept"]
+            _cf_dir   = (_vlind_root / "images" / "counterfactual"
+                         / _concept / f"{_item['context_id']}_{_item['context']}")
             _img_path = _cf_dir / f"{_item['best_img_id']}.jpg"
             if not _img_path.exists():
                 continue
             from PIL import Image as _PIL_Image
-            _img  = _PIL_Image.open(_img_path).convert("RGB")
+            _img = _PIL_Image.open(_img_path).convert("RGB")
             # VLIND images are 1024×1024 — resize to 224×224 for calibration only.
             # At 1024×1024 the ViT generates ~5000 tokens and OOMs on 11 GiB GPUs.
-            # 224×224 → 256 ViT patches → safe attention footprint.
-            _img  = _img.resize((224, 224), _PIL_Image.LANCZOS)
-            _q    = (f"Only respond in True or False.\n"
-                     f"Statement: {_item['true_statement']}\n"
-                     f"Based on the image, is the given statement true or false?")
-            msgs = [{"role": "user", "content": [{"type": "image", "image": _img},
-                                                  {"type": "text",  "text":  _q}]}]
-            text = _processor.apply_chat_template(msgs, tokenize=False,
-                                                   add_generation_prompt=True)
-            vis, _ = pvi(msgs)
-            inp = _processor(text=[text], images=vis, return_tensors="pt",
-                             padding=True).to(device)
-            ids = inp["input_ids"][0].tolist()
-            s = ids.index(img_id)
-            e = len(ids) - 1 - ids[::-1].index(img_id)
+            _img = _img.resize((224, 224), _PIL_Image.LANCZOS)
+            _q   = (f"Only respond in True or False.\n"
+                    f"Statement: {_item['true_statement']}\n"
+                    f"Based on the image, is the given statement true or false?")
+            if is_llava:
+                inp, s, e = _llava_encode(_img, _q)
+            else:
+                msgs = [{"role": "user", "content": [{"type": "image", "image": _img},
+                                                      {"type": "text",  "text":  _q}]}]
+                text = _processor.apply_chat_template(msgs, tokenize=False,
+                                                       add_generation_prompt=True)
+                vis, _ = pvi(msgs)
+                inp = _processor(text=[text], images=vis, return_tensors="pt",
+                                 padding=True).to(device)
+                ids = inp["input_ids"][0].tolist()
+                s = ids.index(img_id)
+                e = len(ids) - 1 - ids[::-1].index(img_id)
             calib_inputs.append(inp); img_ranges.append((s, e))
             if len(calib_inputs) >= n:
                 break
 
+    elif dataset == "mmhalbench":
+        # Calibrate using POPE (yes/no existence questions are a good proxy for
+        # identifying vision-aware heads; MMHal-Bench has no fixed Q format).
+        return _build_calib_inputs("pope", n=n, seed=seed)
+
     else:
         raise ValueError(f"Unknown calib dataset: {dataset!r}. "
-                         f"Supported: pope, mmvp, vlmbias, mme, hallusionbench, mmbench, vlind")
+                         f"Supported: pope, mmvp, vlmbias, mme, hallusionbench, mmbench, vlind, mmhalbench")
 
     return calib_inputs, img_ranges
 
@@ -403,7 +439,7 @@ def setup(model, processor, calib_dataset: str = "pope") -> None:
     global _calib_head_top_k
     _calib_head_top_k = BIAS["head_top_k_pct"]
 
-    patch.patch_model(model, "vaf", max(float(BIAS["boost_alpha"]), 1e-6))
+    patch.patch_model(model, "srf", max(float(BIAS["boost_alpha"]), 1e-6))
     _sync_patch_state()
 
 
@@ -423,6 +459,7 @@ def reset_for_dataset(
     clip_coarse_grid:     int   | None = None,
     clip_top_k_pct:       float | None = None,
     clip_fallback_thresh: float | None = None,
+    clip_patch_thresh:    float | None = None,
     clip_model:           str   | None = None,
     saliency_mode:        str   | None = None,
     hssa_layer_idx:       int   | None = None,
@@ -564,6 +601,7 @@ def prepare_sample(inputs, img_start: int, img_end: int,
 
     sal_mode   = SALIENCY.get("saliency_mode", "clip")
     sal_method = SALIENCY.get("clip_saliency_method", "clip_patch")
+    _model_type = "llava" if "llava" in _model_id.lower() else "qwen"
 
     # ── Bad-noun gate ─────────────────────────────────────────────────────────
     # If noun extraction returns a function/stop word (e.g. "this", "does",
@@ -622,7 +660,7 @@ def prepare_sample(inputs, img_start: int, img_end: int,
         )
         patch._STATE["method"] = "srf"
 
-        grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial)
+        grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial, _model_type)
         noun   = _noun
         clip_result = clip_sal.compute_clip_salience(
             image, noun, grid_h, grid_w,
@@ -643,7 +681,7 @@ def prepare_sample(inputs, img_start: int, img_end: int,
     elif sal_mode == "clip_full_gate":
         # Multi-scale CLIP with hard presence gate (3-signal combined).
         # When object is absent → uniform 0.5; when present → spatial localization.
-        grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial)
+        grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial, _model_type)
         noun   = _noun
         result = clip_sal.compute_clip_salience_multiscale_full_gate(
             image, noun, grid_h, grid_w,
@@ -664,13 +702,15 @@ def prepare_sample(inputs, img_start: int, img_end: int,
         # Layers near the middle get full boost_alpha; edge layers get less.
         # sigma = range/4 so ±2σ spans the full layer range.
         import math as _math
-        grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial)
+        grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial, _model_type)
         noun   = _noun
         result = clip_sal.compute_clip_salience_full_gate_v3(
             image, noun, grid_h, grid_w,
             top_k_pct=SALIENCY["clip_top_k_pct"],
-            clip_model_name=SALIENCY.get("clip_model", clip_sal._CLIP_DEFAULT_MODEL),
+            clip_model_name=SALIENCY["clip_model"],
             backup="none",
+            full_img_thresh=SALIENCY["clip_fallback_thresh"],
+            patch_thresh=SALIENCY["clip_patch_thresh"],
         )
         if result.object_present:
             ls   = BIAS["layer_start"]
@@ -698,26 +738,22 @@ def prepare_sample(inputs, img_start: int, img_end: int,
         # clip_full_gate_v3_adaptive → uncapped confidence (alpha * conf, no ceiling)
         #                              strongly-present objects get proportionally higher boost
         backup = "cross_scale" if sal_mode == "clip_full_gate_v3_iou" else "none"
-        grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial)
+        grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial, _model_type)
         noun   = _noun
-        # Use clip_fallback_thresh as the gate threshold if set; otherwise falls back to
-        # the hardcoded _FULL_IMG_THRESH_V3=0.21 inside compute_clip_salience_full_gate_v3.
-        v3_thresh = SALIENCY.get("clip_fallback_thresh") or None
         result = clip_sal.compute_clip_salience_full_gate_v3(
             image, noun, grid_h, grid_w,
             top_k_pct=SALIENCY["clip_top_k_pct"],
-            clip_model_name=SALIENCY.get("clip_model", clip_sal._CLIP_DEFAULT_MODEL),
+            clip_model_name=SALIENCY["clip_model"],
             backup=backup,
-            full_img_thresh=v3_thresh,
+            full_img_thresh=SALIENCY["clip_fallback_thresh"],
+            patch_thresh=SALIENCY["clip_patch_thresh"],
             gate_noun=gate_noun_override,
         )
         last_clip_result["object_present"] = result.object_present
         last_clip_result["full_img_sim"]   = result.full_img_sim
         last_clip_result["saliency"]       = result.saliency
         if result.object_present:
-            # Use same threshold for confidence scaling so --clip_fallback_thresh controls both.
-            _conf_thresh = v3_thresh if v3_thresh is not None else clip_sal._FULL_IMG_THRESH_V3
-            raw_conf  = result.full_img_sim / _conf_thresh
+            raw_conf  = result.full_img_sim / SALIENCY["clip_fallback_thresh"]
             clip_conf = raw_conf if sal_mode == "clip_full_gate_v3_adaptive" else min(raw_conf, 1.0)
             patch._STATE["value"]         = BIAS["boost_alpha"] * clip_conf
             patch._STATE["salience_mask"] = result.saliency
@@ -738,18 +774,18 @@ def prepare_sample(inputs, img_start: int, img_end: int,
         # identify_visual_heads sets method="baseline" internally; restore
         patch._STATE["method"] = "srf"
 
-        grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial)
+        grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial, _model_type)
         noun      = _noun
-        v3_thresh = SALIENCY.get("clip_fallback_thresh") or clip_sal._FULL_IMG_THRESH_V3
         result = clip_sal.compute_clip_salience_full_gate_v3(
             image, noun, grid_h, grid_w,
             top_k_pct=SALIENCY["clip_top_k_pct"],
-            clip_model_name=SALIENCY.get("clip_model", clip_sal._CLIP_DEFAULT_MODEL),
+            clip_model_name=SALIENCY["clip_model"],
             backup="none",
-            full_img_thresh=v3_thresh,
+            full_img_thresh=SALIENCY["clip_fallback_thresh"],
+            patch_thresh=SALIENCY["clip_patch_thresh"],
         )
         if result.object_present:
-            clip_conf = min(result.full_img_sim / v3_thresh, 1.0)
+            clip_conf = min(result.full_img_sim / SALIENCY["clip_fallback_thresh"], 1.0)
             patch._STATE["value"]         = BIAS["boost_alpha"] * clip_conf
             patch._STATE["salience_mask"] = result.saliency
         else:
@@ -792,18 +828,18 @@ def prepare_sample(inputs, img_start: int, img_end: int,
         patch._STATE["vaf_layer_start"] = dyn_ls
         patch._STATE["vaf_layer_end"]   = dyn_le
 
-        grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial)
+        grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial, _model_type)
         noun      = _noun
-        v3_thresh = SALIENCY.get("clip_fallback_thresh") or clip_sal._FULL_IMG_THRESH_V3
         result = clip_sal.compute_clip_salience_full_gate_v3(
             image, noun, grid_h, grid_w,
             top_k_pct=SALIENCY["clip_top_k_pct"],
-            clip_model_name=SALIENCY.get("clip_model", clip_sal._CLIP_DEFAULT_MODEL),
+            clip_model_name=SALIENCY["clip_model"],
             backup="none",
-            full_img_thresh=v3_thresh,
+            full_img_thresh=SALIENCY["clip_fallback_thresh"],
+            patch_thresh=SALIENCY["clip_patch_thresh"],
         )
         if result.object_present:
-            clip_conf = min(result.full_img_sim / v3_thresh, 1.0)
+            clip_conf = min(result.full_img_sim / SALIENCY["clip_fallback_thresh"], 1.0)
             patch._STATE["value"]         = BIAS["boost_alpha"] * clip_conf
             patch._STATE["salience_mask"] = result.saliency
         else:
@@ -813,7 +849,7 @@ def prepare_sample(inputs, img_start: int, img_end: int,
     elif sal_mode == "clip_soft_gate":
         # Multi-scale CLIP with soft presence gate.
         # Blends spatial and uniform by w = min(full_img_sim / thresh, 1).
-        grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial)
+        grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial, _model_type)
         noun   = _noun
         result = clip_sal.compute_clip_salience_soft_gate(
             image, noun, grid_h, grid_w,
@@ -824,7 +860,7 @@ def prepare_sample(inputs, img_start: int, img_end: int,
 
     elif sal_method == "clip_gradcam":
         # GradCAM: full image → CLIP → cosine sim → backprop → spatial map
-        grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial)
+        grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial, _model_type)
         noun   = _noun
         result = clip_sal.compute_clip_gradcam(
             image, noun, grid_h, grid_w,
@@ -835,7 +871,7 @@ def prepare_sample(inputs, img_start: int, img_end: int,
 
     elif sal_method == "srf2":
         # SRF2: 0.7 * GradCAM saliency + 0.3 * HSSA saliency
-        grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial)
+        grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial, _model_type)
         noun   = _noun
         gradcam = clip_sal.compute_clip_gradcam(
             image, noun, grid_h, grid_w,
@@ -859,7 +895,7 @@ def prepare_sample(inputs, img_start: int, img_end: int,
 
     else:
         # Default: CLIP/SigLIP patch similarity (clip_patch, backward-compatible)
-        grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial)
+        grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial, _model_type)
         noun   = _noun
         result = clip_sal.compute_clip_salience(
             image, noun, grid_h, grid_w,

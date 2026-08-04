@@ -164,15 +164,18 @@ SRF_DATASET_PARAMS = {
     # alpha tuned by coordinate-descent sweep (autoresearch_mmvp_v2, 2026-06-16)
     # MMVP: α=2.0 + γ=3.0 → 49.33% pair_acc (+9.33pp)
     # POPE: α=2.0 or α=4.0 both give 87.33%; use 2.0 for unified config
-    "mmvp":       {"phase": "both",       "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
-    "pope":       {"phase": "both",       "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 2.0},
-    "vlmbias":    {"phase": "generation", "alpha": 8.0, "eps": 0.5, "neg_absent_alpha": 0.0},
-    "mme":        {"phase": "generation", "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
-    "mmbench":    {"phase": "generation", "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
+    "mmvp":        {"phase": "both",       "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
+    "pope":        {"phase": "both",       "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 2.0},
+    "vlmbias":     {"phase": "generation", "alpha": 8.0, "eps": 0.5, "neg_absent_alpha": 0.0},
+    "mme":         {"phase": "generation", "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
+    "mmbench":     {"phase": "generation", "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
     "hallusionbench": {"phase": "generation", "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
     # VLind-Bench: counterfactual visual reasoning — same structure as MMVP (True/False pair)
     # phase="both": boost helps in both prefill (question understanding) and generation
-    "vlind":      {"phase": "both",       "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
+    "vlind":       {"phase": "both",       "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
+    # MMHal-Bench: open-ended image description (96 samples, 8 question types)
+    # generation phase only — free-form answers generated token-by-token
+    "mmhalbench":  {"phase": "generation", "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
 }
 
 # ── SRF-E (evidence amplification) defaults ────────────────────────────────────
@@ -217,6 +220,7 @@ SRF_ARCH_PARAMS = {
         "clip_coarse_grid":     7,
         "clip_top_k_pct":       0.30,
         "clip_fallback_thresh": 0.20,
+        "clip_patch_thresh":    0.27,
         # saliency mode: "clip_full_gate_v3" (best, tuned) | "clip" (basic) | "hssa"
         "saliency_mode":        "clip_full_gate_v3",
         "clip_model":           "openai/clip-vit-base-patch32",   # swap to SigLIP to improve
@@ -230,7 +234,7 @@ SRF_ARCH_PARAMS = {
         "lta_weight":           0.6,    # weight in clip_lta combined mode
         "clip_weight":          0.4,    # weight in clip_lta combined mode
         # per-dataset layer_end fine-tuning (overrides layer_end above)
-        "dataset_layer_end":    {"mmvp": 16, "pope": 12, "vlmbias": 14, "mme": 16, "vlind": 16},
+        "dataset_layer_end":    {"mmvp": 16, "pope": 12, "vlmbias": 14, "mme": 16, "vlind": 16, "mmhalbench": 16},
     },
     "Qwen/Qwen2.5-VL-7B-Instruct": {
         "n_layers":             32,
@@ -243,6 +247,7 @@ SRF_ARCH_PARAMS = {
         "clip_coarse_grid":     7,
         "clip_top_k_pct":       0.30,
         "clip_fallback_thresh": 0.20,
+        "clip_patch_thresh":    0.27,
         "saliency_mode":        "clip",
         "clip_model":           "openai/clip-vit-base-patch32",
         "hssa_layer_idx":       16,     # ~middle of 32-layer model
@@ -252,7 +257,7 @@ SRF_ARCH_PARAMS = {
         "lta_layer_idx":        -1,
         "lta_weight":           0.6,
         "clip_weight":          0.4,
-        "dataset_layer_end":    {"mmvp": 17, "pope": 17, "vlmbias": 16, "mme": 17, "vlind": 17},
+        "dataset_layer_end":    {"mmvp": 17, "pope": 17, "vlmbias": 16, "mme": 17, "vlind": 17, "mmhalbench": 17},
     },
     "llava-hf/llava-1.5-7b-hf": {
         "n_layers":             32,
@@ -265,7 +270,8 @@ SRF_ARCH_PARAMS = {
         "clip_coarse_grid":     6,      # LLaVA uses 336px images → slightly smaller grid
         "clip_top_k_pct":       0.30,
         "clip_fallback_thresh": 0.20,
-        "saliency_mode":        "clip",
+        "clip_patch_thresh":    0.27,   # v3 patch-presence backup gate threshold
+        "saliency_mode":        "clip_full_gate_v3",
         "clip_model":           "openai/clip-vit-base-patch32",
         "hssa_layer_idx":       16,
         "clip_saliency_method": "clip_patch",
@@ -274,7 +280,7 @@ SRF_ARCH_PARAMS = {
         "lta_layer_idx":        -1,
         "lta_weight":           0.6,
         "clip_weight":          0.4,
-        "dataset_layer_end":    {"mmvp": 20, "pope": 20, "vlmbias": 19, "mme": 20, "vlind": 20},
+        "dataset_layer_end":    {"mmvp": 20, "pope": 20, "vlmbias": 19, "mme": 20, "vlind": 20, "mmhalbench": 20},
     },
 }
 
@@ -289,6 +295,7 @@ SRF_ARCH_FALLBACK = {
     "clip_coarse_grid":     7,
     "clip_top_k_pct":       0.30,
     "clip_fallback_thresh": 0.20,
+    "clip_patch_thresh":    0.27,
     "saliency_mode":        "clip",
     "clip_model":           "openai/clip-vit-base-patch32",
     "hssa_layer_idx":       16,

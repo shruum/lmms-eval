@@ -58,11 +58,11 @@ os.environ.setdefault("CUDA_VISIBLE_DEVICES", "0")
 os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
 import torch
-from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
+from transformers import AutoConfig, AutoProcessor, Qwen2_5_VLForConditionalGeneration
 from qwen_vl_utils import process_vision_info
 from datasets import load_dataset as hf_load
 
-import qwen_attn_patch as patch
+import qwen_attn_patch as patch  # default; overridden per-model in load_model()
 
 
 # ---------------------------------------------------------------------------
@@ -71,12 +71,15 @@ import qwen_attn_patch as patch
 
 def parse_args():
     p = argparse.ArgumentParser(description="SRF / SRF-E evaluation")
-    p.add_argument("--method",   required=True, choices=["srf", "srfe", "vcd", "vaf", "baseline"],
-                   help="srf = SRF base; srfe = SRF-E; vcd = Visual Contrastive Decoding; vaf = Visual Amplification Fusion (ClearSight); baseline = no intervention")
+    p.add_argument("--method",   required=True,
+                   choices=["srf", "srfe", "vcd", "vaf", "baseline"],
+                   help="srf = SRF base; srfe = SRF-E; "
+                        "vcd = Visual Contrastive Decoding; vaf = Visual Amplification Fusion; "
+                        "baseline = no intervention")
     p.add_argument("--model",    default=CFG.DEFAULT_MODEL)
     p.add_argument("--datasets", nargs="+", default=["mmvp", "pope"],
-                   choices=["mmvp", "pope", "vlmbias", "mme", "vlind"])
-    p.add_argument("--gamma",    type=float, nargs="+", default=[CFG.SRFE_DEFAULT_GAMMA],
+                   choices=["mmvp", "pope", "vlmbias", "mme", "vlind", "mmhalbench"])
+    p.add_argument("--gamma",       type=float, nargs="+", default=[CFG.SRFE_DEFAULT_GAMMA],
                    help="Contrastive γ (srfe only; ignored for srf)")
 
     # ── POPE ──────────────────────────────────────────────────────────────────
@@ -119,13 +122,20 @@ def parse_args():
     p.add_argument("--clip_top_k_pct",   type=float, default=None,
                    help="Fraction of image tokens boosted by CLIP saliency")
     p.add_argument("--clip_fallback_thresh", type=float, default=None,
-                   help="CLIP max-sim below which object is considered absent (basic 'clip' mode only)")
+                   help="clip_full_gate_v3: full-image CLIP sim threshold for presence gate (default 0.20)")
+    p.add_argument("--clip_patch_thresh", type=float, default=None,
+                   help="clip_full_gate_v3: patch max-sim backup presence gate threshold (default 0.27)")
     p.add_argument("--saliency_mode", default=None,
                    help="Override saliency mode: clip_full_gate_v3 (default/best) | clip | hssa | lta | clip_lta | srf2")
 
     # ── Boosting method ───────────────────────────────────────────────────────
     p.add_argument("--neg_absent_alpha", type=float, default=None,
                    help="Suppression logit when CLIP says object absent (0=off, default)")
+    p.add_argument("--llava_boost_mode", default=None,
+                   choices=["multiplicative", "additive"],
+                   help="LLaVA only: how image token attention is modified. "
+                        "multiplicative=post-softmax multiply (default, VAF-compatible); "
+                        "additive=pre-softmax logit addition (matches Qwen SRF)")
     p.add_argument("--bias_mode", default=None,
                    choices=["additive_logit", "budget_shift", "prob_interp", "prob_scale"],
                    help="How the bias is applied (default: additive_logit)")
@@ -168,6 +178,16 @@ def parse_args():
     p.add_argument("--clip_weight",       type=float, default=None,
                    help="CLIP weight in clip_lta combined mode (default: 0.4)")
 
+    # ── MMHal-Bench ───────────────────────────────────────────────────────────
+    p.add_argument("--mmhalbench_json", default=None,
+                   help="Path to MMHal-Bench response_template.json "
+                        "(default: auto-detect from ILVAD repo at ../ILVAD/data/MMHal-Bench/)")
+    p.add_argument("--openai_model", default="gpt-4o",
+                   help="OpenAI model for MMHal-Bench scoring (default: gpt-4o). "
+                        "Requires OPENAI_API_KEY env var; skipped if not set.")
+    p.add_argument("--mmhalbench_n", type=int, default=None,
+                   help="Limit MMHal-Bench to first N samples (None=all 96)")
+
     # ── VCD-specific ──────────────────────────────────────────────────────────
     p.add_argument("--noise_step", type=int, default=None,
                    help="VCD: diffusion noise step 0–999 (default: 500). Higher = more noise.")
@@ -188,13 +208,30 @@ def parse_args():
 # ---------------------------------------------------------------------------
 
 def load_model(model_id: str):
+    global patch
     print(f"Loading {model_id}…")
-    model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-        model_id, torch_dtype=torch.bfloat16,
-        device_map="auto", attn_implementation="eager",
-    ).eval()
-    processor = AutoProcessor.from_pretrained(model_id,
-                                              max_pixels=CFG.DEFAULT_MAX_PIXELS)
+
+    cfg        = AutoConfig.from_pretrained(model_id, trust_remote_code=True)
+    model_type = getattr(cfg, "model_type", None)
+
+    if model_type == "llava":
+        from transformers import LlavaForConditionalGeneration
+        import llava_attn_patch as _llava_patch
+        patch = _llava_patch
+        print(f"  Using LLaVA attention patch")
+        model = LlavaForConditionalGeneration.from_pretrained(
+            model_id, torch_dtype=torch.bfloat16, attn_implementation="eager",
+        ).eval().cuda()
+        processor = AutoProcessor.from_pretrained(model_id)
+    else:
+        import qwen_attn_patch as _qwen_patch
+        patch = _qwen_patch
+        model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+            model_id, torch_dtype=torch.bfloat16,
+            device_map="auto", attn_implementation="eager",
+        ).eval()
+        processor = AutoProcessor.from_pretrained(model_id,
+                                                  max_pixels=CFG.DEFAULT_MAX_PIXELS)
     return model, processor
 
 
@@ -211,6 +248,22 @@ def get_img_range(input_ids: torch.Tensor, img_token_id: int) -> tuple[int, int]
 
 def decode_first_token(logits: torch.Tensor, processor) -> str:
     return processor.decode(logits.argmax(dim=-1), skip_special_tokens=True).strip().lower()
+
+
+def _encode_llava(processor, model, device, image, question: str):
+    """LLaVA-1.5 input encoding — returns (inp, img_start, img_end).
+
+    The single <image> placeholder expands to 24×24=576 embeddings inside LLaVA's
+    forward pass, so img_end = img_start + 575 (not img_start == img_end).
+    """
+    prompt = (
+        "A chat between a curious user and an artificial intelligence assistant. "
+        "The assistant gives helpful, detailed, and polite answers to the user's questions. "
+        f"USER: <image>\n{question}\nASSISTANT:"
+    )
+    inp = processor(text=prompt, images=[image], return_tensors="pt", padding=True).to(device)
+    s, e = patch.get_image_token_range(inp, model)
+    return inp, s, e
 
 
 def save_results(results: dict, output_dir: str | None, tag: str) -> None:
@@ -288,6 +341,7 @@ def _reset_overrides(args) -> dict:
         clip_coarse_grid=args.clip_coarse_grid,
         clip_top_k_pct=args.clip_top_k_pct,
         clip_fallback_thresh=args.clip_fallback_thresh,
+        clip_patch_thresh=args.clip_patch_thresh,
         saliency_mode=args.saliency_mode,
         bias_mode=args.bias_mode,
         interp_lambda=args.interp_lambda,
@@ -370,44 +424,87 @@ def run_pope(method_mod, model, processor, img_token_id, device, args) -> dict:
         rows = rows[:args.n_pope]
     print(f"  Loaded {len(rows)} {label_str} samples ({splits_label})")
 
-    correct_srf  = {b: 0 for b in gammas}
+    def _empty_stats():
+        return {b: {"correct": 0, "tp": 0, "fp": 0, "fn": 0, "n": 0} for b in gammas}
+
+    # per-split stats + overall
+    split_stats: dict[str, dict] = {s: _empty_stats() for s in splits_filter}
+    overall_stats = _empty_stats()
+    is_llava = "llava" in args.model.lower()
 
     for i, r in enumerate(rows):
-        image = r["image"].convert("RGB")
-        q     = str(r["question"]).strip() + "\nAnswer with Yes or No only."
-        gt    = (repope_labels[(str(r.get("category", r.get("type", ""))).lower(),
-                                str(r["question_id"]))] if repope_labels
+        image    = r["image"].convert("RGB")
+        q        = str(r["question"]).strip() + "\nAnswer with Yes or No only."
+        split_key = str(r.get("category", r.get("type", ""))).lower()
+        gt    = (repope_labels[(split_key, str(r["question_id"]))] if repope_labels
                  else ("yes" if str(r.get("answer", "")).strip().lower() == "yes" else "no"))
 
-        msgs  = [{"role": "user", "content": [{"type": "image", "image": image},
-                                               {"type": "text",  "text":  q}]}]
-        text  = processor.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True)
-        vis, _ = process_vision_info(msgs)
-        inp    = processor(text=[text], images=vis, return_tensors="pt",
-                           padding=True).to(device)
-        s, e   = get_img_range(inp["input_ids"], img_token_id)
+        if is_llava:
+            inp, s, e = _encode_llava(processor, model, device, image, q)
+        else:
+            msgs  = [{"role": "user", "content": [{"type": "image", "image": image},
+                                                   {"type": "text",  "text":  q}]}]
+            text  = processor.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True)
+            vis, _ = process_vision_info(msgs)
+            inp    = processor(text=[text], images=vis, return_tensors="pt",
+                               padding=True).to(device)
+            s, e   = get_img_range(inp["input_ids"], img_token_id)
 
         method_mod.prepare_sample(inp, s, e, image, q, model, processor)
         for gamma in gammas:
             logits = method_get_logits(method_mod, model, inp, gamma)
             pred = "yes" if decode_first_token(logits, processor).startswith("yes") else "no"
-            if pred == gt:
-                correct_srf[gamma] += 1
+            for stats in (split_stats.get(split_key, {}), overall_stats):
+                if not stats:
+                    continue
+                st = stats[gamma]
+                st["n"] += 1
+                if pred == gt:
+                    st["correct"] += 1
+                if pred == "yes" and gt == "yes":
+                    st["tp"] += 1
+                elif pred == "yes" and gt == "no":
+                    st["fp"] += 1
+                elif pred == "no" and gt == "yes":
+                    st["fn"] += 1
         method_mod.cleanup()
 
         if (i + 1) % 500 == 0 or (i + 1) == len(rows):
-            n = i + 1
-            srf_str = "  ".join(f"γ={b}:{correct_srf[b]/n:.4f}" for b in gammas)
-            print(f"  [{n:5d}/{len(rows)}]  {srf_str}")
+            n_so_far = i + 1
+            srf_str = "  ".join(
+                f"γ={b}:{overall_stats[b]['correct']/n_so_far:.4f}" for b in gammas
+            )
+            print(f"  [{n_so_far:5d}/{len(rows)}]  {srf_str}")
 
-    n       = len(rows)
-    acc_srf = {b: correct_srf[b] / n for b in gammas}
+    def _compute_metrics(st: dict) -> dict:
+        n    = st["n"]
+        if n == 0:
+            return {"acc": 0.0, "precision": 0.0, "recall": 0.0, "f1": 0.0, "n": 0}
+        acc  = st["correct"] / n
+        tp, fp, fn = st["tp"], st["fp"], st["fn"]
+        prec = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        rec  = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+        f1   = 2 * prec * rec / (prec + rec) if (prec + rec) > 0 else 0.0
+        return {"acc": acc, "precision": prec, "recall": rec, "f1": f1, "n": n}
 
+    results_out: dict = {"splits": {}, "overall": {}}
     for b in gammas:
-        label = f"β={b}" if args.method == "srfe" else "SRF"
-        print(f"\nPOPE  {label}: {acc_srf[b]:.4f}  ({correct_srf[b]}/{n})")
+        label = f"γ={b}" if args.method == "srfe" else "SRF"
+        print(f"\n{'─'*56}")
+        print(f"POPE  {label}")
+        split_metrics = {}
+        for sp in sorted(splits_filter):
+            m = _compute_metrics(split_stats[sp][b])
+            split_metrics[sp] = m
+            print(f"  {sp:12s}  acc={m['acc']:.4f}  prec={m['precision']:.4f}  "
+                  f"rec={m['recall']:.4f}  F1={m['f1']:.4f}  (n={m['n']})")
+        ov = _compute_metrics(overall_stats[b])
+        print(f"  {'overall':12s}  acc={ov['acc']:.4f}  prec={ov['precision']:.4f}  "
+              f"rec={ov['recall']:.4f}  F1={ov['f1']:.4f}  (n={ov['n']})")
+        results_out["splits"][b] = split_metrics
+        results_out["overall"][b] = ov
 
-    return {"n": n, "method": acc_srf}
+    return results_out
 
 
 # ---------------------------------------------------------------------------
@@ -902,6 +999,262 @@ def run_vlindbench(method_mod, model, processor, img_token_id, device, args) -> 
 
 
 # ---------------------------------------------------------------------------
+# MMHal-Bench
+# ---------------------------------------------------------------------------
+
+# Exact scoring template from ILVAD/eval/mmhal_bench.py — do not modify,
+# ensures our scores are directly comparable to Table 1 in the ILVAD paper.
+_MMHAL_SCORING_TEMPLATE = '''Please act as an impartial and objective judge and evaluate the quality of the response provided by a Large Multimodal Model (LMM) to the user question. Your evaluation should be mainly based on whether the response is informative, and whether the response contains any hallucination. Hallucination, in this context, refers to a situation where the LMM generates a response that includes information not present or implied in the image or previous conversation. A hallucination could be a false claim about an object, action, emotion, or any other detail that is not grounded in the image.
+
+For clarity, consider these examples:
+
+### Example 1:
+- Image Contents: Lynx, Cat
+- Question: How many cats can you see in this image?
+- Standard Human-Generated Answer: There are two cats visible in the image.
+- LMM Response to Evaluate: There is one cat in the image.
+- Analysis: The LMM's response is false because it claims there is only one cat in the image, when in fact there are two.
+- Hallucination: Yes.
+
+### Example 2:
+- Image Contents: Tree, Plant, Panda, Animal
+- Question: What can you see from this photo?
+- Standard Human-Generated Answer: In this photo we can see branches. We can see a panda on a branch. The background is blurry.
+- LMM Response to Evaluate: In the photo, I can see a large black and white panda sitting on a tree branch. The image captures the panda's unique appearance and its natural habitat, showcasing the beauty and rarity of these animals.
+- Analysis: The LMM's response is not false because it does not make any false claims about the image contents. For example, it does not claim that the panda is eating bamboo.
+- Hallucination: No.
+
+### Example 3:
+- Image Contents: Fashion accessory, Mammal, Dog, Umbrella
+- Question: Describe this image in details.
+- Standard Human-Generated Answer: In this picture I can see a dog laying under a yellow umbrella on a beach, and there is a rope on the right side. In the background I can see few persons talking or lying. At the top of the image, I can see the blue and clear sky.
+- LMM Response to Evaluate: The image features a brown dog laying on the sand at the beach, underneath a yellow umbrella. The dog is positioned near the water, and there are people in the background. The beach is sandy, and the sun is shining, creating a pleasant atmosphere. The dog is enjoying the shade provided by the umbrella, which is a common way to protect pets from the sun's harmful rays. The presence of people in the background suggests that the beach is a popular spot for leisure activities, such as sunbathing, swimming, and relaxing.
+- Analysis: The LMM's response is false because it claims that the dog is positioned near the water, but there is no water in the image.
+- Hallucination: Yes.
+
+### Example 4:
+- Image Contents: Clothing, Luggage and bags, Man, Building, Woman, Person
+- Question: Where is this photo taken?
+- Standard Human-Generated Answer: From the slogan "Welcome to Houston, Texas", we can infer that this photo is taken at an airport in Houston, Texas.
+- LMM Response to Evaluate: This photo is taken at an airport, specifically at the entrance of a terminal. However, the specific location of this airport cannot be determined from the image.
+- Analysis: Although the LMM's response does not explicitly mention the location "Houston, Texas" and does not perfectly answer the question, it makes no false claims about the image contents. Therefore, this response is not considered hallucination. It is OK if the LMM fails to directly answer the question, expresses uncertainty, or cannot include all the objects or details in the human-generated answer.
+- Hallucination: No.
+
+### Example 5:
+- Image Contents: Tree, Tower
+- Question: What environmental concerns are involved in this photo?
+- Standard Human-Generated Answer: This photo shows a smokestack emitting smoke. It may cause severe air pollution which threatens human health.
+- LMM Response to Evaluate: In the photo, there are several environmental concerns related to the smokestack emitting smoke. The smoke from the smokestack is a byproduct of industrial processes, which can contribute to air pollution, climate change, and negative impacts on human health. The smoke contains harmful pollutants, such as particulate matter, sulfur dioxide, nitrogen oxides, and carbon monoxide, which can lead to respiratory problems, heart disease, and other health issues. Additionally, the smoke contributes to the greenhouse effect, which can lead to global warming and climate change. The smokestack's emissions also affect the environment, as they can harm wildlife, vegetation, and ecosystems. Therefore, it is essential to address these environmental concerns by implementing measures to reduce emissions and promote sustainable practices in industrial processes.
+- Analysis: Although the LMM's response is significantly longer than the standard human-generated answer, it does not contain any false claims about the image contents. Instead, it provides additional general information about the environmental concerns, which can be inferred from the smoke emission. Such detailed analysis or reasoning should be considered as a positive aspect, as long as it contains no false claims.
+- Hallucination: No.
+
+With these examples in mind, please help me evaluate whether the response by the LMM is informative, and whether hallucination exists in it, based on the comparison between the LMM\'s response and the factual information provided in the image contents, question, and the standard human-generated answer below.
+
+Please note that the standard human-generated answer may only contain factual information but may not give a detailed analysis. Also, the standard human-generated answer may not be completely comprehensive in describing all the objects and their attributes, so please be a bit more cautious during evalutation. LMM\'s detailed analysis or reasoning should be encouraged.
+
+To evaluate the LMM responses, first, begin your evaluation by providing a short explanation. Second, after providing your explanation, you must rate the response by choosing from the following options:
+- Rating: 6, very informative with good analysis or reasoning, no hallucination
+- Rating: 5, very informative, no hallucination
+- Rating: 4, somewhat informative, no hallucination
+- Rating: 3, not informative, no hallucination
+- Rating: 2, very informative, with hallucination
+- Rating: 1, somewhat informative, with hallucination
+- Rating: 0, not informative, with hallucination
+
+### Image Contents
+{}
+
+### Question
+{}
+
+### Standard Human-Generated Answer
+{}
+
+### LMM Response to Evaluate
+{}
+'''
+
+_MMHAL_DEFAULT_JSON   = pathlib.Path("/home/sgowda/workspace/ILVAD/data/MMHal-Bench/response_template.json")
+_MMHAL_DEFAULT_IMAGES = pathlib.Path("/home/sgowda/workspace/ILVAD/data/MMHal-Bench/images")
+
+
+def _find_mmhalbench_json(cli_path: str | None) -> pathlib.Path:
+    if cli_path:
+        p = pathlib.Path(cli_path)
+        if not p.exists():
+            raise FileNotFoundError(f"--mmhalbench_json not found: {p}")
+        return p
+    if _MMHAL_DEFAULT_JSON.exists():
+        return _MMHAL_DEFAULT_JSON
+    raise FileNotFoundError(
+        "MMHal-Bench JSON not found. Pass --mmhalbench_json <path/to/response_template.json>"
+    )
+
+
+def _score_mmhal_with_gpt(records: list[dict], openai_model: str) -> list[int]:
+    """Call GPT-4 to score all records. Returns list of 0–6 scores."""
+    import openai as _openai
+    import time
+
+    client = _openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    scores = []
+    for i, rec in enumerate(records):
+        image_content = ", ".join(rec["image_content"])
+        prompt = _MMHAL_SCORING_TEMPLATE.format(
+            image_content, rec["question"], rec["gt_answer"], rec["model_answer"]
+        )
+        response = None
+        while response is None:
+            try:
+                response = client.chat.completions.create(
+                    model=openai_model,
+                    messages=[{"role": "user", "content": [{"type": "text", "text": prompt}]}],
+                    temperature=0.0,
+                    max_tokens=512,
+                )
+            except Exception as e:
+                print(f"    GPT error ({e}), retrying in 10s…")
+                time.sleep(10)
+
+        text = response.choices[0].message.content
+        scores_found = [s for s in range(7) if f"rating: {s}" in text.lower()]
+        if len(scores_found) == 1:
+            scores.append(scores_found[0])
+        else:
+            print(f"  [WARN] sample {i}: ambiguous rating in GPT response → defaulting 0")
+            print(f"    {text[:200]}")
+            scores.append(0)
+        time.sleep(1)
+    return scores
+
+
+def run_mmhalbench(method_mod, model, processor, img_token_id, device, args) -> dict:
+    """MMHal-Bench evaluation — 96 open-ended image-question pairs.
+
+    Metrics (matching ILVAD paper Table 1):
+      Score  = average GPT-4 rating 0–6 (higher is better)
+      Hal%   = fraction of responses with score < 3 (lower is better)
+
+    Response generation always runs and is saved to output_dir/mmhalbench_responses.json.
+    GPT-4 scoring runs only if OPENAI_API_KEY is set; otherwise just save responses.
+    To score later: python srf/score_mmhalbench.py --response <responses.json> --api-key ...
+    """
+    from PIL import Image as _PIL
+
+    gammas   = args.gamma if args.method == "srfe" else [0.0]
+    is_llava = "llava" in args.model.lower()
+
+    print("\n" + "=" * 60)
+    print("DATASET: MMHal-Bench (96 open-ended, 8 question types)")
+    print("=" * 60)
+
+    method_mod.reset_for_dataset(dataset="mmhalbench", **_reset_overrides(args))
+
+    json_path  = _find_mmhalbench_json(getattr(args, "mmhalbench_json", None))
+    images_dir = json_path.parent / "images"
+    with open(json_path) as f:
+        template_records = json.load(f)
+
+    n_limit = getattr(args, "mmhalbench_n", None)
+    if n_limit:
+        template_records = template_records[:n_limit]
+    print(f"  Loaded {len(template_records)} samples from {json_path}")
+
+    # Per-gamma filled record lists (deep copy so we don't share mutable dicts)
+    import copy
+    filled: dict[float, list[dict]] = {b: copy.deepcopy(template_records) for b in gammas}
+
+    for i, rec in enumerate(template_records):
+        img_fname = rec["image_src"].split("/")[-1]
+        image     = _PIL.open(images_dir / img_fname).convert("RGB")
+        question  = rec["question"]
+
+        if is_llava:
+            inp, s, e = _encode_llava(processor, model, device, image, question)
+        else:
+            msgs   = [{"role": "user", "content": [{"type": "image", "image": image},
+                                                    {"type": "text",  "text":  question}]}]
+            text   = processor.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True)
+            vis, _ = process_vision_info(msgs)
+            inp    = processor(text=[text], images=vis, return_tensors="pt",
+                               padding=True).to(device)
+            s, e   = get_img_range(inp["input_ids"], img_token_id)
+
+        method_mod.prepare_sample(inp, s, e, image, question, model, processor)
+
+        for gamma in gammas:
+            tok_ids  = method_generate(method_mod, model, inp, processor, gamma,
+                                       max_new_tokens=512)
+            response = processor.decode(tok_ids, skip_special_tokens=True).strip()
+            filled[gamma][i]["model_answer"] = response
+
+        method_mod.cleanup()
+
+        if (i + 1) % 24 == 0 or (i + 1) == len(template_records):
+            print(f"  [{i+1:3d}/{len(template_records)}]  responses generated")
+
+    # ── Save responses (always) ────────────────────────────────────────────────
+    if args.output:
+        out = pathlib.Path(args.output)
+        out.mkdir(parents=True, exist_ok=True)
+        for gamma in gammas:
+            suffix = f"_g{gamma}" if args.method == "srfe" else ""
+            resp_path = out / f"mmhalbench_responses{suffix}.json"
+            with open(resp_path, "w") as f:
+                json.dump(filled[gamma], f, indent=2)
+            print(f"  Responses saved → {resp_path}")
+
+    # ── GPT-4 scoring (optional) ───────────────────────────────────────────────
+    openai_key = os.environ.get("OPENAI_API_KEY", "")
+    scores_by_gamma: dict[float, dict] = {}
+
+    if openai_key:
+        openai_model = getattr(args, "openai_model", "gpt-4o")
+        print(f"\n  Scoring with {openai_model} …")
+        for gamma in gammas:
+            label = "SRF" if args.method != "srfe" else f"γ={gamma}"
+            print(f"  [{label}]")
+            raw_scores = _score_mmhal_with_gpt(filled[gamma], openai_model)
+
+            hallucination = [1 if s < 3 else 0 for s in raw_scores]
+            avg_score = sum(raw_scores) / len(raw_scores)
+            hal_pct   = 100.0 * sum(hallucination) / len(hallucination)
+
+            # Per-question-type breakdown (index % 8 matches ILVAD convention)
+            per_type: dict[str, list[int]] = {}
+            for idx, rec in enumerate(filled[gamma]):
+                qt = rec["question_type"]
+                per_type.setdefault(qt, []).append(raw_scores[idx])
+
+            scores_by_gamma[gamma] = {
+                "score":   avg_score,
+                "hal_pct": hal_pct,
+                "n":       len(raw_scores),
+                "raw_scores": raw_scores,
+                "per_type": {qt: sum(vs)/len(vs) for qt, vs in per_type.items()},
+            }
+
+            print(f"\nMMHal-Bench  {label}: Score={avg_score:.2f}  Hal%={hal_pct:.1f}%")
+            print(f"  Per question type:")
+            for qt, vs in per_type.items():
+                print(f"    {qt:<14s}: {sum(vs)/len(vs):.2f}  (n={len(vs)})")
+
+            if args.output:
+                score_path = pathlib.Path(args.output) / f"mmhalbench_scores{'' if args.method != 'srfe' else f'_g{gamma}'}.json"
+                with open(score_path, "w") as f:
+                    json.dump(scores_by_gamma[gamma], f, indent=2)
+                print(f"  Scores saved → {score_path}")
+    else:
+        print("\n  [INFO] OPENAI_API_KEY not set — responses saved, GPT-4 scoring skipped.")
+        print("  To score: python srf/score_mmhalbench.py --response <responses.json> --api-key sk-...")
+
+    return {
+        "n": len(template_records),
+        "scores": scores_by_gamma,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -930,8 +1283,24 @@ def main():
         img_token_id = model.config.image_token_index   # LLaVA-style
     device = next(model.parameters()).device
 
-    gamma_str = f"β={args.gamma}" if args.method == "srfe" else "base"
+    if args.method == "srfe":
+        gamma_str = f"β={args.gamma}"
+    else:
+        gamma_str = "base"
     print(f"\n[{args.method.upper()}] Setup  model={args.model}  {gamma_str}")
+
+    # Inject the correct patch module into srf.py and srf_e.py.
+    # Must happen before setup() so calibration uses the right patch.
+    if args.method != "baseline":
+        import srf as _srf_base
+        _srf_base.patch = patch
+        if hasattr(method_mod, "patch"):
+            method_mod.patch = patch
+
+    # LLaVA only: set boost mode before setup (controls multiplicative vs additive).
+    if hasattr(patch, "_STATE") and args.llava_boost_mode is not None:
+        patch._STATE["boost_mode"] = args.llava_boost_mode
+
     method_mod.setup(model, processor, calib_dataset=args.datasets[0])
 
     results = {}
@@ -956,6 +1325,10 @@ def main():
         results["vlind"] = run_vlindbench(method_mod, model, processor, img_token_id, device, args)
         save_results(results["vlind"], args.output, "vlind")
 
+    if "mmhalbench" in args.datasets:
+        results["mmhalbench"] = run_mmhalbench(method_mod, model, processor, img_token_id, device, args)
+        save_results(results["mmhalbench"], args.output, "mmhalbench")
+
     # ── Summary ───────────────────────────────────────────────────────────────
     print("\n" + "="*70)
     print(f"FINAL SUMMARY — {args.method.upper()}")
@@ -976,7 +1349,10 @@ def main():
         r = results["pope"]
         for b in gammas:
             label = f"β={b}" if args.method == "srfe" else "SRF"
-            print(f"\nPOPE (n={r['n']})  {label}: {_p(r['method'][b])}")
+            ov = r["overall"][b]
+            print(f"\nPOPE (n={ov['n']})  {label}: "
+                  f"acc={_p(ov['acc'])}  prec={_p(ov['precision'])}  "
+                  f"rec={_p(ov['recall'])}  F1={_p(ov['f1'])}")
 
     if "vlmbias" in results:
         r = results["vlmbias"]
@@ -998,6 +1374,18 @@ def main():
             label = f"β={b}" if args.method == "srfe" else "SRF"
             print(f"\nVLind-Bench (n={r['n_samples']})  {label}: "
                   f"pair_acc={_p(r['pair_acc'][b])}  q_acc={_p(r['q_acc'][b])}")
+
+    if "mmhalbench" in results:
+        r = results["mmhalbench"]
+        if r["scores"]:
+            for b in gammas:
+                if b in r["scores"]:
+                    s = r["scores"][b]
+                    label = "SRF" if args.method != "srfe" else f"γ={b}"
+                    print(f"\nMMHal-Bench (n={r['n']})  {label}: "
+                          f"Score={s['score']:.2f}  Hal%={s['hal_pct']:.1f}%")
+        else:
+            print(f"\nMMHal-Bench (n={r['n']}): responses saved, scoring pending (no OPENAI_API_KEY)")
 
     if args.output:
         save_results(results, args.output, "summary")

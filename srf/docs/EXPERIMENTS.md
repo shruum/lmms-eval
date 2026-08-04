@@ -546,6 +546,115 @@ Pattern: value scaling is complementary to attention routing but only at very sm
 
 ---
 
+## SRF-Fovea — Pre-encoder Spatial Blur (2026-08-01)
+
+**Concept:** CLIP-guided foveal blurring of the input image *before* the vision encoder.
+Salient (query-relevant) patches stay at full resolution; non-salient patches are
+Gaussian-blurred proportionally to `(1 − saliency_weight)`. Directly analogous to human
+peripheral vision: the fovea (~2° central field) has ~30× higher spatial acuity than
+the periphery. This is a **pre-encoder** intervention — all previous methods are post-encoder.
+
+**Formula:** `foveated = w * original + (1 − w) * GaussianBlur(original, σ)`
+where `w` = CLIP saliency map upsampled to full image resolution.
+
+**Script:** `srf/test_srffovea_mmvp.py`
+
+**Configs per run:**
+- `baseline` — original image, no intervention
+- `srf` — original image + SRF attention boost only
+- `fovea_σ` — foveated image, no attention boost (isolates blur effect)
+- `srffovea_σ` — foveated image + SRF attention boost (combined)
+
+---
+
+### MMVP Results — Full Sigma Sweep (150 pairs, 300 images)
+
+Runs: sigma=[3,5,10,20] (2026-07-31), sigma=[20,30,50,100] (2026-08-01)
+
+| Config | pair_acc | img_acc | Δ pair |
+|--------|----------|---------|--------|
+| baseline | 0.4000 | 0.6767 | ref |
+| srf | 0.4133 | 0.6867 | +0.0133 |
+| fovea_3.0 | 0.3733 | 0.6633 | −0.0267 |
+| srffovea_3.0 | 0.3867 | 0.6700 | −0.0133 |
+| fovea_5.0 | 0.3533 | 0.6600 | −0.0467 |
+| srffovea_5.0 | 0.3733 | 0.6633 | −0.0267 |
+| fovea_10.0 | 0.3867 | 0.6800 | −0.0133 |
+| srffovea_10.0 | 0.3933 | 0.6800 | −0.0067 |
+| **fovea_20.0** | **0.4133** | **0.6933** | **+0.0133** |
+| **srffovea_20.0** | **0.4333** | **0.6967** | **+0.0333** |
+| **fovea_30.0** | **0.4333** | **0.7033** | **+0.0333** |
+| srffovea_30.0 | 0.4267 | 0.6967 | +0.0267 |
+| fovea_50.0 | 0.4267 | 0.6933 | +0.0267 |
+| srffovea_50.0 | 0.4267 | 0.6933 | +0.0267 |
+| fovea_100.0 | 0.4000 | 0.6867 | 0.0000 |
+| srffovea_100.0 | 0.4133 | 0.6933 | +0.0133 |
+
+**Best results:** `fovea_30` and `srffovea_20` both at +0.0333 over baseline (+0.0200 over SRF alone).
+
+---
+
+### RePOPE Adversarial Results (100 samples, corrected labels, σ=20–100 only)
+
+Note: RePOPE support was not in the first run (σ=3–20); only σ=20–100 was tested on RePOPE.
+
+| Config | acc | Δ acc |
+|--------|-----|-------|
+| baseline | 0.9500 | ref |
+| srf | 0.9500 | 0.0000 |
+| fovea_20.0 | 0.9500 | 0.0000 |
+| srffovea_20.0 | 0.9500 | 0.0000 |
+| fovea_30.0 | 0.9400 | −0.0100 |
+| srffovea_30.0 | 0.9500 | 0.0000 |
+| fovea_50.0 | 0.9300 | −0.0200 |
+| srffovea_50.0 | 0.9200 | −0.0300 |
+| fovea_100.0 | 0.9400 | −0.0100 |
+| srffovea_100.0 | 0.9500 | 0.0000 |
+
+---
+
+### Observations
+
+**1. Non-monotonic trend on MMVP — sweet spot at σ=20–30.**
+Small blur (σ=3–10) hurts because the blur is too mild to suppress background content
+meaningfully but introduces enough pixel-level smoothing to confuse fine-grained
+discrimination. The net effect is signal degradation without noise suppression.
+At σ=20–30, non-salient patches become genuinely featureless → background information
+is suppressed → model must rely on the salient region. Beyond σ=50, the blending boundary
+artifacts and soft saliency weights cause the salient region itself to be partially blurred,
+reverting performance toward baseline.
+
+**2. `fovea_30` alone matches `srffovea_20` (+0.033).**
+Pre-encoder blur achieves the same gain as the combined blur+SRF at nearby sigma values.
+This suggests that at the sweet spot, blur alone is sufficient and adding SRF on top is
+redundant (the blur already forces the encoder to focus on the right region).
+
+**3. `srffovea_20` is super-additive.**
+`fovea_20` = +0.013, `srf` = +0.013, combined `srffovea_20` = +0.033 (> 0.013+0.013=0.026).
+Pre-encoder blur and post-encoder attention routing reinforce each other: blur reduces
+background signal that SRF would otherwise have to compete against.
+
+**4. No benefit on RePOPE — hurts at σ≥50.**
+Foveal blur has zero effect on RePOPE adversarial at σ≤20, and degrades at higher sigma.
+Root cause: POPE failure mode is language-prior dominance (model says "yes" because the
+scene suggests the object, not because it mislocalized attention). Blurring the background
+does not suppress the language prior — it's in the model's weights, not the visual input.
+Foveal blur is task-specific: it helps fine-grained spatial discrimination (MMVP) but not
+existence-judgment tasks (POPE).
+
+**5. Mechanism interpretation.**
+The foveal blur result is consistent with the routing failure hypothesis but targets a
+different stage: rather than fixing WHERE attention routes after encoding (SRF), it
+reduces the information available in non-salient tokens before encoding. Both reduce
+background interference; they operate at complementary stages of the pipeline.
+
+**Conclusion:** SRF-Fovea adds +2pp over SRF alone on MMVP at σ=20-30. It is
+dataset-specific and should not be applied to POPE/existence tasks. The mechanism
+(pre-encoder spatial information suppression) is distinct from and complementary to
+SRF (post-encoder attention routing). Best combined config: `srffovea_20` (+0.033 MMVP).
+
+---
+
 ## Signal Reference
 
 | Signal | Where computed | Interpretation | Known Δ (GT-Yes vs GT-No) |

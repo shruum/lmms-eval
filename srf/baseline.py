@@ -25,6 +25,7 @@ def prepare_sample(
     model,
     processor,
     noun_override: str | None = None,
+    **kwargs,
 ) -> None:
     """No hooks to install — model runs unmodified."""
     pass

@@ -71,8 +71,11 @@ import qwen_attn_patch as patch
 
 def parse_args():
     p = argparse.ArgumentParser(description="SRF / SRF-E evaluation")
-    p.add_argument("--method",   required=True, choices=["srf", "srfe", "vcd", "vaf", "baseline"],
-                   help="srf = SRF base; srfe = SRF-E; vcd = Visual Contrastive Decoding; vaf = Visual Amplification Fusion (ClearSight); baseline = no intervention")
+    p.add_argument("--method",   required=True,
+                   choices=["srf", "srfe", "srffovea", "vcd", "vaf", "vhr", "ilvad", "baseline"],
+                   help="srf = SRF base; srfe = SRF-E; srffovea = SRF+foveal blur; vcd = VCD; vaf = VAF (ClearSight); "
+                        "vhr = Vision-aware Head Reinforcement; ilvad = Inter-Layer Visual Attn Discrepancy; "
+                        "baseline = no intervention")
     p.add_argument("--model",    default=CFG.DEFAULT_MODEL)
     p.add_argument("--datasets", nargs="+", default=["mmvp", "pope"],
                    choices=["mmvp", "pope", "vlmbias", "mme", "vlind"])
@@ -913,10 +916,16 @@ def main():
         import srf as method_mod
     elif args.method == "srfe":
         import srf_e as method_mod
+    elif args.method == "srffovea":
+        import srf_fovea as method_mod
     elif args.method == "vcd":
         import vcd as method_mod
     elif args.method == "vaf":
         import vaf as method_mod
+    elif args.method == "vhr":
+        import vhr as method_mod
+    elif args.method == "ilvad":
+        import ilvad as method_mod
     elif args.method == "baseline":
         import baseline as method_mod
     else:

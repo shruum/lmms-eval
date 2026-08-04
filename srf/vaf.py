@@ -71,7 +71,7 @@ def reset_for_dataset(
     patch._STATE["head_mask"]       = None   # all heads, no calibration
 
 
-def prepare_sample(inp, img_start, img_end, image, question, model, processor) -> None:
+def prepare_sample(inp, img_start, img_end, image, question, model, processor, **kwargs) -> None:
     """Set image token range for current sample."""
     patch._STATE["method"]    = "vaf"
     patch._STATE["img_start"] = img_start
@@ -90,7 +90,7 @@ def cleanup() -> None:
 # Dispatch hooks — called by eval.py via method_get_logits / method_generate
 # ---------------------------------------------------------------------------
 
-def get_contrastive_logits(model, inp: dict, beta: float = None) -> torch.Tensor:
+def get_contrastive_logits(model, inp: dict, beta: float = None, **kwargs) -> torch.Tensor:
     """Single forward pass with VAF patch active."""
     patch._STATE["method"] = "vaf"
     with torch.inference_mode():
@@ -102,6 +102,7 @@ def generate_contrastive(
     model, inp: dict, processor,
     beta: float = None,
     max_new_tokens: int = 20,
+    **kwargs,
 ) -> list[int]:
     """Standard greedy generation with VAF attention patch active."""
     patch._STATE["method"] = "vaf"

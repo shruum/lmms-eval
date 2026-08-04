@@ -10,15 +10,23 @@
 ```
 srf/
   config.py              ← SINGLE SOURCE OF TRUTH for all hyperparams
-  eval.py                ← unified eval CLI (all datasets)
+  eval.py                ← unified eval CLI (all datasets + all methods)
+                            --method srf | srfe | vaf | vcd | vhr | ilvad | baseline
   eval_pope_val.py       ← quick 60-sample POPE val set (fast iteration)
   eval_mme.py            ← MME-specific eval
   eval_hallusionbench.py ← HallusionBench-specific eval
   eval_ablation.py       ← ablation sweep runner
   srf.py                 ← SRF base method; exposes last_clip_result dict
-  srf_e.py               ← SRF-E (two-pass contrastive)
+  srf_e.py               ← SRF-E (two-pass contrastive; Pass 2 = zeroed pixel_values)
+  vaf.py                 ← VAF/ClearSight baseline (additive logit boost, all heads)
+  vcd.py                 ← VCD baseline (diffusion-noisy contrastive decoding)
+  vhr.py                 ← VHR baseline (per-sample o_proj head reinforcement)
+  ilvad.py               ← ILVAD baseline (inter-layer attention discrepancy, chaining softmax)
+  baseline.py            ← no-op baseline (vanilla model)
+  test_srffovea_mmvp.py  ← SRF-Fovea sweep: pre-encoder spatial blur via CLIP saliency
+                            fovea-only / srffovea configs; sigma sweep [20, 30, 50, 100]
   eval_datasets.py       ← dataset loaders
-  noun_extract.py        ← CLIP query noun extraction (pope / mmbench modes)
+  noun_extract.py        ← CLIP query noun extraction (pope / mmbench / vlind modes)
   saliency/
     clip_salience.py     ← CLIP patch saliency; compute_clip_salience_full_gate_v3
     hssa_salience.py     ← hidden-state saliency
@@ -32,6 +40,7 @@ my_analysis/
                             patch_model / identify_visual_heads / update_sample / _STATE{}
                             bias modes: additive_logit | prob_interp | prob_scale |
                                         attn_floor | global_redistribute | budget_shift
+                            ⚠️ CORE CODE — do NOT modify; wrap externally
   autoresearch*/         ← completed loops (reference only, do not modify)
 ```
 
@@ -101,16 +110,46 @@ llava-hf/llava-1.5-7b-hf      NOT TUNED (start=8, end=20; image_token=None → m
 5. cleanup()      reset per-sample patch state
 ```
 
+### SRF-Fovea (pre-encoder spatial blur)
+```
+File: srf/test_srffovea_mmvp.py
+Algorithm (per sample):
+  1. Compute CLIP saliency → weight map W ∈ [0,1] per image patch
+  2. Gaussian-blur original image: blurred = GaussianBlur(image, σ)
+  3. Foveated image = W * original + (1−W) * blurred
+     — salient patches stay sharp; peripheral patches are blurred
+  4. Feed foveated image to ViT (instead of original)
+  5. Optionally also apply SRF attention boost (srffovea config)
+
+Best σ: 20. MMVP pair_acc: baseline=40%, srffovea_20=43.33% (+3.33pp)
+POPE: neutral at σ=20 (95.0%); σ≥50 hurts.
+```
+
 ### SRF-E (evidence-amplified)
 ```
+File: srf/srf_e.py
 Two forward passes:
-  logits_full  = model(**inp_with_image)
-  logits_noval = model(**inp_image_zeroed)   # pixel_values set to zeros
-  logits_final = logits_full + β * (logits_full - logits_noval)
+  logits_full  = model(**inp_with_image)       # SRF active
+  logits_noval = model(**inp_image_zeroed)     # pixel_values = zeros
+  logits_final = logits_full + γ * (logits_full - logits_noval)
 
-Amplifies visual evidence, suppresses language prior.
-Best β: 2.0 for MMVP. Sweep [0.5, 1.0, 2.0] for new datasets.
-BROKEN for VLM Bias (contrastive suppresses { token). Use SRF base there.
+Best γ: 3.0 (MMVP=49.33%, POPE=87.70%).
+BROKEN for VLMBias/VLind multi-token generation: zeroed ViT input corrupts generation.
+Next: replace zeros with blurred image → may fix collapse while preserving contrastive signal.
+```
+
+### Comparison Baselines (all wired into eval.py --method)
+```
+baseline.py   — vanilla model, no intervention
+vaf.py        — VAF/ClearSight: additive logit boost on image tokens (all heads, layers 6-14)
+vcd.py        — VCD: diffusion-noisy (t=500) contrastive: logits = (1+α)*orig − α*noisy
+vhr.py        — VHR: per-sample o_proj head reinforcement via text-contrast VHD
+                      aug_heads selected by VHD > median; aug_ratio=2.0; target layers {1}∪{last14}
+ilvad.py      — ILVAD: inter-layer attention discrepancy; chaining softmax wrapper (reads
+                       patch._STATE read-only; does NOT modify qwen_attn_patch.py)
+
+All accept same interface: setup / reset_for_dataset / prepare_sample(**kwargs) /
+get_contrastive_logits(**kwargs) / generate_contrastive(**kwargs) / cleanup
 ```
 
 ---

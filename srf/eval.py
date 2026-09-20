@@ -101,12 +101,45 @@ def parse_args():
                    help="Limit VLIND samples for quick sweeps (None=all 302)")
     p.add_argument("--output",   default=None,
                    help="Directory to save JSON results")
+    p.add_argument("--save_records", default=None,
+                   help="Path to JSON file for per-sample POPE predictions "
+                        "(question_id, split, question, gt, pred). "
+                        "Used for post-hoc comparison across methods.")
 
     # ── SRF hyperparams (all optional — override arch/dataset config) ─────────
     p.add_argument("--layer_start",      type=int,   default=None,
                    help="First layer to apply SRF (overrides arch config)")
     p.add_argument("--layer_end",        type=int,   default=None,
                    help="Last layer to apply SRF (overrides arch/dataset config)")
+    # ── Head selection strategy (srf/head_calibration.py) ────────────────────
+    # global   = shipped: rho pooled over ALL layers -> one head-index mask reused
+    #            in every targeted layer. Architecturally questionable, because
+    #            head h in layer 8 and head h in layer 21 are different parameters.
+    # per_layer  [S1] = the paper's spec: rho per layer, top-k within each layer.
+    # saliency   [S3] = per layer, heads ranked by correlation between their
+    #            image-token attention and the CLIP relevance map (query-conditioned).
+    # contrast   [S2] = per layer, rho(real image) - rho(blank image).
+    # vtar_joint [S5] = top-k over all (layer,head) pairs; layer interval ignored.
+    # vtar_soft  [S6] = mid-band interval + soft per-head weights, budget-matched.
+    p.add_argument("--head_mode", default="global",
+                   # KEEP IN SYNC with head_calibration.MODES. It cannot be imported
+                   # here at parse time because head_calibration imports this module.
+                   choices=["global", "per_layer", "saliency", "contrast",
+                            "vtar_layers", "vtar_joint", "vtar_soft", "vtar_thresh",
+                            "vtar_ratio", "ratio_topk"],
+                   help="Head-selection strategy. Default 'global' = shipped behaviour.")
+    p.add_argument("--head_calib_dataset", default=None,
+                   help="Calibration dataset for --head_mode (default: the eval dataset).")
+    p.add_argument("--n_layers_sel", type=int, default=9,
+                   help="head_mode vtar_layers: number of layers to select. "
+                        "head_mode vtar_joint: sets the SLOT BUDGET as n_layers_sel*k, "
+                        "so 9/18/36/72 give 27/54/108/216 of the 576 (layer,head) pairs.")
+    p.add_argument("--kappa", type=float, default=0.0,
+                   help="head_mode vtar_soft: 0 = budget-matched (no free parameter).")
+    p.add_argument("--vtar_thresh", type=float, default=0.20,
+                   help="head_mode vtar_ratio: keep heads whose vision attention ratio "
+                        "exceeds this. 0.20 means at least 20 percent of the head's "
+                        "attention lands on image tokens.")
     p.add_argument("--head_top_k_pct",   type=float, default=None,
                    help="Fraction of heads selected as vision-aware (e.g. 0.20)")
     p.add_argument("--alpha",            type=float, default=None,
@@ -374,12 +407,16 @@ def run_pope(method_mod, model, processor, img_token_id, device, args) -> dict:
     print(f"  Loaded {len(rows)} {label_str} samples ({splits_label})")
 
     correct_srf  = {b: 0 for b in gammas}
+    # per-split confusion counts for F1: {gamma: {split: {tp,tn,fp,fn}}}
+    split_counts = {b: {s: dict(tp=0, tn=0, fp=0, fn=0) for s in splits_filter} for b in gammas}
+    # per-sample records for --save_records (first gamma only, single-pass methods)
+    _records: list[dict] = []
 
     for i, r in enumerate(rows):
         image = r["image"].convert("RGB")
         q     = str(r["question"]).strip() + "\nAnswer with Yes or No only."
-        gt    = (repope_labels[(str(r.get("category", r.get("type", ""))).lower(),
-                                str(r["question_id"]))] if repope_labels
+        split = str(r.get("category", r.get("type", ""))).lower()
+        gt    = (repope_labels[(split, str(r["question_id"]))] if repope_labels
                  else ("yes" if str(r.get("answer", "")).strip().lower() == "yes" else "no"))
 
         msgs  = [{"role": "user", "content": [{"type": "image", "image": image},
@@ -396,6 +433,20 @@ def run_pope(method_mod, model, processor, img_token_id, device, args) -> dict:
             pred = "yes" if decode_first_token(logits, processor).startswith("yes") else "no"
             if pred == gt:
                 correct_srf[gamma] += 1
+            c = split_counts[gamma][split]
+            if   gt == "yes" and pred == "yes": c["tp"] += 1
+            elif gt == "no"  and pred == "no":  c["tn"] += 1
+            elif gt == "no"  and pred == "yes": c["fp"] += 1
+            else:                               c["fn"] += 1
+            # record for --save_records (first gamma only)
+            if getattr(args, "save_records", None) and gamma == gammas[0]:
+                _records.append({
+                    "question_id": str(r["question_id"]),
+                    "split":       split,
+                    "question":    str(r["question"]).strip(),
+                    "gt":          gt,
+                    "pred":        pred,
+                })
         method_mod.cleanup()
 
         if (i + 1) % 500 == 0 or (i + 1) == len(rows):
@@ -406,11 +457,37 @@ def run_pope(method_mod, model, processor, img_token_id, device, args) -> dict:
     n       = len(rows)
     acc_srf = {b: correct_srf[b] / n for b in gammas}
 
+    def _f1(c: dict) -> float:
+        tp, fp, fn = c["tp"], c["fp"], c["fn"]
+        prec = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        rec  = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+        return 2 * prec * rec / (prec + rec) if (prec + rec) > 0 else 0.0
+
+    def _acc(c: dict) -> float:
+        total = c["tp"] + c["tn"] + c["fp"] + c["fn"]
+        return (c["tp"] + c["tn"]) / total if total > 0 else 0.0
+
+    per_split_metrics = {
+        b: {s: {"acc": _acc(split_counts[b][s]), "f1": _f1(split_counts[b][s])}
+            for s in splits_filter}
+        for b in gammas
+    }
+
     for b in gammas:
         label = f"β={b}" if args.method == "srfe" else "SRF"
         print(f"\nPOPE  {label}: {acc_srf[b]:.4f}  ({correct_srf[b]}/{n})")
+        for s in sorted(splits_filter):
+            m = per_split_metrics[b][s]
+            print(f"  {s:12s}  acc={m['acc']:.4f}  f1={m['f1']:.4f}")
 
-    return {"n": n, "method": acc_srf}
+    if getattr(args, "save_records", None) and _records:
+        rec_path = pathlib.Path(args.save_records)
+        rec_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(rec_path, "w") as _f:
+            json.dump({"method": args.method, "n": len(_records), "records": _records}, _f)
+        print(f"  Per-sample records saved → {rec_path}")
+
+    return {"n": n, "method": acc_srf, "per_split": per_split_metrics}
 
 
 # ---------------------------------------------------------------------------
@@ -908,6 +985,46 @@ def run_vlindbench(method_mod, model, processor, img_token_id, device, args) -> 
 # Main
 # ---------------------------------------------------------------------------
 
+def _install_head_mode(model, processor, args, dataset: str):
+    """
+    Apply an alternative head-selection strategy on top of the configured method.
+    Returns hook handles to be removed afterwards; empty list for 'global'.
+
+    Reuses srf/head_calibration.py so the selection logic has exactly one
+    implementation shared with the comparison harness.
+    """
+    if getattr(args, "head_mode", "global") == "global":
+        return []
+    import head_calibration as hc
+    calib_ds = args.head_calib_dataset or dataset
+    print(f"\n  [head_mode] {args.head_mode}  (calibrating on {calib_ds})")
+    masks = hc.calibrate_per_layer_heads(model, processor, args.head_mode,
+                                          dataset=calib_ds,
+                                          top_k_pct=args.head_top_k_pct,
+                                          n_layers_sel=args.n_layers_sel,
+                                          kappa=args.kappa,
+                                          vtar_thresh=args.vtar_thresh)
+
+    # Modes that select slots across the whole decoder scope the layers THEMSELVES
+    # via the masks. The patch still gates on [vaf_layer_start, vaf_layer_end], so
+    # without widening that range every selected slot outside the configured
+    # interval would be silently ignored. Unselected layers carry an all-False
+    # mask, which makes the patch a no-op there.
+    if args.head_mode in hc.FULL_DEPTH_MODES:
+        # Must go through args, not patch._STATE directly: run_* calls
+        # reset_for_dataset which re-syncs the layer range from BIAS, and
+        # srf.cleanup() restores it after every sample, so a direct _STATE write
+        # would be clobbered immediately.
+        n_layers = len(patch._get_decoder_layers(model))
+        args.layer_start, args.layer_end = 0, n_layers - 1
+        print(f"  [head_mode] layer range widened to [0,{n_layers - 1}] via args; "
+              f"the per-layer masks do the layer scoping")
+
+    if args.head_mode in hc.SOFT_MODES:
+        return hc.install_per_layer_weights(model, masks)
+    return hc.install_per_layer_masks(model, masks)
+
+
 def main():
     args = parse_args()
 
@@ -945,25 +1062,27 @@ def main():
 
     results = {}
 
-    if "mmvp" in args.datasets:
-        results["mmvp"] = run_mmvp(method_mod, model, processor, img_token_id, device, args)
-        save_results(results["mmvp"], args.output, "mmvp")
-
-    if "vlmbias" in args.datasets:
-        results["vlmbias"] = run_vlmbias(method_mod, model, processor, img_token_id, device, args)
-        save_results(results["vlmbias"], args.output, "vlmbias")
-
-    if "pope" in args.datasets:
-        results["pope"] = run_pope(method_mod, model, processor, img_token_id, device, args)
-        save_results(results["pope"], args.output, "pope")
-
-    if "mme" in args.datasets:
-        results["mme"] = run_mme(method_mod, model, processor, img_token_id, device, args)
-        save_results(results["mme"], args.output, "mme")
-
-    if "vlind" in args.datasets:
-        results["vlind"] = run_vlindbench(method_mod, model, processor, img_token_id, device, args)
-        save_results(results["vlind"], args.output, "vlind")
+    # One entry per supported dataset. Wrapped in a loop so --head_mode can install
+    # its per-layer selection around each run and remove it afterwards. With the
+    # default head_mode="global" no hooks are installed and behaviour is unchanged.
+    _DATASET_RUNS = [
+        ("mmvp",    run_mmvp),
+        ("vlmbias", run_vlmbias),
+        ("pope",    run_pope),
+        ("mme",     run_mme),
+        ("vlind",   run_vlindbench),
+    ]
+    for _ds, _fn in _DATASET_RUNS:
+        if _ds not in args.datasets:
+            continue
+        _handles = _install_head_mode(model, processor, args, _ds)
+        try:
+            results[_ds] = _fn(method_mod, model, processor, img_token_id, device, args)
+        finally:
+            if _handles:
+                import head_calibration as _hc
+                _hc.remove_hooks(_handles)
+        save_results(results[_ds], args.output, _ds)
 
     # ── Summary ───────────────────────────────────────────────────────────────
     print("\n" + "="*70)

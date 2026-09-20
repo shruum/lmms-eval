@@ -13,7 +13,7 @@ QUICK-START: BEST CONFIG (Qwen2.5-VL-3B-Instruct, as of 2026-06-16)
   head_top_k_pct  = 0.20
   alpha           = 2.0 (MMVP/POPE), 8.0 (VLMBias)
   eps             = 0.2 (MMVP/POPE), 0.5 (VLMBias)
-  phase           = generation (POPE/VLMBias), both (MMVP)
+  phase           = generation (VLMBias/MME/MMBench/HalBench), both (MMVP/POPE/VLind)
   sys_beta        = 0.30
   bias_mode       = additive_logit     ← default; see "Boosting methods" below
   gamma           = 3.0                ← SRF-E contrastive amplification
@@ -160,6 +160,29 @@ SRF_DEFAULTS = {
 # ── SRF per-dataset params ─────────────────────────────────────────────────────
 # Tunable per dataset, arch-agnostic.
 # layer_start / layer_end live in SRF_ARCH_PARAMS (they scale with model depth).
+# ── phase: per-dataset. Unification to "both" was TESTED AND REVERTED 2026-09-17 ──
+# Measured on the same harness (results/phaseboth_* and results/phaseboth_baseline):
+#   VLMBias  baseline 19.04 | phase=generation 19.65 | phase=both 18.75
+#   MME      baseline 2021  | phase=generation no-op | phase=both 2014
+# So "both" costs 0.90pp on VLMBias and puts SRF below baseline there. Reverted.
+#
+# Context that argued FOR unifying, kept here so the tradeoff is not forgotten:
+#  1. With KV caching the FIRST generated token's logits come from the prefill
+#     forward (q_len > 1), so a generation-only gate never fires for it. Any
+#     benchmark scored from the first token therefore received ZERO intervention.
+#     run_mme reads method_get_logits, a single prefill forward, so SRF was an
+#     exact no-op on MME.
+#  2. ClearSight (/volumes2/mllm/ClearSight/visaug/inference/AttnAdapter.py)
+#     applies its intervention in BOTH prefill and generation unconditionally on
+#     every benchmark. Its if/else only adjusts which query rows are sliced. VHR
+#     likewise has no phase gate. No baseline varies this per dataset.
+#  3. A per-dataset phase is undocumented in the paper and hurts the genericity
+#     claim.
+# NOTE: with phase=generation, MME receives ZERO intervention (run_mme reads a
+# single prefill forward via method_get_logits, so a q_len==1 gate never fires).
+# Reporting an MME number under this setting reports the unmodified model. Qwen
+# MME is not in the paper, so this does not affect any reported result, but do
+# not add one without switching MME to "both" first.
 SRF_DATASET_PARAMS = {
     # alpha tuned by coordinate-descent sweep (autoresearch_mmvp_v2, 2026-06-16)
     # MMVP: α=2.0 + γ=3.0 → 49.33% pair_acc (+9.33pp)

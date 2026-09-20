@@ -55,6 +55,18 @@ For each of 20 random samples from the calibration dataset:
 
 > **Figure 3 alignment (①):** This matches "Grounding-Head Calibration — semantically-responsive heads". ✓
 
+> ⚠️ **This step is LAYER-AGNOSTIC, but the paper specifies per-layer selection.**
+> Step 3 pools scores over *every* decoder layer's softmax call (count =
+> n_layers × n_samples) and produces ONE `(n_heads,)` mask reused in all 36 layers.
+> The paper writes `H*_l = TopK_h(E_c[rho_{l,h}])`, indexed by layer AND head.
+> A head that is strongly visual inside the fusion zone has that signal diluted by
+> its own weak scores in the ~20 layers that do not mediate fusion.
+>
+> `srf/head_calibration.py` implements the per-layer form (mode `per_layer`) and a
+> query-conditioned variant (mode `saliency`). On MMVP these gave 44.00 and 46.00
+> pair accuracy vs 43.33 for this shipped step. See CONTEXT.md "Head calibration".
+> The shipped default is UNCHANGED — nothing here has been replaced.
+
 ### Step 0d: Patch the model
 **`qwen_attn_patch.py::patch_model(model, "vaf", alpha)`**
 
@@ -345,7 +357,14 @@ Yes — saliency is fully per-sample:
 - `cleanup()` resets it to `None` after generation
 - No saliency state persists between samples
 
-**Head mask** is per-dataset (set during calibration). **BIAS/SALIENCY config** is per-dataset-reset.
+**Head mask** is per-dataset (set during calibration) and shared across all layers.
+**BIAS/SALIENCY config** is per-dataset-reset.
+
+When `srf/head_calibration.py` installs per-layer masks, a forward pre-hook on each
+`layer.self_attn` overwrites `_STATE["head_mask"]` before that layer computes
+attention. Those hooks therefore take precedence over anything
+`prepare_sample`/`cleanup` wrote, and they must be removed (`remove_hooks`) before
+running an unmodified eval in the same process.
 
 ---
 

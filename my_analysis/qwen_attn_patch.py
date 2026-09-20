@@ -57,6 +57,12 @@ _STATE: dict = {
     "img_end":    None,    # int: inclusive end   of image tokens in KV dim
     "sys_end":    None,    # int: last system-prompt token index (= img_start - 1)
     "head_mask":  None,    # bool tensor (n_heads,) for vhr_boost/vaf; None = all heads
+    # OPTIONAL soft per-head weights, float (n_heads,) in [0,1]. Added 2026-09-17
+    # for srf/head_calibration.py mode "vtar_soft". When not None it REPLACES the
+    # boolean head_mask in the srf additive_logit path and in system suppression,
+    # scaling both terms per head instead of gating them on/off. None = unchanged
+    # legacy behaviour (boolean head_mask), so every existing config is unaffected.
+    "head_weight": None,
     # ---- VAF parameters ----
     "vaf_beta":        0.1,   # suppression coefficient (system-prompt attention)
     "vaf_layer_start": 8,     # first decoder layer to apply VAF
@@ -290,7 +296,12 @@ def _patched_softmax(
                 # Bug fix: was applied outside the phase gate, so it fired during
                 # prefill even when phase="generation". Now consistent with img boost.
                 if _phase_ok and sys_end is not None and sys_end > 0 and beta > 0:
-                    if head_mask is not None:
+                    _hw = _STATE.get("head_weight")
+                    if _hw is not None:
+                        w_dev    = _hw.to(device=input.device, dtype=input.dtype)
+                        sup_bias = (-beta * w_dev).view(1, n_heads, 1, 1)
+                        input[..., : sys_end + 1] = input[..., : sys_end + 1] + sup_bias
+                    elif head_mask is not None:
                         mask_dev = head_mask.to(input.device)
                         sup_bias = input.new_zeros(1, n_heads, 1, 1)
                         sup_bias[0, mask_dev, 0, 0] = -beta
@@ -337,7 +348,16 @@ def _patched_softmax(
                     else:
                         bias_row = input.new_full((n_img,), alpha_val)
 
-                    if head_mask is not None:
+                    _hw = _STATE.get("head_weight")
+                    if _hw is not None:
+                        # Soft per-head weighting: scale the WHOLE bias row (boost
+                        # and attenuation together) by w_h, so the two terms stay
+                        # coupled. A weak head gets a small w instead of being
+                        # excluded outright.
+                        w_dev     = _hw.to(device=input.device, dtype=input.dtype)
+                        full_bias = w_dev.view(1, n_heads, 1, 1) * bias_row.view(1, 1, 1, n_img)
+                        input[..., s : e + 1] = input[..., s : e + 1] + full_bias
+                    elif head_mask is not None:
                         mask_dev  = head_mask.to(input.device)
                         full_bias = input.new_zeros(1, n_heads, 1, n_img)
                         full_bias[0, mask_dev, 0, :] = bias_row

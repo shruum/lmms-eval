@@ -667,3 +667,76 @@ SRF (post-encoder attention routing). Best combined config: `srffovea_20` (+0.03
 | `raw_entropy` | on raw cosine sims, temp=0.02 | real spread of sims | **unknown — v3 will measure** |
 | `cross_scale_iou` | Jaccard top-30% at 3×3 vs 7×7 | localization consistency | **unknown — v3 will measure** |
 | `blur_delta` | sim(real) − sim(blurred) | object feature contribution | **unknown — v3 will measure** |
+
+---
+
+## Head Calibration — Per-Layer Selection (2026-09-16)
+
+**Motivation:** the component ablation (`srf/ablation_components.py`, see
+RESEARCH_STATUS.md) found head calibration to be the weakest SRF component on MMVP:
++0.67pp under the published anchor, -4.00pp under the MMVP-tuned anchor. Suspected
+cause: `identify_visual_heads` pools scores over all 36 decoder layers and reuses one
+mask everywhere, while the paper specifies per-layer selection.
+
+**Script:** `srf/head_calibration.py` (reuses `srf._build_calib_inputs`,
+`srf.prepare_sample`, `eval.run_mmvp` via `ablation_components._SRFShim`)
+**Log:** `/tmp/head_calibration_mmvp.log`
+
+**Config:** published anchor — `clip_full_gate_v3`, alpha=2.0, layers [8,16],
+eps=0.2, sys_beta=0.30, sigma=20, htk=0.20, calib_dataset=mmvp, n=20, seed=0.
+Only head selection varies.
+
+| Mode | rho(l,h) | Pair | dref | Img | Overlap [8,16] |
+|---|---|---|---|---|---|
+| `global` | shipped, pooled over layers | 0.4333 | ref | 0.6967 | — |
+| `per_layer` | mean text->image attn at layer l | 0.4400 | +0.0067 | 0.7033 | 0.222 |
+| `saliency` | corr(head attn profile, CLIP saliency) at layer l | **0.4600** | **+0.0267** | **0.7133** | 0.167 |
+
+### Mechanics (no core-code changes)
+- Per-layer masks applied via forward **pre**-hook on each `layer.self_attn` swapping
+  `patch._STATE["head_mask"]`. The patch re-reads head_mask every softmax call.
+- Per-(layer,head) attention captured via the patch's existing `_capture`/`_captured`
+  state plus a per-layer **post**-hook — NOT `output_attentions=True`, which would
+  hold ~880 MB across 36 layers at MMVP resolution vs ~31 MB for one layer.
+
+### Observations
+1. **Per-layer selection alone (+0.67pp) confirms the dilution hypothesis** — same
+   signal, resolved per layer, beats the pooled version.
+2. **Query-conditioned selection is the bigger win (+2.67pp).** S3 goes beyond what
+   the paper claims: the paper's rho is query-agnostic mean attention, whereas S3
+   ranks heads by alignment with the per-sample saliency map. Writing this up
+   requires rewriting the head-calibration equation, not just correcting it.
+3. **46.00 beats SRF-E (45.33) with zero extra forward passes.**
+4. **The shipped mask is wrong, not just imprecise** — 0.0 overlap at layers 9, 10, 12.
+5. **v3 gate discarded 6/20 calibration samples** for S3, so the best result is
+   calibrated on 70% of the intended set.
+
+### Not yet done
+- Seed robustness (single seed=0 only)
+- POPE / VLMBias / MME / MMHal-Bench re-runs — S3 changes head selection globally
+- LLaVA: per-layer hooks never exercised on that architecture
+- Time/FLOPs measurement (no timing infrastructure exists in `srf/`)
+
+---
+
+## Head Calibration on VLMBias — Null Result (2026-09-17)
+
+Follow-up to the MMVP head-calibration experiment above. Same script, same three
+modes, VLMBias at config.py defaults (alpha=8.0, eps=0.5, layers [8,14],
+phase=generation, fovea off), 2784 samples per pass, ~70 min each.
+
+| Mode | Acc | dref | Calib samples used | Overlap [8,14] |
+|---|---|---|---|---|
+| `global` | 0.1965 | ref | 20/20 (shipped) | — |
+| `contrast` (S2) | 0.1936 | -0.0029 | 20/20 | 0.229 |
+| `saliency` (S3) | 0.1972 | +0.0007 | 19/20 | 0.186 |
+
+S2 is implemented here for the first time (it was skipped in the MMVP run).
+rho(l,h) = mean image attention with the real image minus the same with
+pixel_values zeroed. Two forward passes per calibration sample, one-time only.
+S2 has NOT been run on MMVP, so it is unknown whether it fails generally or only
+on VLMBias.
+
+**Conclusion:** neither alternative head-selection signal transfers to VLMBias.
+Combined with the small effective n on MMVP (150 pairs), the MMVP +2.67pp is not
+yet established as real. No method change is justified on this evidence.

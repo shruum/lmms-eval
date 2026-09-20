@@ -200,8 +200,16 @@ def _pope(question: str) -> str:
     "Is there a tennis racket in the image?" → "tennis racket"
     "Is there only one bottle in the image?" → "bottle"
     "Is the pineapple on the left?" → "pineapple"
+    "Are there a total of two trains in the picture?" → "trains"
     """
     q = question.strip().lower().rstrip("?")
+
+    # MME count: "Are there a total of N Xs in/on/at"
+    m = re.search(r"\bare there (?:a total of\s+)?\w+\s+(\w+(?:\s+\w+)?)\s+(?:in|on|at|visible)", q)
+    if m:
+        noun = m.group(1).strip()
+        if noun not in _GENERIC_NOUNS:
+            return noun
 
     # "Is there only [one/a/an/...] X in/on/at"
     m = re.search(r"\bis there (?:only\s+)?(?:\w+\s+)?(\w+(?:\s+\w+)?)\s+(?:in|on|at|visible)", q)
@@ -218,7 +226,7 @@ def _pope(question: str) -> str:
             return noun
 
     # "Is the/a X [position/colour/...]" — MME position/color questions
-    m = re.search(r"\bis (?:the|a|an) (\w+(?:\s+\w+)?)\s+(?:on|in|at|to|left|right|above|below|next)", q)
+    m = re.search(r"\bis (?:the|a|an) (\w+(?:\s+\w+)?)\s+(?:on|in|at|to|left|right|above|below|under|next)", q)
     if m:
         noun = m.group(1).strip()
         if noun not in _GENERIC_NOUNS:

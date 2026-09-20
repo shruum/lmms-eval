@@ -72,8 +72,10 @@ import qwen_attn_patch as patch  # default; overridden per-model in load_model()
 def parse_args():
     p = argparse.ArgumentParser(description="SRF / SRF-E evaluation")
     p.add_argument("--method",   required=True,
-                   choices=["srf", "srfe", "vcd", "vaf", "baseline"],
-                   help="srf = SRF base; srfe = SRF-E; "
+                   choices=["srf", "srfe", "srffovea", "srfc2", "srfc3", "vcd", "vaf", "baseline"],
+                   help="srf = SRF base; srfe = SRF-E; srffovea = SRF + pre-encoder foveal blur; "
+                        "srfc2 = SRF-C v2 (salient-pixel masking contrastive); "
+                        "srfc3 = SRF-C v3 (embedding-space visual token zeroing); "
                         "vcd = Visual Contrastive Decoding; vaf = Visual Amplification Fusion; "
                         "baseline = no intervention")
     p.add_argument("--model",    default=CFG.DEFAULT_MODEL)
@@ -81,6 +83,8 @@ def parse_args():
                    choices=["mmvp", "pope", "vlmbias", "mme", "vlind", "mmhalbench"])
     p.add_argument("--gamma",       type=float, nargs="+", default=[CFG.SRFE_DEFAULT_GAMMA],
                    help="Contrastive γ (srfe only; ignored for srf)")
+    p.add_argument("--fovea_sigma", type=float, default=20.0,
+                   help="Gaussian blur radius σ in pixels for srffovea (default: 20.0)")
 
     # ── POPE ──────────────────────────────────────────────────────────────────
     p.add_argument("--pope_splits", nargs="+", default=CFG.POPE_SPLITS,
@@ -101,6 +105,13 @@ def parse_args():
                    help="Limit VLIND samples for quick sweeps (None=all 302)")
     p.add_argument("--output",   default=None,
                    help="Directory to save JSON results")
+
+    # ── MME ───────────────────────────────────────────────────────────────────
+    p.add_argument("--mme_data_dir", default=None,
+                   help="Path to MME_Benchmark folder (default: auto-detect from ILVAD data dir)")
+    p.add_argument("--mme_subtasks", nargs="+", default=None,
+                   help="MME subtasks to run (default: all 14). "
+                        "E.g. --mme_subtasks existence count position color")
 
     # ── SRF hyperparams (all optional — override arch/dataset config) ─────────
     p.add_argument("--layer_start",      type=int,   default=None,
@@ -376,7 +387,7 @@ def _reset_overrides(args) -> dict:
 # ---------------------------------------------------------------------------
 
 def run_pope(method_mod, model, processor, img_token_id, device, args) -> dict:
-    gammas = args.gamma if args.method == "srfe" else [0.0]
+    gammas = args.gamma if args.method in ("srfe", "srfc2", "srfc3") else [0.0]
 
     splits_filter = {s.lower() for s in args.pope_splits}
     splits_label  = "+".join(sorted(splits_filter))
@@ -489,7 +500,7 @@ def run_pope(method_mod, model, processor, img_token_id, device, args) -> dict:
 
     results_out: dict = {"splits": {}, "overall": {}}
     for b in gammas:
-        label = f"γ={b}" if args.method == "srfe" else "SRF"
+        label = f"γ={b}" if args.method in ("srfe", "srfc2", "srfc3") else "SRF"
         print(f"\n{'─'*56}")
         print(f"POPE  {label}")
         split_metrics = {}
@@ -513,7 +524,7 @@ def run_pope(method_mod, model, processor, img_token_id, device, args) -> dict:
 
 def run_mmvp(method_mod, model, processor, img_token_id, device, args) -> dict:
     import pandas as pd
-    gammas = args.gamma if args.method == "srfe" else [0.0]
+    gammas = args.gamma if args.method in ("srfe", "srfc2", "srfc3") else [0.0]
 
     print("\n" + "="*60)
     print("DATASET: MMVP (150 pairs, 300 images, full)")
@@ -586,7 +597,7 @@ def run_mmvp(method_mod, model, processor, img_token_id, device, args) -> dict:
     img_srf  = {b: n_srf_ok[b] / 300 for b in gammas}
 
     for b in gammas:
-        label = f"β={b}" if args.method == "srfe" else "SRF"
+        label = f"β={b}" if args.method in ("srfe", "srfc2", "srfc3") else "SRF"
         print(f"\nMMVP  {label}: pair={acc_srf[b]:.4f}  img={img_srf[b]:.4f}")
 
     return {"method_pair": acc_srf, "method_img": img_srf}
@@ -597,7 +608,7 @@ def run_mmvp(method_mod, model, processor, img_token_id, device, args) -> dict:
 # ---------------------------------------------------------------------------
 
 def run_vlmbias(method_mod, model, processor, img_token_id, device, args) -> dict:
-    gammas     = args.gamma if args.method == "srfe" else [0.0]
+    gammas     = args.gamma if args.method in ("srfe", "srfc2", "srfc3") else [0.0]
     n_per_cat = args.n_vlmbias_per_cat if args.n_vlmbias_per_cat > 0 else None
 
     print("\n" + "="*60)
@@ -672,7 +683,7 @@ def run_vlmbias(method_mod, model, processor, img_token_id, device, args) -> dic
     acc_srf = {b: correct_srf[b] / total for b in gammas}
 
     for b in gammas:
-        label = f"SRF" if args.method != "srfe" else f"γ={b}"
+        label = f"SRF" if args.method not in ("srfe", "srfc2") else f"γ={b}"
         print(f"\nVLM Bias  {label}: {acc_srf[b]:.4f}  ({correct_srf[b]}/{total})")
         print(f"  {'Category':<20}  {'Correct':>7}  {'Total':>6}  {'Acc':>6}")
         print(f"  {'-'*20}  {'-'*7}  {'-'*6}  {'-'*6}")
@@ -701,74 +712,166 @@ _MME_COGNITION = {"code_reasoning", "numerical_calculation", "text_translation",
                   "commonsense_reasoning"}
 
 
-def run_mme(method_mod, model, processor, img_token_id, device, args) -> dict:
-    """MME evaluation — 2374 Yes/No questions across 14 categories.
+def _load_mme_samples(data_dir: str, subtasks: list[str] | None) -> list[dict]:
+    """Load MME samples from local benchmark folder.
 
-    Metrics reported:
-      - Per-question accuracy (correct / total)
-      - Pair accuracy — both questions for the same image correct
-      - Per-category score (# correct)
-      - MME score = total correct questions (standard metric, published as integer sum)
-      - Perception / Cognition sub-scores
+    Supports both folder layouts used by the benchmark:
+      - Flat:   <task>/{name}.jpg + <task>/{name}.txt
+      - Nested: <task>/images/{name}.jpg + <task>/questions_answers_YN/{name}.txt
+    Each .txt has 2 tab-separated lines: question<TAB>answer
     """
-    gammas = args.gamma if args.method == "srfe" else [0.0]
+    import glob
+    from PIL import Image as _Image
+
+    root = pathlib.Path(data_dir)
+    all_tasks = [d.name for d in root.iterdir() if d.is_dir()]
+    tasks = subtasks if subtasks else all_tasks
+
+    samples = []
+    for task in tasks:
+        task_dir = root / task
+        if not task_dir.exists():
+            print(f"  [MME] Warning: subtask '{task}' not found at {task_dir}")
+            continue
+
+        # Detect layout
+        if (task_dir / "images").is_dir():
+            img_dir = task_dir / "images"
+            qa_dir  = task_dir / "questions_answers_YN"
+        else:
+            img_dir = task_dir
+            qa_dir  = task_dir
+
+        for txt_path in sorted(qa_dir.glob("*.txt")):
+            stem = txt_path.stem
+            img_path = None
+            for ext in (".jpg", ".jpeg", ".png"):
+                candidate = img_dir / (stem + ext)
+                if candidate.exists():
+                    img_path = candidate
+                    break
+            if img_path is None:
+                continue
+
+            lines = [l.strip() for l in txt_path.read_text().splitlines() if l.strip()]
+            for idx, line in enumerate(lines):
+                parts = line.split("\t")
+                if len(parts) < 2:
+                    continue
+                question, answer = parts[0].strip(), parts[1].strip().lower()
+                samples.append({
+                    "image_path": str(img_path),
+                    "question":   question,
+                    "answer":     answer,
+                    "category":   task,
+                    "pair_id":    f"{task}/{stem}",
+                })
+    return samples
+
+
+def run_mme(method_mod, model, processor, img_token_id, device, args) -> dict:
+    """MME evaluation — Yes/No questions across up to 14 categories.
+
+    Loads from local MME_Benchmark folder (--mme_data_dir).
+    Use --mme_subtasks to restrict to a subset (e.g. existence count position color).
+
+    Metrics:
+      - Per-question accuracy, pair accuracy (both Qs for same image correct)
+      - Per-category score (# correct, max = 2 × n_images)
+      - Perception / Cognition sub-totals
+    """
+    from PIL import Image as _PILImage
+
+    gammas = args.gamma if args.method in ("srfe", "srfc2", "srfc3") else [0.0]
+    is_llava = "llava" in args.model.lower()
+
+    # ── Locate data dir ───────────────────────────────────────────────────────
+    mme_data_dir = getattr(args, "mme_data_dir", None)
+    if not mme_data_dir:
+        candidates = [
+            "/home/sgowda/workspace/ILVAD/data/MME/MME_Benchmark_release_version/MME_Benchmark",
+            os.path.join(os.path.dirname(__file__), "..", "data", "MME", "MME_Benchmark"),
+        ]
+        for c in candidates:
+            if os.path.isdir(c):
+                mme_data_dir = c
+                break
+        if not mme_data_dir:
+            raise FileNotFoundError(
+                "MME data not found. Pass --mme_data_dir <path/to/MME_Benchmark>")
+
+    subtasks = getattr(args, "mme_subtasks", None)
+    subtask_label = "+".join(subtasks) if subtasks else "all"
 
     print("\n" + "="*60)
-    print("DATASET: MME (2374 Yes/No, 14 categories, full)")
+    print(f"DATASET: MME ({subtask_label})")
     print("="*60)
 
     method_mod.reset_for_dataset(dataset="mme", **_reset_overrides(args))
 
-    ds = hf_load("lmms-lab/MME", split="test")
-    samples = list(ds)
-    print(f"  Loaded {len(samples)} MME samples")
-
-    yes_id = processor.tokenizer.convert_tokens_to_ids("Yes")
-    no_id  = processor.tokenizer.convert_tokens_to_ids("No")
+    samples = _load_mme_samples(mme_data_dir, subtasks)
+    print(f"  Loaded {len(samples)} MME samples from {mme_data_dir}")
 
     # Trackers
     n_total     = len(samples)
     correct_srf = {b: 0 for b in gammas}
 
-    # Per-category: {cat: {"srf": {b: 0}, "total": 0}}
-    cat_stats: dict = defaultdict(lambda: {"srf": {b: 0 for b in gammas}, "total": 0})
-
-    # Pair accuracy: {pair_id: {"srf": {b: []}}}
+    # Per-category: track raw correct + yes/no split for official MME score
+    def _empty_cat():
+        return {
+            "srf":       {b: 0 for b in gammas},   # raw correct count
+            "srf_yes":   {b: 0 for b in gammas},   # correct on yes-answer questions
+            "srf_no":    {b: 0 for b in gammas},   # correct on no-answer questions
+            "total": 0, "n_yes": 0, "n_no": 0,
+        }
+    cat_stats: dict = defaultdict(_empty_cat)
     pair_stats: dict = defaultdict(lambda: {"srf": {b: [] for b in gammas}})
 
     for i, r in enumerate(samples):
-        image    = r["image"].convert("RGB")
-        q        = str(r["question"]).strip()
-        gt_lower = str(r["answer"]).strip().lower()
-        cat      = str(r.get("category", "unknown")).strip()
-        pair_id  = str(r.get("question_id", f"{cat}_{i}"))
+        image    = _PILImage.open(r["image_path"]).convert("RGB")
+        q        = r["question"] + "\nAnswer with Yes or No only."
+        gt_lower = r["answer"]
+        cat      = r["category"]
+        pair_id  = r["pair_id"]
 
-        msgs  = [{"role": "user", "content": [{"type": "image", "image": image},
-                                               {"type": "text",  "text":  q}]}]
-        text  = processor.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True)
-        vis, _ = process_vision_info(msgs)
-        inp    = processor(text=[text], images=vis, return_tensors="pt",
-                           padding=True).to(device)
-        s, e   = get_img_range(inp["input_ids"], img_token_id)
+        if is_llava:
+            inp, s, e = _encode_llava(processor, model, device, image, q)
+        else:
+            msgs = [{"role": "user", "content": [{"type": "image", "image": image},
+                                                  {"type": "text",  "text":  q}]}]
+            text = processor.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True)
+            vis, _ = process_vision_info(msgs)
+            inp  = processor(text=[text], images=vis, return_tensors="pt",
+                             padding=True).to(device)
+            s, e = get_img_range(inp["input_ids"], img_token_id)
 
         method_mod.prepare_sample(inp, s, e, image, q, model, processor)
         for gamma in gammas:
             logits = method_get_logits(method_mod, model, inp, gamma)
-            pred   = "yes" if logits[0, yes_id] >= logits[0, no_id] else "no"
+            pred   = "yes" if decode_first_token(logits, processor).startswith("yes") else "no"
             ok     = (pred == gt_lower)
             if ok:
                 correct_srf[gamma] += 1
-            cat_stats[cat]["srf"][gamma]  += int(ok)
-            cat_stats[cat]["total"]      += 1 if gamma == gammas[0] else 0
+            cat_stats[cat]["srf"][gamma] += int(ok)
+            if gt_lower == "yes":
+                cat_stats[cat]["srf_yes"][gamma] += int(ok)
+            else:
+                cat_stats[cat]["srf_no"][gamma]  += int(ok)
+            if gamma == gammas[0]:
+                cat_stats[cat]["total"] += 1
+                if gt_lower == "yes":
+                    cat_stats[cat]["n_yes"] += 1
+                else:
+                    cat_stats[cat]["n_no"]  += 1
             pair_stats[pair_id]["srf"][gamma].append(ok)
         method_mod.cleanup()
 
-        if (i + 1) % 500 == 0 or (i + 1) == n_total:
+        if (i + 1) % 100 == 0 or (i + 1) == n_total:
             n = i + 1
             srf_str = "  ".join(f"γ={b}:{correct_srf[b]/n:.4f}" for b in gammas)
             print(f"  [{n:4d}/{n_total}]  {srf_str}")
 
-    # ── Compute pair accuracy ──────────────────────────────────────────────────
+    # ── Pair accuracy ──────────────────────────────────────────────────────────
     def _pair_acc(gamma):
         pairs = [v for v in pair_stats.values() if len(v["srf"][gamma]) == 2]
         if not pairs:
@@ -778,38 +881,76 @@ def run_mme(method_mod, model, processor, img_token_id, device, args) -> dict:
     acc_srf  = {b: correct_srf[b] / n_total for b in gammas}
     pair_srf = {b: _pair_acc(b) for b in gammas}
 
-    # ── Perception / Cognition sub-scores ─────────────────────────────────────
+    # ── Official MME score: (acc_yes + acc_no) × 100 per subtask ──────────────
+    # Matches standard MME benchmark formula (0–200 per subtask).
+    def _mme_score(gamma):
+        total = 0.0
+        for s in cat_stats.values():
+            n_yes = s["n_yes"] or 1
+            n_no  = s["n_no"]  or 1
+            total += (s["srf_yes"][gamma] / n_yes + s["srf_no"][gamma] / n_no) * 100
+        return total
+
+    mme_score_srf = {b: _mme_score(b) for b in gammas}
+
+    # ── Perception / Cognition sub-scores (raw count) ──────────────────────────
     perc_srf: dict = {}
     cogn_srf: dict = {}
+    perc_mme: dict = {}
+    cogn_mme: dict = {}
     for b in gammas:
-        perc, cogn = 0, 0
+        perc_raw, cogn_raw = 0, 0
+        perc_off, cogn_off = 0.0, 0.0
         for cat, s in cat_stats.items():
+            n_yes = s["n_yes"] or 1
+            n_no  = s["n_no"]  or 1
+            cat_mme = (s["srf_yes"][b] / n_yes + s["srf_no"][b] / n_no) * 100
             if cat in _MME_COGNITION:
-                cogn += s["srf"][b]
+                cogn_raw += s["srf"][b]
+                cogn_off += cat_mme
             else:
-                perc += s["srf"][b]
-        perc_srf[b], cogn_srf[b] = perc, cogn
+                perc_raw += s["srf"][b]
+                perc_off += cat_mme
+        perc_srf[b], cogn_srf[b] = perc_raw, cogn_raw
+        perc_mme[b], cogn_mme[b] = perc_off, cogn_off
 
     # ── Print results ──────────────────────────────────────────────────────────
     for b in gammas:
-        label = f"β={b}" if args.method == "srfe" else "SRF"
-        print(f"\nMME  {label}: acc={acc_srf[b]:.4f}  pair={pair_srf[b]:.4f}  "
-              f"score={correct_srf[b]} (perc={perc_srf[b]}, cogn={cogn_srf[b]})")
+        label = f"β={b}" if args.method in ("srfe", "srfc2", "srfc3") else "SRF"
+        print(f"\nMME  {label}:")
+        print(f"  Raw   : correct={correct_srf[b]}/{n_total}  acc={acc_srf[b]:.4f}  pair={pair_srf[b]:.4f}")
+        print(f"  Official MME score = {mme_score_srf[b]:.2f}  "
+              f"(perc={perc_mme[b]:.2f}, cogn={cogn_mme[b]:.2f})")
 
-    print("\n  Per-category (SRF):")
+    print("\n  Per-category:")
+    print(f"  {'':28s}  {'raw':>8}  {'acc_yes':>8}  {'acc_no':>8}  {'MME':>8}")
+    print(f"  {'-'*62}")
     for cat in sorted(cat_stats.keys()):
-        s = cat_stats[cat]
-        srf_str = "  ".join(f"γ={b}:{s['srf'][b]}" for b in gammas)
+        s      = cat_stats[cat]
         marker = "[C]" if cat in _MME_COGNITION else "[P]"
-        print(f"    {marker} {cat:28s}: {srf_str}/{s['total']}")
+        b      = gammas[0]
+        n_yes  = s["n_yes"] or 1
+        n_no   = s["n_no"]  or 1
+        acc_y  = s["srf_yes"][b] / n_yes
+        acc_n  = s["srf_no"][b]  / n_no
+        mme_s  = (acc_y + acc_n) * 100
+        print(f"  {marker} {cat:28s}  {s['srf'][b]:3d}/{s['total']:3d}  "
+              f"{acc_y:8.3f}  {acc_n:8.3f}  {mme_s:8.2f}")
 
     return {
-        "n": n_total,
-        "method_acc":        acc_srf,
-        "method_pair":       pair_srf,
-        "method_score":      correct_srf,
-        "method_perception": perc_srf,
-        "method_cognition":  cogn_srf,
+        "n":                    n_total,
+        "subtasks":             subtask_label,
+        # Raw metrics
+        "method_correct":       correct_srf,
+        "method_acc":           acc_srf,
+        "method_pair":          pair_srf,
+        # Official MME score
+        "method_mme_score":     mme_score_srf,
+        "method_mme_perc":      perc_mme,
+        "method_mme_cogn":      cogn_mme,
+        # Legacy raw perception/cognition counts
+        "method_perception":    perc_srf,
+        "method_cognition":     cogn_srf,
         "cat_stats": {k: dict(v) for k, v in cat_stats.items()},
     }
 
@@ -853,7 +994,7 @@ def run_vlindbench(method_mod, model, processor, img_token_id, device, args) -> 
       - pair_acc: both Q1 and Q2 correct for the same image (=resistance to language priors)
       - per_concept breakdown
     """
-    gammas = args.gamma if args.method == "srfe" else [0.0]
+    gammas = args.gamma if args.method in ("srfe", "srfc2", "srfc3") else [0.0]
 
     print("\n" + "="*60)
     print(f"DATASET: VLind-Bench (421 counterfactual samples, 10 concepts)")
@@ -971,7 +1112,7 @@ def run_vlindbench(method_mod, model, processor, img_token_id, device, args) -> 
     pair_acc = {b: correct_pair[b] / max(n_pairs, 1) for b in gammas}
 
     for b in gammas:
-        label = "SRF" if args.method != "srfe" else f"γ={b}"
+        label = "SRF" if args.method not in ("srfe", "srfc2") else f"γ={b}"
         print(f"\nVLind  {label}: q_acc={q_acc[b]:.4f}  pair_acc={pair_acc[b]:.4f}  "
               f"({correct_pair[b]}/{n_pairs} pairs correct)")
         print(f"  {'Concept':<12}  {'Pairs':>6}  {'Correct':>7}  {'Acc':>6}")
@@ -1141,7 +1282,7 @@ def run_mmhalbench(method_mod, model, processor, img_token_id, device, args) -> 
     """
     from PIL import Image as _PIL
 
-    gammas   = args.gamma if args.method == "srfe" else [0.0]
+    gammas   = args.gamma if args.method in ("srfe", "srfc2", "srfc3") else [0.0]
     is_llava = "llava" in args.model.lower()
 
     print("\n" + "=" * 60)
@@ -1198,7 +1339,7 @@ def run_mmhalbench(method_mod, model, processor, img_token_id, device, args) -> 
         out = pathlib.Path(args.output)
         out.mkdir(parents=True, exist_ok=True)
         for gamma in gammas:
-            suffix = f"_g{gamma}" if args.method == "srfe" else ""
+            suffix = f"_g{gamma}" if args.method in ("srfe", "srfc2", "srfc3") else ""
             resp_path = out / f"mmhalbench_responses{suffix}.json"
             with open(resp_path, "w") as f:
                 json.dump(filled[gamma], f, indent=2)
@@ -1212,7 +1353,7 @@ def run_mmhalbench(method_mod, model, processor, img_token_id, device, args) -> 
         openai_model = getattr(args, "openai_model", "gpt-4o")
         print(f"\n  Scoring with {openai_model} …")
         for gamma in gammas:
-            label = "SRF" if args.method != "srfe" else f"γ={gamma}"
+            label = "SRF" if args.method not in ("srfe", "srfc2") else f"γ={gamma}"
             print(f"  [{label}]")
             raw_scores = _score_mmhal_with_gpt(filled[gamma], openai_model)
 
@@ -1266,6 +1407,13 @@ def main():
         import srf as method_mod
     elif args.method == "srfe":
         import srf_e as method_mod
+    elif args.method == "srffovea":
+        import srf_fovea as method_mod
+        method_mod.SIGMA = args.fovea_sigma
+    elif args.method == "srfc2":
+        import srf_c_v2 as method_mod
+    elif args.method == "srfc3":
+        import srf_c_v3 as method_mod
     elif args.method == "vcd":
         import vcd as method_mod
     elif args.method == "vaf":
@@ -1285,6 +1433,12 @@ def main():
 
     if args.method == "srfe":
         gamma_str = f"β={args.gamma}"
+    elif args.method == "srffovea":
+        gamma_str = f"σ={args.fovea_sigma}"
+    elif args.method == "srfc2":
+        gamma_str = f"γ={args.gamma} (salient-pixel-mask)"
+    elif args.method == "srfc3":
+        gamma_str = f"γ={args.gamma} (embed-space-zero)"
     else:
         gamma_str = "base"
     print(f"\n[{args.method.upper()}] Setup  model={args.model}  {gamma_str}")
@@ -1335,20 +1489,20 @@ def main():
     print("="*70)
     print(f"Model: {args.model}  |  method={args.method}  |  {gamma_str}")
 
-    gammas = args.gamma if args.method == "srfe" else [0.0]
+    gammas = args.gamma if args.method in ("srfe", "srfc2", "srfc3") else [0.0]
 
     def _p(v): return f"{v*100:.2f}%"
 
     if "mmvp" in results:
         r = results["mmvp"]
         for b in gammas:
-            label = f"β={b}" if args.method == "srfe" else "SRF"
+            label = f"β={b}" if args.method in ("srfe", "srfc2", "srfc3") else "SRF"
             print(f"\nMMVP  {label}: pair={_p(r['method_pair'][b])}  img={_p(r['method_img'][b])}")
 
     if "pope" in results:
         r = results["pope"]
         for b in gammas:
-            label = f"β={b}" if args.method == "srfe" else "SRF"
+            label = f"β={b}" if args.method in ("srfe", "srfc2", "srfc3") else "SRF"
             ov = r["overall"][b]
             print(f"\nPOPE (n={ov['n']})  {label}: "
                   f"acc={_p(ov['acc'])}  prec={_p(ov['precision'])}  "
@@ -1357,21 +1511,22 @@ def main():
     if "vlmbias" in results:
         r = results["vlmbias"]
         for b in gammas:
-            label = f"β={b}" if args.method == "srfe" else "SRF"
+            label = f"β={b}" if args.method in ("srfe", "srfc2", "srfc3") else "SRF"
             print(f"\nVLM Bias (n={r['n']})  {label}: {_p(r['method'][b])}")
 
     if "mme" in results:
         r = results["mme"]
         for b in gammas:
-            label = f"β={b}" if args.method == "srfe" else "SRF"
-            print(f"\nMME  {label}: score={r['method_score'][b]}  acc={_p(r['method_acc'][b])}  "
+            label = f"β={b}" if args.method in ("srfe", "srfc2", "srfc3") else "SRF"
+            print(f"\nMME  {label}: mme_score={r['method_mme_score'][b]:.2f}  "
+                  f"raw={r['method_correct'][b]}/{r['n']}  acc={_p(r['method_acc'][b])}  "
                   f"pair={_p(r['method_pair'][b])}  "
-                  f"perc={r['method_perception'][b]}  cogn={r['method_cognition'][b]}")
+                  f"perc_mme={r['method_mme_perc'][b]:.2f}  cogn_mme={r['method_mme_cogn'][b]:.2f}")
 
     if "vlind" in results:
         r = results["vlind"]
         for b in gammas:
-            label = f"β={b}" if args.method == "srfe" else "SRF"
+            label = f"β={b}" if args.method in ("srfe", "srfc2", "srfc3") else "SRF"
             print(f"\nVLind-Bench (n={r['n_samples']})  {label}: "
                   f"pair_acc={_p(r['pair_acc'][b])}  q_acc={_p(r['q_acc'][b])}")
 
@@ -1381,7 +1536,7 @@ def main():
             for b in gammas:
                 if b in r["scores"]:
                     s = r["scores"][b]
-                    label = "SRF" if args.method != "srfe" else f"γ={b}"
+                    label = "SRF" if args.method not in ("srfe", "srfc2") else f"γ={b}"
                     print(f"\nMMHal-Bench (n={r['n']})  {label}: "
                           f"Score={s['score']:.2f}  Hal%={s['hal_pct']:.1f}%")
         else:

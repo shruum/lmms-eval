@@ -101,10 +101,30 @@ def parse_args():
                    help="Limit VLIND samples for quick sweeps (None=all 302)")
     p.add_argument("--output",   default=None,
                    help="Directory to save JSON results")
+    p.add_argument("--alpha_prefill", type=float, default=None,
+                   help="Separate lambda_sem for the prefill pass, used only with "
+                        "--phase both. Prefill applies the bias to every query row "
+                        "while generation applies it to one, so the same alpha is a "
+                        "much larger perturbation there. Default None = same as --alpha.")
+    p.add_argument("--fovea_mask_mode", default=None,
+                   choices=["linear", "power", "binary"],
+                   help="How the relevance map becomes a sharpness weight for "
+                        "--method srffovea. binary blurs everything outside the top "
+                        "--fovea_mask_q quantile at full strength.")
+    p.add_argument("--fovea_fill", default=None, choices=["blur", "grey"],
+                   help="What replaces the de-emphasised region. blur keeps the "
+                        "silhouette, grey removes it. grey approximates cropping.")
+    p.add_argument("--fovea_mask_q", type=float, default=None,
+                   help="Quantile for --fovea_mask_mode binary (default 0.70).")
+    p.add_argument("--fovea_sigma", type=float, default=None,
+                   help="Gaussian blur scale in pixels for --method srffovea. "
+                        "Overrides srf_fovea.SIGMA (default 20). sigma=0 disables "
+                        "foveation, which is the no-foveation control.")
     p.add_argument("--save_records", default=None,
-                   help="Path to JSON file for per-sample POPE predictions "
-                        "(question_id, split, question, gt, pred). "
-                        "Used for post-hoc comparison across methods.")
+                   help="Enable per-sample record saving for significance testing. "
+                        "POPE writes predictions to this path. MMVP ignores the path "
+                        "and embeds per-pair correctness in <output>/mmvp.json under "
+                        "'records'. Pass any non-empty value to enable.")
 
     # ── SRF hyperparams (all optional — override arch/dataset config) ─────────
     p.add_argument("--layer_start",      type=int,   default=None,
@@ -126,7 +146,7 @@ def parse_args():
                    # here at parse time because head_calibration imports this module.
                    choices=["global", "per_layer", "saliency", "contrast",
                             "vtar_layers", "vtar_joint", "vtar_soft", "vtar_thresh",
-                            "vtar_ratio", "ratio_topk"],
+                            "vtar_ratio", "ratio_topk", "ratio_auto"],
                    help="Head-selection strategy. Default 'global' = shipped behaviour.")
     p.add_argument("--head_calib_dataset", default=None,
                    help="Calibration dataset for --head_mode (default: the eval dataset).")
@@ -157,7 +177,9 @@ def parse_args():
     p.add_argument("--clip_fallback_thresh", type=float, default=None,
                    help="CLIP max-sim below which object is considered absent (basic 'clip' mode only)")
     p.add_argument("--saliency_mode", default=None,
-                   help="Override saliency mode: clip_full_gate_v3 (default/best) | clip | hssa | lta | clip_lta | srf2")
+                   help="Override saliency mode: clip_full_gate_v3 (default/best) | "
+                        "clip_full_gate_v3_prod / _min / _mean (same gates, different "
+                        "cross-scale combination) | clip | hssa | lta | clip_lta | srf2")
 
     # ── Boosting method ───────────────────────────────────────────────────────
     p.add_argument("--neg_absent_alpha", type=float, default=None,
@@ -316,6 +338,7 @@ def _reset_overrides(args) -> dict:
     return dict(
         phase=args.phase,
         alpha=args.alpha,
+        alpha_prefill=args.alpha_prefill,
         eps=args.eps,
         neg_absent_alpha=args.neg_absent_alpha,
         layer_start=args.layer_start,
@@ -572,7 +595,22 @@ def run_mmvp(method_mod, model, processor, img_token_id, device, args) -> dict:
         label = f"β={b}" if args.method == "srfe" else "SRF"
         print(f"\nMMVP  {label}: pair={acc_srf[b]:.4f}  img={img_srf[b]:.4f}")
 
-    return {"method_pair": acc_srf, "method_img": img_srf}
+    out = {"method_pair": acc_srf, "method_img": img_srf}
+
+    # Per-pair correctness, for paired significance testing (bootstrap CIs,
+    # McNemar). Gated behind --save_records so no existing result changes.
+    # Shape: {gamma: {pair_id: {"a": bool, "b": bool}}}, 150 pairs, both images
+    # of a pair must be correct for the pair to count.
+    if getattr(args, "save_records", False):
+        out["records"] = {
+            str(b): {str(pid): {k: bool(v) for k, v in r.items()}
+                     for pid, r in sorted(pair_srf[b].items())}
+            for b in gammas
+        }
+        n_rec = len(out["records"][str(gammas[0])])
+        print(f"  [records] per-pair correctness saved for {n_rec} pairs")
+
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -1035,6 +1073,19 @@ def main():
         import srf_e as method_mod
     elif args.method == "srffovea":
         import srf_fovea as method_mod
+        if args.fovea_fill is not None:
+            method_mod.FILL_MODE = args.fovea_fill
+        if args.fovea_mask_mode is not None:
+            method_mod.MASK_MODE = args.fovea_mask_mode
+        if args.fovea_mask_q is not None:
+            method_mod.MASK_Q = float(args.fovea_mask_q)
+        if args.fovea_mask_mode is not None:
+            print(f"  [fovea] mask_mode={method_mod.MASK_MODE} q={method_mod.MASK_Q}")
+        if args.fovea_sigma is not None:
+            method_mod.SIGMA = float(args.fovea_sigma)
+            print(f"  [fovea] sigma = {method_mod.SIGMA:g}"
+                  + ("  (0 = foveation disabled, control arm)"
+                     if method_mod.SIGMA == 0 else ""))
     elif args.method == "vcd":
         import vcd as method_mod
     elif args.method == "vaf":

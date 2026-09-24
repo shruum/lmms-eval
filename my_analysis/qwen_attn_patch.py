@@ -94,6 +94,12 @@ _STATE: dict = {
     #   "generation" — only at q_len==1 (generation step); skip prefill
     #   "prefill"    — only at q_len>1 (prefill); skip generation step
     "srf_apply_phase": "both",   # default: both (preserves original behaviour)
+    # Separate amplification strength for the prefill pass. None = use the same
+    # value as generation. Prefill applies the bias to EVERY query row, so an
+    # alpha tuned for the single generation row is a far larger perturbation
+    # there. Setting this lower lets phase="both" be used without over-driving
+    # the prompt encoding.
+    "srf_alpha_prefill": None,
     # Post-image text suppression — reduces language-prior bias (e.g. "4 legs" for animals).
     # Suppresses KV attention to question tokens after the image during generation.
     # 0.0 = disabled (default, fully backward-compatible with POPE and all existing code).
@@ -319,6 +325,12 @@ def _patched_softmax(
                         if (_layer_alphas and current_layer in _layer_alphas)
                         else float(value)
                     )
+                    # Prefill touches every query row, generation touches one,
+                    # so the same alpha is a much bigger intervention at
+                    # prefill. Allow a separate, usually smaller, value.
+                    _ap = _STATE.get("srf_alpha_prefill")
+                    if _ap is not None and not _is_gen:
+                        alpha_val = float(_ap)
 
                     # ── B1: Visual Reliance Compensation ─────────────────────
                     # Estimate current image attention fraction from logits.

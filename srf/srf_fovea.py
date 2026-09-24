@@ -42,11 +42,42 @@ cleanup           = _srf.cleanup
 
 SIGMA: float = 20.0    # Gaussian blur radius in pixels (best from sweep)
 
+# How the relevance map is turned into a per-pixel sharpness weight.
+#   "linear"  the shipped behaviour, weight = map
+#   "power"   weight = map ** MASK_POWER, concentrates sharpness on the peak
+#   "binary"  weight = 1 above the MASK_Q quantile, 0 below. Everything outside
+#             the top region is blurred at full strength, so the subject is
+#             reduced to only the queried part
+# What the de-emphasised region is replaced WITH.
+#   "blur"  the shipped behaviour, a Gaussian-blurred copy of the image
+#   "grey"  a flat mid-grey. Blur preserves silhouette and colour, so a
+#           blurred horse is still recognisably a horse and the "4 legs"
+#           prior still fires. Flat grey removes shape entirely, which is
+#           closer in information terms to the cropping used in the VLMBias
+#           paper, where cropping to the legs recovers the correct count.
+FILL_MODE:  str   = "blur"
+
+MASK_MODE:  str   = "linear"
+MASK_POWER: float = 3.0
+MASK_Q:     float = 0.70
+
 # ---------------------------------------------------------------------------
 # Foveal blur helpers (same as test_srffovea_mmvp.py)
 # ---------------------------------------------------------------------------
 
 _SPATIAL = 2   # Qwen2.5-VL spatial merge factor
+
+
+
+def _transform_mask(mask):
+    """Apply MASK_MODE to the token-grid relevance map before upsampling."""
+    if MASK_MODE == "power":
+        return mask.float() ** MASK_POWER
+    if MASK_MODE == "binary":
+        import torch as _t
+        m = mask.float()
+        return (m >= _t.quantile(m, MASK_Q)).float()
+    return mask
 
 
 def _saliency_to_weight(
@@ -75,9 +106,12 @@ def _apply_foveal_blur(image, weight: np.ndarray, sigma: float):
     Foveal composite: W * original + (1−W) * GaussianBlur(original, σ).
     """
     from PIL import Image
-    blurred = image.filter(ImageFilter.GaussianBlur(radius=sigma))
     img_arr = np.array(image).astype(np.float32)
-    blr_arr = np.array(blurred).astype(np.float32)
+    if FILL_MODE == "grey":
+        blr_arr = np.full_like(img_arr, 127.5)
+    else:
+        blr_arr = np.array(image.filter(ImageFilter.GaussianBlur(radius=sigma))
+                           ).astype(np.float32)
     w       = weight[:, :, np.newaxis]   # (H, W, 1)
     result  = w * img_arr + (1.0 - w) * blr_arr
     return Image.fromarray(result.clip(0, 255).astype(np.uint8))
@@ -117,6 +151,7 @@ def prepare_sample(
         return   # can't determine grid — skip blur safely
 
     image_w, image_h = image.size
+    saved_mask = _transform_mask(saved_mask)
     blur_weight = _saliency_to_weight(saved_mask, image_w, image_h, grid_h, grid_w)
     if blur_weight is None:
         return

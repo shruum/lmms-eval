@@ -94,6 +94,22 @@ ANCHORS: Dict[str, dict] = {
         "phase":         "both",
         "note":          "config.py defaults — the configuration behind the paper's 43.3%",
     },
+    "current": {
+        # The configuration behind the reported 45.33 / 70.00 on MMVP.
+        # Used by param_sensitivity.py. Requires head_mode=ratio_topk, which is
+        # installed separately via eval._install_head_mode (the anchor dict only
+        # carries what anchor_args() can set on an argparse namespace).
+        "saliency_mode": "clip_full_gate_v3",
+        "alpha":         2.0,
+        "layer_start":   6,
+        "layer_end":     31,
+        "eps":           0.2,
+        "sys_beta":      0.30,
+        "phase":         "both",
+        "head_mode":     "ratio_topk",
+        "head_top_k_pct": 0.20,
+        "note":          "SETTLED 2026-09-18 — VTAR top-20 percent per layer, band 6-31, 78 slots",
+    },
     "mmvp_tuned": {
         "saliency_mode": "clip",
         "alpha":         4.0,
@@ -196,6 +212,10 @@ def anchor_args(base: argparse.Namespace, anchor: dict,
     # λ and η are the components switched on at row F.
     a.eps           = anchor["eps"]      if suppress else 0.0
     a.sys_beta      = anchor["sys_beta"] if suppress else 0.0
+    # Head-selection anchors (only the "current" anchor sets these).
+    if "head_mode" in anchor:
+        a.head_mode      = anchor["head_mode"]
+        a.head_top_k_pct = anchor["head_top_k_pct"]
     return a
 
 

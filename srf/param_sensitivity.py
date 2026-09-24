@@ -58,6 +58,7 @@ os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
 
 import ablation_components as abl_comp
 import eval as eval_mod
+import head_calibration as hc
 import srf as srf_mod
 import srf_fovea as srf_fovea_mod
 
@@ -65,13 +66,20 @@ import srf_fovea as srf_fovea_mod
 # and `layers` are handled specially below.
 SWEEPS: Dict[str, dict] = {
     "lambda_sem": {"attr": "alpha",                "values": [0.5, 1.0, 2.0, 4.0, 8.0]},
-    "lambda_bg":  {"attr": "eps",                  "values": [0.0, 0.1, 0.2, 0.5, 1.0]},
-    "lambda_sys": {"attr": "sys_beta",             "values": [0.0, 0.1, 0.3, 0.5, 1.0]},
-    "tau":        {"attr": "clip_fallback_thresh", "values": [0.10, 0.20, 0.30, 0.40, 0.50]},
+    # lambda_bg and lambda_sys grids extended upward: under the old anchor the
+    # best value sat at the top of the grid, so the response was not
+    # characterised on that side.
+    "lambda_bg":  {"attr": "eps",                  "values": [0.0, 0.1, 0.2, 0.5, 1.0, 2.0]},
+    "lambda_sys": {"attr": "sys_beta",             "values": [0.0, 0.1, 0.3, 0.5, 1.0, 2.0]},
+    # tau: the old grid was flat at baseline for every value >= 0.3, which spent
+    # three passes measuring "the gate rejects everything". Resampled below 0.3.
+    "tau":        {"attr": "clip_fallback_thresh", "values": [0.05, 0.10, 0.15, 0.20, 0.30]},
     "k":          {"attr": "head_top_k_pct",       "values": [0.10, 0.20, 0.30, 0.50]},
     "sigma":      {"attr": "__sigma__",            "values": [0.0, 10.0, 20.0, 30.0, 50.0]},
-    "layers":     {"attr": "__layers__",           "values": [(8, 12), (8, 16), (8, 20),
-                                                               (4, 16), (12, 20), (0, 35)]},
+    # Bands around the adopted [6,31]. Includes the old anchor [8,16] and the
+    # full decoder [0,35] so the appendix can state what the band buys.
+    "layers":     {"attr": "__layers__",           "values": [(6, 31), (8, 16), (0, 35),
+                                                               (6, 20), (18, 31), (12, 24)]},
 }
 
 
@@ -81,13 +89,15 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--params", nargs="+", default=list(SWEEPS), choices=list(SWEEPS))
     p.add_argument("--saliency_mode", default=None,
                    help="Override saliency mode (default: the anchor's, clip_full_gate_v3).")
+    p.add_argument("--anchor", default="current", choices=list(abl_comp.ANCHORS),
+                   help="Configuration to hold the un-swept parameters at.")
     p.add_argument("--output", default=None)
     return p.parse_args()
 
 
 def main() -> None:
     args   = parse_args()
-    anchor = abl_comp.ANCHORS["published"]
+    anchor = abl_comp.ANCHORS[args.anchor]
 
     model, processor = eval_mod.load_model(args.model)
     img_token_id     = processor.tokenizer.convert_tokens_to_ids(CFG.IMAGE_TOKEN)
@@ -102,10 +112,12 @@ def main() -> None:
 
     print("\n" + "=" * 84)
     print("PARAMETER SENSITIVITY — MMVP, Qwen2.5-VL-3B-Instruct")
+    print(f"  anchor:  {args.anchor} — {anchor['note']}")
     print(f"  held at: saliency={base.saliency_mode}  lambda_sem={base.alpha}  "
           f"lambda_bg={base.eps}  lambda_sys={base.sys_beta}  "
           f"layers=[{base.layer_start},{base.layer_end}]  sigma={base_sigma}  "
-          f"phase={base.phase}")
+          f"phase={base.phase}  head_mode={getattr(base, 'head_mode', 'global')}  "
+          f"k={getattr(base, 'head_top_k_pct', None)}")
     print("=" * 84)
 
     results: Dict[str, List[dict]] = {}
@@ -130,8 +142,15 @@ def main() -> None:
             label = f"{name}={val}"
             print(f"\n--- {label}  (sigma={sigma}) ---")
 
-            res  = eval_mod.run_mmvp(srf_fovea_mod, model, processor, img_token_id,
-                                      device, eargs)
+            # Head masks depend on k and on the band, so re-install per point.
+            # _install_head_mode is the same entry point eval.py uses, so the
+            # selection logic has one implementation.
+            handles = eval_mod._install_head_mode(model, processor, eargs, "mmvp")
+            try:
+                res = eval_mod.run_mmvp(srf_fovea_mod, model, processor,
+                                         img_token_id, device, eargs)
+            finally:
+                hc.remove_hooks(handles)
             pair = res["method_pair"][0.0]
             img  = res["method_img"][0.0]
             rows.append({"value": val, "pair_acc": pair, "img_acc": img})

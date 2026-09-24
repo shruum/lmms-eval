@@ -122,11 +122,13 @@ def _make_bias(dataset: str, overrides: dict) -> dict:
         "prob_floor":        d["prob_floor"],
         "img_scale":         d["img_scale"],
         "srf_apply_phase":   dp["phase"],
+        "alpha_prefill":     None,     # None = use boost_alpha for prefill too
     }
 
     # Apply CLI overrides
     if overrides.get("phase")            is not None: b["srf_apply_phase"]   = overrides["phase"]
     if overrides.get("alpha")            is not None: b["boost_alpha"]        = overrides["alpha"]
+    if overrides.get("alpha_prefill")    is not None: b["alpha_prefill"]      = overrides["alpha_prefill"]
     if overrides.get("eps")             is not None: b["background_eps"]     = overrides["eps"]
     if overrides.get("neg_absent_alpha") is not None: b["neg_absent_alpha"]  = overrides["neg_absent_alpha"]
     if overrides.get("layer_start")     is not None: b["layer_start"]        = overrides["layer_start"]
@@ -406,6 +408,7 @@ def _sync_patch_state() -> None:
     patch._STATE["srf_prob_floor"]       = BIAS["prob_floor"]
     patch._STATE["srf_img_scale"]        = BIAS["img_scale"]
     patch._STATE["srf_apply_phase"]      = BIAS["srf_apply_phase"]
+    patch._STATE["srf_alpha_prefill"]    = BIAS.get("alpha_prefill")
     patch._STATE["srf_text_beta"]        = BIAS["text_beta"]
     patch._STATE["srf_text_layer_start"] = BIAS["text_layer_start"]
     patch._STATE["srf_text_layer_end"]   = BIAS["text_layer_end"]
@@ -470,6 +473,7 @@ def reset_for_dataset(
     # dataset-specific tunables
     phase:             str   | None = None,
     alpha:             float | None = None,
+    alpha_prefill:     float | None = None,
     eps:               float | None = None,
     neg_absent_alpha:  float | None = None,
     # arch/layer tunables (scale with model depth)
@@ -533,6 +537,7 @@ def reset_for_dataset(
     overrides  = {
         "phase":                phase,
         "alpha":                alpha,
+        "alpha_prefill":        alpha_prefill,
         "eps":                  eps,
         "neg_absent_alpha":     neg_absent_alpha,
         "layer_start":          layer_start,
@@ -567,6 +572,8 @@ def reset_for_dataset(
 
     print(f"\n  [SRF] reset → dataset={dataset}  "
           f"phase={BIAS['srf_apply_phase']}  alpha={BIAS['boost_alpha']}  "
+          + (f"alpha_prefill={BIAS['alpha_prefill']}  " if BIAS.get('alpha_prefill') is not None else "")
+          +
           f"eps={BIAS['background_eps']}  "
           f"layers=[{BIAS['layer_start']},{BIAS['layer_end']}]  "
           f"head_topk={BIAS['head_top_k_pct']}  "
@@ -815,7 +822,10 @@ def prepare_sample(inputs, img_start: int, img_end: int,
                   f"frac(c<1)={_lt1:.2f}  frac(c<0.5)={_lt5:.2f}")
 
     elif sal_mode in ("clip_full_gate_v3", "clip_full_gate_v3_iou",
-                      "clip_full_gate_v3_adaptive"):
+                      "clip_full_gate_v3_adaptive",
+                      "clip_full_gate_v3_prod", "clip_full_gate_v3_min",
+                      "clip_full_gate_v3_mean", "clip_full_gate_v3_and",
+                      "clip_full_gate_v3_and_prod"):
         # v3: tuned threshold (0.21), no gate_patch fallback, single GPU block.
         # clip_full_gate_v3          → gate_full only, capped confidence (alpha * min(conf,1))
         # clip_full_gate_v3_iou      → + cross_scale_iou backup
@@ -834,6 +844,15 @@ def prepare_sample(inputs, img_start: int, img_end: int,
             backup=backup,
             full_img_thresh=v3_thresh,
             gate_noun=gate_noun_override,
+            # _prod / _min / _mean change only how the three crop scales are
+            # combined. Everything else, including both gate thresholds, is
+            # identical to clip_full_gate_v3.
+            scale_combine=("prod" if sal_mode.endswith("_prod")
+                           else "min" if sal_mode.endswith("_min")
+                           else "mean" if sal_mode.endswith("_mean")
+                           else "max"),
+            # _and requires BOTH gate signals to agree instead of either.
+            gate_logic=("and" if "_and" in sal_mode else "or"),
         )
         last_clip_result["object_present"] = result.object_present
         last_clip_result["full_img_sim"]   = result.full_img_sim

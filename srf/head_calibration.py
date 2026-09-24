@@ -132,7 +132,7 @@ import eval as eval_mod
 import qwen_attn_patch as patch
 import srf as srf_mod
 
-MODES = ["global", "per_layer", "contrast", "saliency", "vtar_layers", "vtar_joint", "vtar_soft", "vtar_thresh", "vtar_ratio", "ratio_topk"]
+MODES = ["global", "per_layer", "contrast", "saliency", "vtar_layers", "vtar_joint", "vtar_soft", "vtar_thresh", "vtar_ratio", "ratio_topk", "ratio_auto"]
 
 MODE_LABELS = {
     "global":    "global mask (shipped, layer-agnostic)  [reference]",
@@ -145,6 +145,7 @@ MODE_LABELS = {
     "vtar_thresh": "per-layer threshold  rho > mu_l + kappa*sigma_l  [S7]",
     "vtar_ratio":  "absolute threshold on the vision attention ratio  VTAR > T  [S8]",
     "ratio_topk":  "VTAR score, top-k heads per layer  [S9]",
+    "ratio_auto":  "VTAR score, top-k per layer, k DERIVED from the calib set [S10]",
 }
 
 # Modes returning float per-head weights instead of boolean masks. These keep the
@@ -157,6 +158,12 @@ SOFT_MODES = {"vtar_soft"}
 # Modes whose per-layer masks do ALL the layer scoping, so the shim must open the
 # layer range to the full decoder depth and let the masks select. Layers not
 # selected get an all-False mask, which makes the patch a no-op there.
+# Modes that score heads by the vision attention ratio rather than by the
+# per-token mean. Hoisted to a single constant because this membership test is
+# made in several places and a literal list in each of them has already drifted
+# once, producing a silent "captured no attention" failure.
+VTAR_MODES = frozenset({"vtar_ratio", "ratio_topk", "ratio_auto"})
+
 FULL_DEPTH_MODES = {"vtar_layers", "vtar_joint"}
 
 # Per-dataset evaluation wiring. `fovea` follows what each dataset's published
@@ -250,6 +257,41 @@ def _vision_attention_ratio(attn: torch.Tensor, s: int, e: int) -> Optional[torc
     return (vision_sum / total_sum).mean(dim=1)             # (n_heads,)
 
 
+
+def _otsu_fraction(values: "torch.Tensor") -> float:
+    """
+    Split a 1-D score distribution into two groups by Otsu's criterion and
+    return the fraction lying in the upper group.
+
+    Used to derive the head budget k from the calibration set instead of
+    fixing it. Otsu picks the threshold that maximises between-group variance,
+    so it answers "how many of these heads are meaningfully more vision
+    responsive than the rest" without needing any labels. Because it reads the
+    VTAR distribution of the dataset being evaluated, k adapts per dataset and
+    per architecture, which a fixed 0.20 cannot.
+
+    Returns a fraction in (0, 1].
+    """
+    v = values.flatten().float()
+    if v.numel() < 2:
+        return 1.0
+    lo, hi = float(v.min()), float(v.max())
+    if hi - lo < 1e-9:
+        return 1.0
+    best_t, best_var = lo, -1.0
+    for t_ in torch.linspace(lo, hi, 64).tolist():
+        upper = v >= t_
+        w1 = float(upper.float().mean())
+        if w1 <= 0.0 or w1 >= 1.0:
+            continue
+        m1 = float(v[upper].mean())
+        m0 = float(v[~upper].mean())
+        var = w1 * (1.0 - w1) * (m1 - m0) ** 2
+        if var > best_var:
+            best_var, best_t = var, t_
+    return float((v >= best_t).float().mean())
+
+
 def _budget_matched_weights(sc: torch.Tensor, k: float) -> torch.Tensor:
     """
     Solve  w = clip(sc / z, 0, 1)  for the per-layer scale z such that
@@ -312,7 +354,7 @@ def calibrate_per_layer_heads(
     """
     if mode not in ("per_layer", "contrast", "saliency", "vtar_layers",
                     "vtar_joint", "vtar_soft", "vtar_thresh", "vtar_ratio",
-                    "ratio_topk"):
+                    "ratio_topk", "ratio_auto"):
         raise ValueError(f"calibrate_per_layer_heads: unsupported mode {mode!r}")
 
     n         = CFG.SRF_DEFAULTS["calib_n"]    if n         is None else n
@@ -348,7 +390,7 @@ def calibrate_per_layer_heads(
             if not ctx["active"]:
                 return
             attn = patch._STATE.get("_captured")
-            if mode in ("vtar_ratio", "ratio_topk"):
+            if mode in VTAR_MODES:
                 score = _vision_attention_ratio(attn, ctx["s"], ctx["e"])
                 if score is None:
                     return
@@ -478,6 +520,29 @@ def calibrate_per_layer_heads(
             hs = masks[l].nonzero().flatten().tolist()
             print(f"      L{l:2d}  heads {hs}  "
                   f"rho={[round(float(rho[l][h]), 4) for h in hs]}")
+
+    elif mode == "ratio_auto":
+        # Same winning rule as ratio_topk, top-k per layer by VTAR, but k is
+        # DERIVED from the calibration set rather than fixed at 0.20.
+        #
+        # All VTAR values inside the band are pooled and split by Otsu. The
+        # fraction above the split becomes k. No labels are used, so this is
+        # not per-benchmark tuning, and k adapts to the dataset and to the
+        # architecture. --head_top_k_pct is ignored in this mode.
+        pooled  = torch.cat([rho[l].flatten() for l in sorted(rho)])
+        k_auto  = _otsu_fraction(pooled)
+        # Keep at least one head per layer and never more than half.
+        k_auto  = min(max(k_auto, 1.0 / n_heads), 0.5)
+        n_keep  = max(1, int(round(n_heads * k_auto)))
+        for l in rho:
+            idx = torch.argsort(rho[l], descending=True)[:n_keep]
+            m = torch.zeros(n_heads, dtype=torch.bool)
+            m[idx] = True
+            masks[l] = m
+        print(f"  [headcal] VTAR, k DERIVED from calib set = {k_auto:.3f} "
+              f"-> {n_keep} of {n_heads} heads per layer, "
+              f"{sum(int(m.sum()) for m in masks.values())} slots "
+              f"(the fixed default would have been {k} per layer)")
 
     elif mode == "ratio_topk":
         # Score by the vision attention ratio (theoretically the right quantity)

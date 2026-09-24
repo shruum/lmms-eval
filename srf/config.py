@@ -183,6 +183,46 @@ SRF_DEFAULTS = {
 # Reporting an MME number under this setting reports the unmodified model. Qwen
 # MME is not in the paper, so this does not affect any reported result, but do
 # not add one without switching MME to "both" first.
+# ==============================================================================
+# REVIEW 2026-09-22 — THIS TABLE IS THE MAIN GENERICITY PROBLEM.
+#
+# SRF is presented as one training-free method. In this code it is seven
+# methods, because the table below plus dataset_layer_end plus the choice of
+# --method give each benchmark its own hyperparameters. A reviewer who diffs
+# the paper against config.py will find per-benchmark tuning.
+#
+# Divergences, and whether each is defensible:
+#
+#   phase             both (mmvp/pope/vlind) vs generation (vlmbias/mme/...)
+#                     NOT DEFENSIBLE. Unification to "both" was tested and
+#                     reverted, see the note above, because it costs 0.90pp on
+#                     VLMBias. That is a tuning decision, not a method one.
+#   alpha             2.0 everywhere, 8.0 on VLMBias.          NOT DEFENSIBLE.
+#   eps               0.2 everywhere, 0.5 on VLMBias.          NOT DEFENSIBLE.
+#   neg_absent_alpha  2.0 on POPE, 0.0 everywhere else.        NOT DEFENSIBLE,
+#                     and additionally undocumented in the paper. It is a
+#                     fourth lambda. On POPE a rejected gate does not mean "do
+#                     nothing", it means "attenuate image logits by 2.0".
+#   dataset_layer_end mmvp 16, pope 12, vlmbias 14, mme 16, vlind 16, in
+#                     SRF_ARCH_PARAMS.                          NOT DEFENSIBLE.
+#   foveation on/off  MMVP runs --method srffovea, every other dataset runs
+#                     --method srf. So the largest single component of the
+#                     method is silently absent from every benchmark except
+#                     MMVP.                                     NOT DEFENSIBLE.
+#   noun mode         _NOUN_MODE_MAP in srf.py.                 DEFENSIBLE.
+#                     Question formats genuinely differ across benchmarks, so
+#                     this is input parsing, not a method hyperparameter.
+#
+# head_top_k_pct is NOT in this table. It is fixed at 0.20 per architecture in
+# SRF_ARCH_PARAMS, chosen on MMVP pair accuracy and applied unchanged to every
+# dataset and every model. Head calibration itself does run per dataset (see
+# eval._install_head_mode, calib_ds), so the heads adapt but their number does
+# not. Choosing k per dataset by accuracy would be more per-benchmark tuning.
+# The principled fix is to derive the count from the VTAR distribution of the
+# calibration samples, which needs no labels.
+#
+# Nothing here has been changed. This block records the state as reviewed.
+# ==============================================================================
 SRF_DATASET_PARAMS = {
     # alpha tuned by coordinate-descent sweep (autoresearch_mmvp_v2, 2026-06-16)
     # MMVP: α=2.0 + γ=3.0 → 49.33% pair_acc (+9.33pp)

@@ -18,8 +18,10 @@ srf/
   eval_ablation.py       ← ablation sweep runner (2x2x2 random-control grid)
   ablation_components.py ← cumulative component ablation (paper table); 2 anchors x 7 rows
                             calls eval.run_mmvp — does NOT reimplement the eval loop
-  head_calibration.py    ← alternative vision-responsive head selection
-                            modes: global (shipped) | per_layer (S1) | saliency (S3)
+  head_calibration.py    ← vision-responsive head selection, 11 modes.
+                            SHIPPED: ratio_topk (VTAR, top-k per layer, k fixed)
+                            ratio_auto (VTAR, k DERIVED per dataset by Otsu)
+                            see MODES and VTAR_MODES at the top of the file
   srf.py                 ← SRF base method; exposes last_clip_result dict
   srf_e.py               ← SRF-E (two-pass contrastive; Pass 2 = zeroed pixel_values)
   vaf.py                 ← VAF/ClearSight baseline (additive logit boost, all heads)
@@ -30,9 +32,23 @@ srf/
   test_srffovea_mmvp.py  ← SRF-Fovea sweep: pre-encoder spatial blur via CLIP saliency
                             fovea-only / srffovea configs; sigma sweep [20, 30, 50, 100]
   eval_datasets.py       ← dataset loaders
+  param_sensitivity.py   ← one-at-a-time hyperparameter sweeps (--anchor current)
+  profile_cost.py        ← ms/sample and FLOPs, split by stage
+  visualize_components.py← ONE model's 4-panel component row (paper figure)
+  make_paper_figure.py   ← stitches two rows into images/srf_components_combined.png
+                            see SRF_details.md section 11 for which script made
+                            which figure, and the settings both rows must share
+  significance.py        ← CPU. paired bootstrap + McNemar over saved records
+  tune_pope_gate.py      ← CPU. CLIP gate accuracy/precision on POPE
+  audit_nouns_vlmbias.py ← CPU. extracted nouns and maps per VLMBias topic
+  find_vis_sample.py     ← CPU. rank samples by relevance-map concentration
+  make_sensitivity_table.py ← CPU. regenerate the appendix table from JSON
   noun_extract.py        ← CLIP query noun extraction (pope / mmbench / vlind modes)
   saliency/
     clip_salience.py     ← CLIP patch saliency; compute_clip_salience_full_gate_v3
+                            kwargs: scale_combine (max|prod|min|mean, how the 3
+                            crop scales merge) and gate_logic (or|and, how the
+                            two presence thresholds combine)
     hssa_salience.py     ← hidden-state saliency
     lta_salience.py      ← last-token attention saliency
     eval_presence.py     ← saliency gate accuracy on 60-sample val set

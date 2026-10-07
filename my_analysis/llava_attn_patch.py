@@ -96,46 +96,73 @@ def _patched_softmax(input: torch.Tensor, dim: int = -1,
             sys_end   = _STATE["sys_end"]
 
             if img_start is not None and img_end is not None:
-                attn_weights = _ORIGINAL_SOFTMAX(input, dim=dim, dtype=dtype, **kwargs)
-
-                # Boost alpha: prefer _STATE["value"] (set by new srf.py prepare_sample)
-                # Fall back to enh_para (set by patch_model / old calling convention).
-                value    = _STATE.get("value")
-                enh_para = float(value) if value is not None else float(_STATE["enh_para"])
-                sup_para = float(_STATE["sup_para"])
-                sal      = _STATE.get("salience_mask")
-
-                # System-token suppression (multiplicative)
-                if sys_end is not None and sys_end >= 0 and sup_para != 1.0:
-                    attn_weights[:, :, :, :sys_end + 1] *= sup_para
+                value     = _STATE.get("value")
+                enh_para  = float(value) if value is not None else float(_STATE["enh_para"])
+                eps       = float(_STATE.get("srf_background_eps", 0.0))
+                beta      = float(_STATE.get("vaf_beta", 0.0))
+                sal       = _STATE.get("salience_mask")
+                head_mask = _STATE.get("head_mask")
+                n_heads   = input.shape[1]
+                n_img     = img_end - img_start + 1
 
                 boost_mode = _STATE.get("boost_mode", "multiplicative")
 
                 if boost_mode == "additive":
-                    # Pre-softmax additive logit — same mechanism as qwen_attn_patch.
-                    # Works cleanly for both positive (boost) and negative (suppress).
-                    if enh_para != 0.0:
-                        n_img = img_end - img_start + 1
-                        modified = input.clone()
-                        if sal is not None and sal.numel() == n_img:
-                            sal_dev = sal.to(device=input.device, dtype=input.dtype)
-                            modified[:, :, :, img_start:img_end + 1] += enh_para * sal_dev.unsqueeze(0).unsqueeze(0)
+                    # Phase gate: skip this forward pass if it doesn't match the configured phase.
+                    _phase    = _STATE.get("srf_apply_phase", "both")
+                    _is_gen   = (input.shape[2] == 1)
+                    _phase_ok = (
+                        _phase == "both"
+                        or (_phase == "generation" and _is_gen)
+                        or (_phase == "prefill"    and not _is_gen)
+                    )
+                    if not _phase_ok:
+                        return _ORIGINAL_SOFTMAX(input, dim=dim, dtype=dtype, **kwargs)
+
+                    modified = input.clone()
+
+                    # System-prompt suppression: pre-softmax logit shift, head-masked.
+                    if sys_end is not None and sys_end >= 0 and beta > 0:
+                        if head_mask is not None:
+                            mask_dev = head_mask.to(input.device)
+                            sup_bias = modified.new_zeros(1, n_heads, 1, 1)
+                            sup_bias[0, mask_dev, 0, 0] = -beta
+                            modified[..., :sys_end + 1] = modified[..., :sys_end + 1] + sup_bias
                         else:
-                            modified[:, :, :, img_start:img_end + 1] += enh_para
-                        return _ORIGINAL_SOFTMAX(modified, dim=dim, dtype=dtype, **kwargs)
+                            modified[..., :sys_end + 1] -= beta
+
+                    # Image-token bias: alpha*sal - eps*(1-sal), applied to masked heads only.
+                    if sal is not None and sal.numel() == n_img:
+                        sal_dev  = sal.to(device=input.device, dtype=input.dtype)
+                        bias_row = enh_para * sal_dev - eps * (1.0 - sal_dev)
+                    else:
+                        bias_row = modified.new_full((n_img,), enh_para)
+
+                    if head_mask is not None:
+                        mask_dev  = head_mask.to(input.device)
+                        full_bias = modified.new_zeros(1, n_heads, 1, n_img)
+                        full_bias[0, mask_dev, 0, :] = bias_row
+                        modified[..., img_start:img_end + 1] = modified[..., img_start:img_end + 1] + full_bias
+                    else:
+                        modified[..., img_start:img_end + 1] = modified[..., img_start:img_end + 1] + bias_row
+
+                    return _ORIGINAL_SOFTMAX(modified, dim=dim, dtype=dtype, **kwargs)
+
                 else:
-                    # Post-softmax multiplicative (original, VAF-compatible)
+                    # Post-softmax multiplicative (original, VAF-compatible) — unchanged.
+                    attn_weights = _ORIGINAL_SOFTMAX(input, dim=dim, dtype=dtype, **kwargs)
+                    sup_para = float(_STATE["sup_para"])
+                    if sys_end is not None and sys_end >= 0 and sup_para != 1.0:
+                        attn_weights[:, :, :, :sys_end + 1] *= sup_para
                     if enh_para != 1.0:
-                        n_img = img_end - img_start + 1
                         if sal is not None and sal.numel() == n_img:
                             sal_dev  = sal.to(device=input.device, dtype=input.dtype)
                             scaling  = 1.0 + (enh_para - 1.0) * sal_dev
                             attn_weights[:, :, :, img_start:img_end + 1] *= scaling.unsqueeze(0).unsqueeze(0)
                         else:
                             attn_weights[:, :, :, img_start:img_end + 1] *= enh_para
-                        # Renormalise to maintain probability distribution
                         attn_weights = attn_weights / attn_weights.sum(dim=-1, keepdim=True)
-                return attn_weights
+                    return attn_weights
 
     return _ORIGINAL_SOFTMAX(input, dim=dim, dtype=dtype, **kwargs)
 

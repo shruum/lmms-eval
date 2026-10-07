@@ -167,15 +167,14 @@ SRF_DATASET_PARAMS = {
     "mmvp":        {"phase": "both",       "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
     "pope":        {"phase": "both",       "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 2.0},
     "vlmbias":     {"phase": "generation", "alpha": 8.0, "eps": 0.5, "neg_absent_alpha": 0.0},
-    "mme":         {"phase": "generation", "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
-    "mmbench":     {"phase": "generation", "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
-    "hallusionbench": {"phase": "generation", "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
+    "mme":         {"phase": "both",       "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
+    "mmbench":     {"phase": "both",       "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
+    "hallusionbench": {"phase": "both",    "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
     # VLind-Bench: counterfactual visual reasoning — same structure as MMVP (True/False pair)
     # phase="both": boost helps in both prefill (question understanding) and generation
     "vlind":       {"phase": "both",       "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
     # MMHal-Bench: open-ended image description (96 samples, 8 question types)
-    # generation phase only — free-form answers generated token-by-token
-    "mmhalbench":  {"phase": "generation", "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
+    "mmhalbench":  {"phase": "both",       "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
 }
 
 # ── SRF-E (evidence amplification) defaults ────────────────────────────────────

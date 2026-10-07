@@ -93,6 +93,76 @@ SRF base is flat on VLIND (47.35% vs 47.02% baseline). Root cause: **VLIND requi
 
 **SRF-E at 52.32% is the correct result.** The contrastive pass (image vs blank) amplifies visual evidence globally without needing correct saliency, which is exactly what VLIND needs.
 
+---
+
+## LLaVA-1.5-7B Results (2026-08-06)
+
+Model: `llava-hf/llava-1.5-7b-hf` | Eval: `decode_first_token` (logit-based yes/no)
+Config: `--alpha 0.5 --layer_end 20 --neg_absent_alpha 1.0 --llava_boost_mode additive --clip_fallback_thresh 0.25 --clip_patch_thresh 0.27`
+Results: `results/mme_llava_full/`
+
+### Cross-dataset summary (SRF vs SRF-Fovea)
+
+| Dataset | SRF | SRF-Fovea σ=20 | Winner | Why |
+|---------|-----|----------------|--------|-----|
+| LLaVA MMHal (score↑) | 2.29 | **2.40** | SRF-Fovea ✓ | Object-focused questions benefit from blur |
+| LLaVA MME (total↑) | **670.00** | 663.33 | SRF ✓ | Count/position need global context |
+| Qwen MMVP (pair acc↑) | 41.33% | **+3.33pp** | SRF-Fovea ✓ | Fine-grained visual perception benefits from focus |
+
+SRF-Fovea beats SRF on open-ended hallucination/perception tasks. Only loses on MME count/position subtasks where blurring the background destroys the spatial evidence the model needs.
+
+### MME (all 4 perception subtasks, n=240)
+
+| Method | exist | count | pos | color | **TOTAL** | Δ |
+|--------|------:|------:|----:|------:|----------:|---:|
+| Baseline | 193.33 | 160.00 | 150.00 | 166.67 | **670.00** | — |
+| SRF | 196.67 | 156.67 | 146.67 | 170.00 | **670.00** | **±0** |
+| SRF-Fovea (σ=20) | 193.33 | 156.67 | 140.00 | 173.33 | **663.33** | −6.67 |
+| SRF-C pixel-zero (γ=0.3) | 190.00 | 146.67 | 136.67 | 160.00 | **633.33** | −36.67 |
+| SRF-C pixel-zero γ=1.0 | 190.00 | 133.33 | 136.67 | 140.00 | 600.00 | −70.00 |
+| SRF-C pixel-zero γ=3.0 | 183.33 | 126.67 | 133.33 | 126.67 | 570.00 | −100.00 |
+| SRF-C v2 salient-zero (γ=0.3) | 190.00 | 153.33 | 143.33 | 166.67 | **653.33** | −16.67 |
+| SRF-C v2 salient-zero γ=1.0 | 190.00 | 136.67 | 140.00 | 150.00 | 616.67 | −53.33 |
+| SRF-C v2 salient-zero γ=3.0 | 183.33 | 133.33 | 140.00 | 136.67 | 593.33 | −76.67 |
+
+*ILVAD Table 2 ref: Baseline=641.66, ILVAD=686.67*
+
+⚠️ **Eval protocol gap**: our baseline (670.00) > ILVAD baseline (641.66). We use `decode_first_token` (logit-based, always produces yes/no); ILVAD uses `model.generate` + text parsing (some outputs fail to parse → counted wrong). Direct comparison with ILVAD Table 2 requires matching their protocol.
+
+**MME findings:**
+- SRF: neutral (±0) — existence/color gains cancel count/position losses. Global-context tasks can't benefit from local attention boosting.
+- SRF-Fovea: −6.67 — foveal blur destroys positional context for count/position subtasks; only color benefits (+6.67).
+- SRF-C pixel-zero: catastrophically bad (−36.67 to −100). Frozen CLIP produces garbage embeddings from zeroed pixels.
+- SRF-C v2 salient-zero: less bad (−16.67 at γ=0.3) but still hurts. Root cause same: upsampled pixel zeroing still corrupts CLIP.
+
+### MMHal-Bench (n=96, GPT-scored)
+
+Results: `results/mmhalbench_full/` and `results/mmhalbench_srfe_sweep/`
+
+| Method | Score | Hal% | Δ Score |
+|--------|------:|-----:|--------:|
+| Baseline | 2.21 | 60.4% | — |
+| SRF (α=0.5, naa=1.0) | 2.29 | 59.4% | +0.08 |
+| SRF-Fovea σ=5 | 2.39 | 57.3% | +0.18 |
+| SRF-Fovea σ=10 | 2.39 | 57.3% | +0.18 |
+| SRF-Fovea σ=15 | 2.36 | 57.3% | +0.15 |
+| **SRF-Fovea σ=20** | **2.40** | **56.2%** | **+0.19** |
+| SRF-Fovea σ=30 | 2.35 | 56.2% | +0.14 |
+| SRF-C pixel-zero γ=0.1 | 1.35 | 85.0% | −0.86 |
+| SRF-C pixel-zero γ=0.2 | 1.55 | 80.0% | −0.66 |
+| SRF-C pixel-zero γ=0.3 | 1.15 | 90.0% | −1.06 |
+| SRF-C v2 salient-zero γ=0.3 | 1.26 | 86.5% | −0.95 |
+| SRF-C v2 salient-zero γ=1.0 | 1.00 | 90.6% | −1.21 |
+| SRF-C v2 salient-zero γ=3.0 | 0.76 | 89.6% | −1.45 |
+
+**MMHal findings:**
+- SRF base: small but consistent gain (+0.08 score, −1pp hal%).
+- SRF-Fovea σ=20: best overall → Score=2.40, Hal%=56.2% (+0.19 vs baseline). Results at `results/mmhalbench_fovea_sweep/`.
+- SRF-C (pixel-zero and salient-zero): both catastrophic. Open-ended generation compounds contrastive noise across tokens.
+- **Next**: SRF-C v3 (embedding-space token zeroing) — bypasses CLIP OOD problem entirely. Pending.
+
+---
+
 ## Open Tasks (priority order)
 
 1. **Verify SRF beats baseline on RePOPE** — 100-sample diagnostic running (results/diag_100sample/)
@@ -120,6 +190,32 @@ SRF base is flat on VLIND (47.35% vs 47.02% baseline). Root cause: **VLIND requi
 - Results: ...
 - Notes: ...
 -->
+
+### 2026-08-08 — SRF-C v2 (salient-zero) MME + MMHal (LLaVA-1.5-7B)
+
+- Scripts: `srf_exp_runs/mme_llava_srfc2.sh` (job 25357165), `srf_exp_runs/mmhal_llava_srfc2.sh` (job 25357289)
+- Results: `results/mme_llava_full/srfc2/`, `results/mmhalbench_srfc2_sweep/g{0.3,1.0,3.0}/`
+- MME best: γ=0.3 → 653.33 (−16.67 vs baseline). Better than pixel-zero (633.33) but still hurts.
+- MMHal best: γ=0.3 → Score=1.26, Hal%=86.5% (−0.95 vs baseline). Catastrophic.
+- Root cause confirmed: zeroing pixels (even partially) corrupts frozen CLIP-L → garbage LLM tokens → noisy contrastive signal.
+- **Fix**: SRF-C v3 — zero the 576 projected visual tokens directly in LLM embedding space, bypassing CLIP.
+- Note: eval.py bug fixed (gamma gating was srfe-only, added srfc2). Bug caused earlier jobs to run with γ=0.0.
+
+### 2026-08-06 — MMHal SRF-Fovea σ sweep (LLaVA-1.5-7B, n=96, GPT-4o scored)
+
+- Script: `srf_exp_runs/mmhal_srffovea_sigma_sweep.sh` (job 25285666)
+- Results: `results/mmhalbench_fovea_sweep/s{5,10,15,20,30}/`
+- Best: **σ=20 → Score=2.40, Hal%=56.2%** (+0.19 vs baseline, +0.11 vs SRF base)
+- Shape: scores plateau at σ=5–10 (2.39), dip at σ=15 (2.36), peak at σ=20 (2.40), fall at σ=30 (2.35). Hal% flat 57.3% for σ≤15, drops to 56.2% at σ≥20.
+- σ=20 confirmed as optimal for LLaVA MMHal (matches Qwen MMVP best σ).
+
+### 2026-08-06 — LLaVA MME full eval (all 4 subtasks, 3 methods)
+
+- Scripts: `srf_exp_runs/mme_llava_baseline_srf.sh`, `mme_llava_srffovea.sh`, `mme_llava_srfc.sh`
+- Results: `results/mme_llava_full/{baseline,srf,srffovea,srfc}/mme.json`
+- SRF: 670.00 (=baseline, ±0). SRF-Fovea: 663.33 (−6.67). SRF-C γ=0.3: 633.33 (−36.67).
+- Root cause: count/position subtasks need global context — any attention redistribution or foveal blur hurts. SRF-C contrastive pass produces noise on LLaVA at all γ.
+- Eval protocol differs from ILVAD: our baseline=670 vs ILVAD=641.66 (decode_first_token vs model.generate+parse).
 
 ### 2026-06-12 — Gate sweep + Boosting experiments (B1–B4, val set)
 

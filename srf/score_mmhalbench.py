@@ -94,6 +94,7 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--response",   required=True, help="mmhalbench_responses.json from eval.py")
     p.add_argument("--evaluation", default=None,  help="Save raw GPT-4 outputs to this JSON")
+    p.add_argument("--scores",     default=None,  help="Save mmhalbench_scores.json (for sweep_results.py)")
     p.add_argument("--api-key",    default=None,  help="OpenAI API key (or set OPENAI_API_KEY)")
     p.add_argument("--gpt-model",  default="gpt-4o", help="OpenAI model (default: gpt-4o)")
     args = p.parse_args()
@@ -161,6 +162,18 @@ def main():
     print("Per question type:")
     for qt, vs in sorted(per_type.items()):
         print(f"  {qt:<14s}: {sum(vs)/len(vs):.2f}  (n={len(vs)})")
+
+    if args.scores:
+        scores_data = {
+            "score":    avg_score,
+            "hal_pct":  hal_pct,
+            "n":        len(scores),
+            "raw_scores": scores,
+            "per_type": {qt: sum(vs)/len(vs) for qt, vs in sorted(per_type.items())},
+        }
+        with open(args.scores, "w") as f:
+            json.dump(scores_data, f, indent=2)
+        print(f"Scores → {args.scores}")
 
 
 if __name__ == "__main__":

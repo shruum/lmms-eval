@@ -210,7 +210,7 @@ def main():
         _BA = _H / _W
         fig, axes = plt.subplots(1, 4, figsize=(21, 5.6),
                                  gridspec_kw={"width_ratios": [1, 1, 1, 1],
-                                              "wspace": 0.20})
+                                              "wspace": 0.06})
         im = np.array(image)
         for a in axes[:3]:
             a.imshow(im); a.axis("off"); a.set_box_aspect(_BA)
@@ -237,9 +237,15 @@ def main():
         ys, xs = np.where(sel)
         ax.scatter(xs, ys, s=11, c="red", marker="s", linewidths=0)
         ax.set_title("(d) Vision attention ratio", fontsize=21)
-        ax.set_xlabel("head", fontsize=18)
-        ax.set_ylabel("layer", fontsize=18)
-        ax.tick_params(labelsize=15)
+        # No axis labels on panel (d). "layer" and "head" are stated in the
+        # caption, and dropping them removes the collision with panel (c) and
+        # tightens the row.
+        # No axis labels and no ticks on panel (d). The axes are named in the
+        # caption. Dropping them removes the collision with panel (c) and, more
+        # importantly, removes the tick row beneath the heatmap, which is pure
+        # vertical space in a figure that has to fit a tight paper.
+        ax.set_xlabel(""); ax.set_ylabel("")
+        ax.set_xticks([]); ax.set_yticks([])
 
         if not args.no_cbar:
             cb = fig.colorbar(h, ax=ax, fraction=0.045)

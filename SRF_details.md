@@ -1309,6 +1309,140 @@ python -u srf/profile_cost.py --output results/cost/ 2>&1 | tee /tmp/profile_cos
 6. **`tee` hides failures.** Use `set -o pipefail`.
 
 
+## 7.8 BEST PARAMETERS PER DATASET — Qwen2.5-VL-3B-Instruct
+
+**This is the answer to "what do I run".** Updated 2026-09-25 after the full
+POPE and full VLMBias runs. Qwen is evaluated on three datasets only.
+
+### The layer band is 6-31 on ALL THREE. It is not per dataset.
+
+Fixed 2026-09-23. Every setting below uses `--layer_start 6 --layer_end 31` and
+`--head_mode ratio_topk --head_top_k_pct 0.2`, which on Qwen gives 3 of 16
+heads per layer across 26 band layers, so **78 active slots**.
+
+**`config.py` still disagrees and will silently override.**
+`SRF_ARCH_PARAMS[3B]["dataset_layer_end"]` is still
+`{mmvp: 16, pope: 12, vlmbias: 14}` with `layer_start=8`. That is what the
+PUBLISHED paper numbers used. Anyone who runs without passing the band
+explicitly gets the old per-dataset bands. Pass the flags, or replace that
+table with a single band.
+
+```bash
+cd /volumes2/mllm/lmms-eval
+BAND="--layer_start 6 --layer_end 31 --head_mode ratio_topk --head_top_k_pct 0.2"
+
+python -u srf/eval.py --method srffovea --datasets mmvp   $BAND \
+  --output results/mmvp/
+python -u srf/eval.py --method srffovea --datasets pope   $BAND \
+  --save_records /tmp/rec_pope.json --output results/pope/
+python -u srf/eval.py --method srf      --datasets vlmbias $BAND \
+  --phase both --alpha 4.0 --output results/vlmbias/
+```
+
+| Parameter | MMVP | POPE | VLMBias | unified |
+|---|---|---|---|---|
+| layers | **6-31** | **6-31** | **6-31** | YES |
+| `head_mode` / `head_top_k_pct` | ratio_topk / 0.20 | same | same | YES |
+| active slots | 78 | 78 | 78 | YES |
+| `sigma` | 20 | 20 | 20 | YES |
+| `tau` (`--clip_fallback_thresh`) | 0.20 | 0.20 | 0.20 | YES |
+| `lambda_sys` (`--sys_beta`) | 0.30 | 0.30 | 0.30 | YES |
+| `phase` | both | both | both | YES |
+| `lambda_sem` (`--alpha`) | 2.0 | 2.0 | **4.0** | no |
+| `lambda_bg` (`--eps`) | 0.2 | 0.2 | **0.5** | no, from config |
+| `--method` | srffovea | srffovea | **srf** | no, see below |
+| `neg_absent_alpha` | 0.0 | **2.0** | 0.0 | no, from config |
+
+### Results at 6-31, against the unmodified model
+
+| dataset | metric | baseline | SRF at 6-31 | published, old bands |
+|---|---|---|---|---|
+| MMVP | pair | 40.00 | **45.33** | 45.33 |
+| MMVP | img | 67.67 | **70.00** | 70.00 |
+| POPE | adversarial | 86.37 | 85.70 | 87.33 |
+| POPE | popular | 87.57 | 87.10 | 87.40 |
+| POPE | random | 88.50 | 87.60 | 88.43 |
+| POPE | overall | **87.48** | 86.80 | — |
+| POPE | significance | — | **-0.68, p=5e-04, SIGNIFICANT REGRESSION** | see 12 |
+| VLMBias | acc | 19.04 | 18.97 | 19.65 |
+
+**Read this honestly. The unified band wins MMVP and loses the other two.**
+POPE at 6-31 is below its own baseline on all three splits. VLMBias is level
+with baseline. The published POPE and VLMBias numbers used the old 8-12 and
+8-14 bands. The MMVP gain is also not significant, +5.33 pairs, 95 percent CI
+[-1.33, +12.67], McNemar p=0.20. See 10.5.
+
+### Why alpha is tuned per architecture — the line to use
+
+**Use this wording.** It is the defensible mechanism, and it survives a reviewer
+checking the model configs.
+
+> Because $\lambda_{\mathrm{sem}}$ is a pre-softmax logit shift applied to
+> every visual key, its effective strength depends on how many visual keys
+> receive it. That count is fixed by the architecture and by the input
+> resolution, so the same value does not carry the same meaning across models
+> and we tune it per architecture.
+
+Plain version for notes: alpha is a pre-softmax shift, so its effective
+strength depends on the number of visual keys, which differs by architecture
+and by input resolution, hence it is tuned per architecture.
+
+| model | visual keys | note |
+|---|---|---|
+| LLaVA-1.5-7B | **576**, fixed | fixed grid |
+| Qwen2.5-VL-3B | **345 to 391** measured | varies with input resolution |
+
+The same alpha spread over 576 keys redirects substantially more probability
+mass than over 350, because softmax normalises across all keys.
+
+**DO NOT claim the cause is a different `d_k`.** It is a natural-sounding
+explanation and it is false for this pair. Both models have head_dim 128, so
+the `1/sqrt(d_k)` scaling is identical at 0.0884. A reviewer who opens the two
+configs finds this in a minute, and an incorrect mechanism is worse than none.
+
+| model | hidden | heads | head_dim | 1/sqrt(d_k) |
+|---|---|---|---|---|
+| Qwen2.5-VL-3B | 2048 | 16 | 128 | 0.0884 |
+| LLaVA-1.5-7B | 4096 | 32 | 128 | 0.0884 |
+
+A secondary factor is that learned Q and K norms differ between models, so the
+raw logit spread can differ even at equal `d_k`. That is plausible but it has
+NOT been measured here. Measuring it is cheap, dump the pre-softmax logits for
+both models on the same image and compare the spreads, and it would turn the
+argument from a claim into evidence. Do not assert it until then.
+
+**Unverified numbers in circulation.** A cluster-side note quotes alpha=0.3 for
+LLaVA and an MMHal score of 2.188 against a 2.208 baseline. Neither is in this
+repo. The alpha values committed on `srf-llava` are 0.5 and 2.0, and the MMHal
+sweep is [0.5, 1.0, 2.0, 3.0]. MMHal is also only 96 samples, so a 0.02 gap on
+a 0 to 6 scale is well inside noise and does not show that alpha=2.0
+"collapses" anything. Source those numbers before they enter the paper.
+
+### Not yet unified
+
+1. **`--method`.** VLMBias runs `srf`, so foveation is off there. On the
+   560-sample subset it made no difference, 14.82 either way, but the full run
+   with `srffovea` has NOT been done. One run closes this.
+2. **`alpha`.** VLMBias 4.0 against 2.0 elsewhere. At 2.0 VLMBias falls below
+   its baseline, so this looks real rather than tuning noise.
+3. **`eps` and `neg_absent_alpha`** still come from `SRF_DATASET_PARAMS` and
+   have never been swept at the 6-31 band.
+
+### MMVP band sweep, the evidence for 6-31
+
+| band | MMVP pair |
+|---|---|
+| **[6, 31]** | **45.33** |
+| [8, 16] | 44.00 |
+| [0, 35] | 43.33 |
+| [18, 31] | 42.67 |
+| [6, 20] / [12, 24] | 40.00 |
+
+[8, 16] costs 2 pairs on MMVP and sits next to the old POPE and VLMBias bands,
+so it is the obvious alternative if the POPE regression matters more than the
+MMVP gain. It has NOT been tested on POPE or VLMBias.
+
+
 ---
 
 # 8. LLAVA HANDOFF (Snellius)
@@ -1706,6 +1840,16 @@ exact command that reproduces it. Regenerate rather than hand-editing.
 | `images/srf_components_clock.png` | `srf/visualize_components.py` | `--dataset pope --question_id 251 --no_cbar`. Superseded by the bowl, kept as an alternative |
 | `tables/param_sensitivity_mmvp.tex` | `srf/make_sensitivity_table.py` | reads `results/sensitivity_v2/param_sensitivity_mmvp_qwen3b.json` |
 | `tables/ablation_components_mmvp.tex` | `srf/ablation_components.py` | regenerate from `results/v2_*` |
+| `images/analysis2_figure.png` | `PAPER/scripts/plot_diverging_heatmap.py` | CPU. Vision-vs-text preference per (layer, head), diverging heatmap plus layer marginal |
+| `images/attn1.png` | `PAPER/scripts/make_fig5_routing.py` | **GPU.** Decoder attention vs CLIP saliency. POPE dog sample plus a VLMBias flag chosen with `--flags_idx` |
+| `images/attn1_stacked.png` | `PAPER/scripts/make_attn1_stacked.py` | CPU. Crops the six panels of `attn1.png` into two stacked rows. Re-run `make_fig5_routing.py` first if the samples change |
+| Figure 3 attention panels | `PAPER/scripts/make_fig3_attention.py` | **GPU.** Input, baseline decoder attention, CLIP relevance map. Panel 2 is clipped at the 95th percentile, NOT min-max normalised, because a corner sink token at ~19x the median otherwise flattens the panel to uniform blue |
+
+**Three different things get called "the attention heatmap".** Layer-by-head
+VTAR is panel (d) of `visualize_components.py`. Layer-by-head vision-vs-text
+preference is `plot_diverging_heatmap.py`. Spatial attention over the image is
+`make_fig3_attention.py` and `make_fig5_routing.py`. They are not
+interchangeable.
 
 ### 11.1 The component figure, how the two scripts divide the work
 
@@ -1745,6 +1889,68 @@ colourbar cropped out rather than absent, its heatmap is clipped at the top so
 the layer axis starts near 2 instead of 0, its "layer" label sits inside panel
 (c), and its panel names are the old ones. Regenerating it with the block
 above removes the cropping workarounds in `make_paper_figure.py`.
+
+## 12. Full POPE, three arms, with significance (2026-09-25)
+
+9000 questions per arm, all with `--save_records`, so this is tested rather
+than asserted. Logs `/tmp/pope_full_*.log`, records `/tmp/rec_pope_*.json`.
+Both SRF arms use the unified band, `--method srffovea --head_mode ratio_topk
+--head_top_k_pct 0.2 --layer_start 6 --layer_end 31`.
+
+| arm | overall | adversarial | popular | random |
+|---|---|---|---|---|
+| **baseline** | **87.48** | **86.37** | **87.57** | **88.50** |
+| or_gate, shipped OR gate | 86.80 | 85.70 | 87.10 | 87.60 |
+| and_gate, AND gate | 86.83 | 85.57 | 87.17 | 87.77 |
+
+The baseline reproduces the published numbers exactly, 86.37 / 87.57 / 88.50,
+which validates the harness.
+
+### Paired bootstrap and McNemar, 9000 questions
+
+| comparison | delta | 95% CI | discordant | McNemar p |
+|---|---|---|---|---|
+| baseline -> or_gate | **-0.68** | [-1.06, -0.31] | 180 / 119 | **5.0e-04** |
+| baseline -> and_gate | **-0.64** | [-0.99, -0.30] | 152 / 94 | **2.6e-04** |
+| or_gate -> and_gate | +0.03 | [-0.26, +0.31] | 82 / 85 | 0.88 |
+
+### Two conclusions, both firm
+
+**1. SRF at the unified band significantly HURTS POPE.** Minus 0.68 points,
+p=5e-04, interval excluding zero. POPE has the sample size MMVP lacks, so this
+is not a noise reading. The current configuration is reliably worse than doing
+nothing on object presence.
+
+**2. The AND gate does nothing.** Plus 0.03 points, p=0.88, 167 discordant of
+9000. **The precision hypothesis is refuted.** Raising gate precision from 58.7
+to 79.7 percent bought no accuracy, and AND was in fact worst on adversarial,
+85.57 against OR's 85.70, which is the opposite of what the hypothesis
+predicted. So the POPE loss is NOT caused by the gate firing too often. It is
+the intervention itself, the band, the wider head set, or foveation.
+
+### What this means for the paper
+
+On Qwen2.5-VL-3B the scoreboard is now:
+
+| benchmark | effect | significant |
+|---|---|---|
+| MMVP | +5.33 pair | **no**, p=0.20, CI [-1.33, +12.67] |
+| VLMBias | -0.07 | no, 18.97 against 19.04 |
+| POPE | **-0.68** | **yes**, p=5e-04 |
+
+**The only statistically solid Qwen result is a regression.** That makes the
+LLaVA numbers, MME 631.7 to 670.0 and MMHal 67.0 to 56.2, the paper's real
+evidence, and they have not been significance tested. MMHal is only 96 samples,
+so it will be underpowered in the same way MMVP is. MME at 2374 questions is
+the one evaluation with the size to support a claim.
+
+### The next diagnostic, not yet run
+
+POPE at 6-31 **without** foveation, `--method srf`, isolates whether the loss
+comes from the encoder stage or the decoder stage. One run. If foveation is the
+cause it can be dropped on POPE with an argument rather than a per-dataset
+switch, namely that blurring hurts when the task is deciding whether something
+is present at all.
 
 ## Code changes log
 

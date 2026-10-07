@@ -67,6 +67,79 @@ def panels_only(im, right=3078):
     return trim(im.crop((0, top, min(right, W), bot)))
 
 
+def _panel_runs(im, thr=0.02):
+    """Column ranges of the four panels, from the ink profile."""
+    ink = (np.asarray(im.convert("RGB")) < 248).any(axis=2)
+    col = ink.mean(axis=0) > thr
+    runs, s = [], None
+    for i, v in enumerate(list(col) + [False]):
+        if v and s is None:
+            s = i
+        elif not v and s is not None:
+            if i - s > 40:
+                runs.append((s, i))
+            s = None
+    return runs
+
+
+def _photo_bottom(im):
+    """Last row of the photo panels. The far-left strip holds only panel (a)."""
+    ink = (np.asarray(im.convert("RGB")) < 248).any(axis=2)
+    W = ink.shape[1]
+    rows = np.where(ink[:, : int(W * 0.10)].mean(axis=1) > 0.80)[0]
+    return int(rows[-1]) + 1 if len(rows) else ink.shape[0]
+
+
+def _clean_top(im):
+    """Top row: erase panel (d)'s ticks and axis names, KEEP the question.
+
+    Both sit below the photos, so a horizontal crop would take the question
+    with them. Whiting out only the columns under panel (d) leaves the
+    question, which is printed under panel (a), untouched.
+    """
+    a = np.asarray(im.convert("RGB")).copy()
+    runs = _panel_runs(im)
+    y = _photo_bottom(im)
+    if len(runs) >= 4:
+        a[y:, runs[3][0] - 90:] = 255          # ticks + "head" under panel (d)
+        a[:, runs[2][1]: runs[3][0]] = 255     # "layer" + y ticks in the gutter
+    return Image.fromarray(a)
+
+
+def _clean_bottom(im):
+    """Bottom row: crop the tick row, then erase the rotated "layer" label.
+
+    The label sits in the gutter between panels (c) and (d). The gutter is
+    detected from the ink profile, the same way `_clean_top` does it, so the
+    whiteout follows the panels wherever the crop puts them. A fixed fractional
+    band was used before and clipped the right edge of panel (c) once the row
+    was cropped to a different width. Drops out when the LLaVA row is
+    regenerated with the labels already absent.
+    """
+    im = im.crop((0, 0, im.size[0], _photo_bottom(im)))
+    a = np.asarray(im.convert("RGB")).copy()
+    # Photo and heatmap columns are inked over most of the row height, the
+    # rotated label and the tick marks are not, so a high threshold keeps the
+    # panels and leaves everything in between to be whited out.
+    runs = _panel_runs(im, thr=0.5)
+    if len(runs) >= 4:
+        a[:, runs[2][1]: runs[3][0]] = 255
+        # The label also overhangs the last ~25 columns of panel (c). Inpaint
+        # those columns row by row from a reference column just left of the
+        # overhang, replacing only near-black text pixels that sit on a light
+        # background, so dark photo content is left alone.
+        x1 = runs[2][1]
+        x0, ref = x1 - 25, x1 - 30
+        strip = a[:, x0:x1].astype(int)
+        refcol = a[:, ref].astype(int)
+        is_text = (strip < 90).all(axis=2)
+        light_bg = (refcol.mean(axis=1) > 110)[:, None]
+        mask = is_text & light_bg
+        strip[mask] = np.broadcast_to(refcol[:, None, :], strip.shape)[mask]
+        a[:, x0:x1] = strip.astype(np.uint8)
+    return Image.fromarray(a)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--top",    default="srf_components_bowl.png")
@@ -74,16 +147,23 @@ def main():
     ap.add_argument("--out",    default="srf_components_combined.png")
     a = ap.parse_args()
 
-    top = trim(Image.open(IMG_DIR / a.top).convert("RGB"))
+    top = trim(_clean_top(trim(Image.open(IMG_DIR / a.top).convert("RGB"))))
     bot = panels_only(Image.open(IMG_DIR / a.bottom).convert("RGB"))
+    # The LLaVA row predates dropping the axis labels, and its rotated "layer"
+    # label sits in the gutter between panels (c) and (d), overlapping (c).
+    # Whiting out the gutter removes it without touching either panel. Drops
+    # out once that row is regenerated with the labels already absent.
+    bot = trim(_clean_bottom(bot))
 
     W = max(top.size[0], bot.size[0])
     top = top.resize((W, round(top.size[1] * W / top.size[0])), Image.LANCZOS)
     bot = bot.resize((W, round(bot.size[1] * W / bot.size[0])), Image.LANCZOS)
 
-    LABW, PAD, ROWGAP, QGAP, CBGAP = 132, 18, 46, 6, 30
-    fq = ImageFont.truetype(FONT, 52)
-    fl = ImageFont.truetype(FONT, 62)          # model labels
+    # ROWGAP: space between the two model rows.
+    # QGAP:   space between a row and the question printed under it.
+    LABW, PAD, ROWGAP, QGAP, CBGAP = 160, 14, 8, 0, 26
+    fq = ImageFont.truetype(FONT, 70)          # matches the in-figure question
+    fl = ImageFont.truetype(FONT, 84)          # model labels
     pr = ImageDraw.Draw(Image.new("RGB", (4, 4)))
     bb = pr.textbbox((0, 0), BOTTOM_Q, font=fq)
     qh = bb[3] - bb[1]
@@ -111,7 +191,7 @@ def main():
         s = Image.new("RGB", (im_.size[1], LABW), "white")
         ds = ImageDraw.Draw(s)
         tw = ds.textbbox((0, 0), lab, font=fl)[2]
-        ds.text(((im_.size[1] - tw) // 2, 34), lab, fill=(0, 0, 0), font=fl)
+        ds.text(((im_.size[1] - tw) // 2, 38), lab, fill=(0, 0, 0), font=fl)
         cv.paste(s.rotate(90, expand=True), (PAD, y))
         y += im_.size[1]
         if i == 1:

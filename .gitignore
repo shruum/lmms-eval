@@ -60,3 +60,10 @@ remote_code/*
 docs/plans/
 .opencode
 .worktrees/
+
+# SRF: local artefacts that must not be committed.
+# results/ is already ignored above, but 43 files predate that rule.
+*.log
+plots/
+ClearSight/
+

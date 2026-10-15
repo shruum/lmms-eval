@@ -36,7 +36,7 @@ sys.path.insert(0, str(_ANALYSIS_DIR))                    # qwen_attn_patch
 
 import os
 import torch
-patch = None  # set by eval.py via srf_mod.patch = patch before setup()
+import qwen_attn_patch as patch  # default; eval.py overrides per architecture before setup()
 import clip_salience as clip_sal
 import hssa_salience as hssa_sal
 import lta_salience as lta_sal
@@ -63,6 +63,22 @@ _calib_layer_end:  int   | None = None  # last layer_end used for calibration
 # Fields: object_present (bool), full_img_sim (float), saliency (tensor|None)
 last_clip_result: dict = {}  # empty if saliency_mode has no CLIP gate or noun was bad
 
+# Generator for saliency_mode="random" (the random-map control). Seeded once per
+# process so a run is reproducible; reset via set_random_seed().
+_RAND_SEED: int = 0
+_RAND_GEN = None
+
+
+def set_random_seed(seed: int) -> None:
+    """Reseed the random-map control (saliency_mode="random")."""
+    global _RAND_SEED, _RAND_GEN
+    _RAND_SEED, _RAND_GEN = seed, torch.Generator().manual_seed(seed)
+
+
+# Confidence log for saliency_mode="clip_full_gate_v3_paper" — diagnostic only.
+# Tracks how often the relevance map falls back toward the whole image (c < 1).
+_PAPER_CONF_LOG: list[float] = []
+
 
 # ---------------------------------------------------------------------------
 # Config helpers — build BIAS and SALIENCY dicts from config + overrides
@@ -80,11 +96,12 @@ def _make_bias(dataset: str, overrides: dict) -> dict:
     Sources (highest priority last wins):
       arch["layer_start/end/head_top_k_pct"]
       arch["dataset_layer_end"][dataset]
-      dataset_params["phase/alpha/eps"]
+      dataset_params["phase/alpha/eps"], then arch["dataset_overrides"][dataset]
       overrides (CLI args)
     """
     arch  = _get_arch()
-    dp    = CFG.SRF_DATASET_PARAMS.get(dataset, CFG.SRF_DATASET_PARAMS["pope"])
+    dp    = {**CFG.SRF_DATASET_PARAMS.get(dataset, CFG.SRF_DATASET_PARAMS["pope"]),
+             **arch["dataset_overrides"].get(dataset, {})}
     d     = CFG.SRF_DEFAULTS
 
     # layer_end: arch default → dataset-specific fine-tune
@@ -106,11 +123,13 @@ def _make_bias(dataset: str, overrides: dict) -> dict:
         "prob_floor":        d["prob_floor"],
         "img_scale":         d["img_scale"],
         "srf_apply_phase":   dp["phase"],
+        "alpha_prefill":     None,     # None = use boost_alpha for prefill too
     }
 
     # Apply CLI overrides
     if overrides.get("phase")            is not None: b["srf_apply_phase"]   = overrides["phase"]
     if overrides.get("alpha")            is not None: b["boost_alpha"]        = overrides["alpha"]
+    if overrides.get("alpha_prefill")    is not None: b["alpha_prefill"]      = overrides["alpha_prefill"]
     if overrides.get("eps")             is not None: b["background_eps"]     = overrides["eps"]
     if overrides.get("neg_absent_alpha") is not None: b["neg_absent_alpha"]  = overrides["neg_absent_alpha"]
     if overrides.get("layer_start")     is not None: b["layer_start"]        = overrides["layer_start"]
@@ -172,8 +191,20 @@ def _make_saliency(overrides: dict) -> dict:
 # Calibration
 # ---------------------------------------------------------------------------
 
-def _build_calib_inputs(dataset: str, n: int, seed: int):
-    """Build (inputs, img_ranges) for vision-aware head calibration."""
+def _build_calib_inputs(dataset: str, n: int, seed: int, return_meta: bool = False):
+    """Build (inputs, img_ranges) for vision-aware head calibration.
+
+    return_meta=True additionally returns a list of {"image", "question"} dicts,
+    one per calibration sample, so callers that need the raw image/question can
+    recover them (e.g. srf/head_calibration.py computes a CLIP saliency map per
+    calibration sample for saliency-aligned head scoring). Added 2026-09-16;
+    see srf/docs/CONTEXT.md "Head calibration".
+
+    All branches populate meta (pope, mmvp, vlmbias, mme/hallusionbench, mmbench,
+    vlind), so saliency-aligned head calibration works on every calibration
+    dataset. A length mismatch raises ValueError rather than silently returning
+    partial metadata.
+    """
     from qwen_vl_utils import process_vision_info as pvi
     from datasets import load_dataset as hf_load
 
@@ -201,6 +232,7 @@ def _build_calib_inputs(dataset: str, n: int, seed: int):
 
     rng = random.Random(seed)
     calib_inputs, img_ranges = [], []
+    calib_meta: list[dict] = []
 
     if dataset == "pope":
         ds   = hf_load("lmms-lab/POPE", split="test")
@@ -223,17 +255,19 @@ def _build_calib_inputs(dataset: str, n: int, seed: int):
                 s = ids.index(img_id)
                 e = len(ids) - 1 - ids[::-1].index(img_id)
             calib_inputs.append(inp); img_ranges.append((s, e))
+            if return_meta:
+                # `q` (with the Yes/No suffix), matching what eval.run_pope passes
+                # to prepare_sample — keeps noun extraction identical to eval.
+                calib_meta.append({"image": img, "question": q})
 
     elif dataset == "mmvp":
         import pandas as pd
         df     = pd.read_csv(CFG.MMVP_CSV)
-        img_ds = hf_load("MMVP/MMVP", split="train")
-        lex_sorted = sorted(range(1, 301), key=str)
-        csv_to_hf  = {c: h for h, c in enumerate(lex_sorted)}
+        mmvp_image = CFG.mmvp_image_loader()
         idxs = list(range(1, 301)); rng.shuffle(idxs)
         for csv_1idx in idxs[:n]:
             row  = df.iloc[csv_1idx - 1]
-            img  = img_ds[csv_to_hf[csv_1idx]]["image"].convert("RGB")
+            img  = mmvp_image(csv_1idx)
             opts = re.findall(r'\(([ab])\)\s*([^(]+)', str(row["Options"]), re.IGNORECASE)
             opt_text = "\n".join(f"{m[0].upper()}. {m[1].strip()}" for m in opts)
             prompt   = (f"{row['Question']}\n{opt_text}\n"
@@ -252,6 +286,8 @@ def _build_calib_inputs(dataset: str, n: int, seed: int):
                 s = ids.index(img_id)
                 e = len(ids) - 1 - ids[::-1].index(img_id)
             calib_inputs.append(inp); img_ranges.append((s, e))
+            if return_meta:
+                calib_meta.append({"image": img, "question": str(row["Question"])})
 
     elif dataset == "vlmbias":
         ds   = hf_load("anvo25/vlms-are-biased", split="main")
@@ -274,6 +310,10 @@ def _build_calib_inputs(dataset: str, n: int, seed: int):
                 s = ids.index(img_id)
                 e = len(ids) - 1 - ids[::-1].index(img_id)
             calib_inputs.append(inp); img_ranges.append((s, e))
+            if return_meta:
+                # r["prompt"], matching what eval.run_vlmbias passes to
+                # prepare_sample as sample["question"].
+                calib_meta.append({"image": img, "question": r["prompt"]})
 
     elif dataset in ("mme", "hallusionbench"):
         ds   = hf_load("lmms-lab/MME", split="test")
@@ -295,6 +335,8 @@ def _build_calib_inputs(dataset: str, n: int, seed: int):
                 s = ids.index(img_id)
                 e = len(ids) - 1 - ids[::-1].index(img_id)
             calib_inputs.append(inp); img_ranges.append((s, e))
+            if return_meta:
+                calib_meta.append({"image": img, "question": q})
 
     elif dataset in ("mmbench",):
         ds   = hf_load("HuggingFaceM4/MMBench", split="validation")
@@ -324,6 +366,8 @@ def _build_calib_inputs(dataset: str, n: int, seed: int):
                 s = ids.index(img_id)
                 e = len(ids) - 1 - ids[::-1].index(img_id)
             calib_inputs.append(inp); img_ranges.append((s, e))
+            if return_meta:
+                calib_meta.append({"image": img, "question": prompt})
 
     elif dataset == "vlind":
         import json as _json
@@ -364,6 +408,8 @@ def _build_calib_inputs(dataset: str, n: int, seed: int):
                 s = ids.index(img_id)
                 e = len(ids) - 1 - ids[::-1].index(img_id)
             calib_inputs.append(inp); img_ranges.append((s, e))
+            if return_meta:
+                calib_meta.append({"image": _img, "question": _q})
             if len(calib_inputs) >= n:
                 break
 
@@ -376,6 +422,13 @@ def _build_calib_inputs(dataset: str, n: int, seed: int):
         raise ValueError(f"Unknown calib dataset: {dataset!r}. "
                          f"Supported: pope, mmvp, vlmbias, mme, hallusionbench, mmbench, vlind, mmhalbench")
 
+    if return_meta:
+        if len(calib_meta) != len(calib_inputs):
+            raise ValueError(
+                f"return_meta=True: calib_meta has {len(calib_meta)} entries but "
+                f"{len(calib_inputs)} inputs for dataset {dataset!r}. Populate "
+                f"calib_meta in that branch.")
+        return calib_inputs, img_ranges, calib_meta
     return calib_inputs, img_ranges
 
 
@@ -390,6 +443,7 @@ def _sync_patch_state() -> None:
     patch._STATE["srf_prob_floor"]       = BIAS["prob_floor"]
     patch._STATE["srf_img_scale"]        = BIAS["img_scale"]
     patch._STATE["srf_apply_phase"]      = BIAS["srf_apply_phase"]
+    patch._STATE["srf_alpha_prefill"]    = BIAS.get("alpha_prefill")
     patch._STATE["srf_text_beta"]        = BIAS["text_beta"]
     patch._STATE["srf_text_layer_start"] = BIAS["text_layer_start"]
     patch._STATE["srf_text_layer_end"]   = BIAS["text_layer_end"]
@@ -417,6 +471,11 @@ def setup(model, processor, calib_dataset: str = "pope") -> None:
     if _model_id not in CFG.SRF_ARCH_PARAMS:
         print(f"  [SRF] WARNING: model_id {_model_id!r} not in SRF_ARCH_PARAMS — "
               f"using fallback arch params. Add it to config.py after tuning.")
+
+    # Defensive: clear any soft per-head weights left by a previous run in this
+    # process (srf/head_calibration.py mode vtar_soft). None = legacy boolean
+    # head_mask behaviour.
+    patch._STATE["head_weight"] = None
 
     # Initialise BIAS/SALIENCY with dataset defaults (no overrides yet)
     BIAS     = _make_bias(calib_dataset, overrides={})
@@ -449,6 +508,7 @@ def reset_for_dataset(
     # dataset-specific tunables
     phase:             str   | None = None,
     alpha:             float | None = None,
+    alpha_prefill:     float | None = None,
     eps:               float | None = None,
     neg_absent_alpha:  float | None = None,
     # arch/layer tunables (scale with model depth)
@@ -513,6 +573,7 @@ def reset_for_dataset(
     overrides  = {
         "phase":                phase,
         "alpha":                alpha,
+        "alpha_prefill":        alpha_prefill,
         "eps":                  eps,
         "neg_absent_alpha":     neg_absent_alpha,
         "layer_start":          layer_start,
@@ -547,6 +608,8 @@ def reset_for_dataset(
 
     print(f"\n  [SRF] reset → dataset={dataset}  "
           f"phase={BIAS['srf_apply_phase']}  alpha={BIAS['boost_alpha']}  "
+          + (f"alpha_prefill={BIAS['alpha_prefill']}  " if BIAS.get('alpha_prefill') is not None else "")
+          +
           f"eps={BIAS['background_eps']}  "
           f"layers=[{BIAS['layer_start']},{BIAS['layer_end']}]  "
           f"head_topk={BIAS['head_top_k_pct']}  "
@@ -730,8 +793,78 @@ def prepare_sample(inputs, img_start: int, img_end: int,
             patch._STATE["value"]            = -BIAS.get("neg_absent_alpha", 0.0)
             patch._STATE["srf_layer_alphas"] = None
 
+    elif sal_mode == "random":
+        # RANDOM-MAP CONTROL. Replaces the CLIP relevance map with a random map of
+        # the same shape and range, keeping everything else identical (same alpha,
+        # same heads, same layers, same suppression, same foveation). This is the
+        # null hypothesis for the semantic map: if a random map scores the same,
+        # the benefit comes from perturbing attention rather than from semantics.
+        # Deterministic given --seed so runs are reproducible.
+        grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial)
+        n_img = grid_h * grid_w
+        global _RAND_GEN
+        if _RAND_GEN is None:
+            _RAND_GEN = torch.Generator().manual_seed(_RAND_SEED)
+        patch._STATE["salience_mask"] = torch.rand(n_img, generator=_RAND_GEN,
+                                                    dtype=torch.float32)
+        patch._STATE["value"]         = BIAS["boost_alpha"]
+
+    elif sal_mode == "clip_full_gate_v3_paper":
+        # Implements the paper's Semantic relevance estimation section exactly.
+        # Added 2026-09-17; see srf/docs/CONTEXT.md "Saliency modes".
+        #
+        #   c   = min(1, max(<phi_v(I),phi_t(t)>, max_p r_p) / tau)      (paper eq. 4)
+        #   Mbar = c*M + (1-c)*1                                          (paper eq. 5)
+        #
+        # Differences from clip_full_gate_v3, all three of which are code-only
+        # additions the paper does not specify:
+        #   1. no hard present/absent gate  — object_present is ignored
+        #   2. c uses max(full_img_sim, patch_max_sim), not full_img_sim alone
+        #   3. alpha is NOT scaled by c; c acts only through Mbar, which feeds
+        #      both the foveation stage and the decoder boost
+        # At c->0, Mbar -> 1: the whole image becomes the map, so foveation
+        # applies no blur and the decoder applies a uniform boost. That is the
+        # paper's stated fallback, not a no-op.
+        #
+        # tau is the ONLY parameter of this stage. patch_thresh (0.27),
+        # clip_top_k_pct and clip_coarse_grid do not appear in the paper and are
+        # not used here (top_k_pct is passed only because the shared v3 helper
+        # requires it; it affects result.mask, which this branch never reads).
+        grid_h, grid_w = clip_sal.get_grid_dims(inputs, _spatial)
+        result = clip_sal.compute_clip_salience_full_gate_v3(
+            image, _noun, grid_h, grid_w,
+            top_k_pct=SALIENCY["clip_top_k_pct"],
+            clip_model_name=SALIENCY.get("clip_model", clip_sal._CLIP_DEFAULT_MODEL),
+            backup="none",
+        )
+        _tau = SALIENCY.get("clip_fallback_thresh") or clip_sal._FULL_IMG_THRESH_V3
+        _c   = min(max(float(result.full_img_sim), float(result.max_sim)) / _tau, 1.0)
+
+        _M = result.saliency
+        patch._STATE["salience_mask"] = _c * _M + (1.0 - _c) * torch.ones_like(_M)
+        patch._STATE["value"]         = BIAS["boost_alpha"]   # unscaled, per paper
+
+        last_clip_result["object_present"] = True    # no hard gate in this mode
+        last_clip_result["full_img_sim"]   = result.full_img_sim
+        last_clip_result["patch_max_sim"]  = result.max_sim
+        last_clip_result["confidence"]     = _c
+
+        # Diagnostic: how often does the map fall back toward the whole image?
+        # If frac(c<1) is high, SRF is degenerating to a uniform boost.
+        _PAPER_CONF_LOG.append(_c)
+        if len(_PAPER_CONF_LOG) % 100 == 0:
+            _n  = len(_PAPER_CONF_LOG)
+            _lt1 = sum(1 for v in _PAPER_CONF_LOG if v < 0.999) / _n
+            _lt5 = sum(1 for v in _PAPER_CONF_LOG if v < 0.5)   / _n
+            print(f"  [SRF] confidence over {_n} samples: "
+                  f"mean={sum(_PAPER_CONF_LOG)/_n:.3f}  "
+                  f"frac(c<1)={_lt1:.2f}  frac(c<0.5)={_lt5:.2f}")
+
     elif sal_mode in ("clip_full_gate_v3", "clip_full_gate_v3_iou",
-                      "clip_full_gate_v3_adaptive"):
+                      "clip_full_gate_v3_adaptive",
+                      "clip_full_gate_v3_prod", "clip_full_gate_v3_min",
+                      "clip_full_gate_v3_mean", "clip_full_gate_v3_and",
+                      "clip_full_gate_v3_and_prod"):
         # v3: tuned threshold (0.21), no gate_patch fallback, single GPU block.
         # clip_full_gate_v3          → gate_full only, capped confidence (alpha * min(conf,1))
         # clip_full_gate_v3_iou      → + cross_scale_iou backup
@@ -748,6 +881,15 @@ def prepare_sample(inputs, img_start: int, img_end: int,
             full_img_thresh=SALIENCY["clip_fallback_thresh"],
             patch_thresh=SALIENCY["clip_patch_thresh"],
             gate_noun=gate_noun_override,
+            # _prod / _min / _mean change only how the three crop scales are
+            # combined. Everything else, including both gate thresholds, is
+            # identical to clip_full_gate_v3.
+            scale_combine=("prod" if sal_mode.endswith("_prod")
+                           else "min" if sal_mode.endswith("_min")
+                           else "mean" if sal_mode.endswith("_mean")
+                           else "max"),
+            # _and requires BOTH gate signals to agree instead of either.
+            gate_logic=("and" if "_and" in sal_mode else "or"),
         )
         last_clip_result["object_present"] = result.object_present
         last_clip_result["full_img_sim"]   = result.full_img_sim

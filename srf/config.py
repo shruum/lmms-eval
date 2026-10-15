@@ -13,7 +13,7 @@ QUICK-START: BEST CONFIG (Qwen2.5-VL-3B-Instruct, as of 2026-06-16)
   head_top_k_pct  = 0.20
   alpha           = 2.0 (MMVP/POPE), 8.0 (VLMBias)
   eps             = 0.2 (MMVP/POPE), 0.5 (VLMBias)
-  phase           = generation (POPE/VLMBias), both (MMVP)
+  phase           = generation (VLMBias/MME/MMBench/HalBench), both (MMVP/POPE/VLind)
   sys_beta        = 0.30
   bias_mode       = additive_logit     ← default; see "Boosting methods" below
   gamma           = 3.0                ← SRF-E contrastive amplification
@@ -111,8 +111,36 @@ import os
 
 # ── Paths ──────────────────────────────────────────────────────────────────────
 HF_HOME      = os.environ.get("HF_HOME", "/volumes2/hugging_face_cache")
-MMVP_CSV     = os.path.join(HF_HOME, "mmvp_questions/Questions.csv")
+# MMVP: Questions.csv + "MMVP Images/<1..300>.jpg" (raw MMVP/MMVP dataset repo).
+# Snellius: $HF_HOME/mmvp_questions -> /home/sgowda/datasets/MMVP. Override with SRF_MMVP_DIR.
+MMVP_DIR     = os.environ.get("SRF_MMVP_DIR", os.path.join(HF_HOME, "mmvp_questions"))
+MMVP_CSV     = os.path.join(MMVP_DIR, "Questions.csv")
+MMVP_IMG_DIR = os.path.join(MMVP_DIR, "MMVP Images")
+
+
+def mmvp_image_loader():
+    """Return f(csv_1idx) -> PIL RGB image for MMVP question row csv_1idx (1..300).
+
+    Reads MMVP_IMG_DIR/<csv_1idx>.jpg when present (works offline on compute
+    nodes). Otherwise falls back to the HF dataset, whose rows are the image
+    files in lexicographic filename order ("1", "10", "100", ...). Both paths
+    were checked pixel-identical on all 300 images (2026-10-15).
+    """
+    from PIL import Image
+    if os.path.isdir(MMVP_IMG_DIR):
+        return lambda c: Image.open(os.path.join(MMVP_IMG_DIR, f"{c}.jpg")).convert("RGB")
+    from datasets import load_dataset
+    img_ds    = load_dataset("MMVP/MMVP", split="train")
+    csv_to_hf = {c: h for h, c in enumerate(sorted(range(1, 301), key=str))}
+    return lambda c: img_ds[csv_to_hf[c]]["image"].convert("RGB")
 RESULTS_DIR  = os.path.join(os.path.dirname(__file__), "..", "results")
+
+# MME (local benchmark folder) and MMHal-Bench (ILVAD copy). Override via env or
+# --mme_data_dir / --mmhalbench_json.
+MME_DIR      = os.environ.get("SRF_MME_DIR",
+                              "/home/sgowda/workspace/ILVAD/data/MME/MME_Benchmark_release_version/MME_Benchmark")
+MMHAL_JSON   = os.environ.get("SRF_MMHAL_JSON",
+                              "/home/sgowda/workspace/ILVAD/data/MMHal-Bench/response_template.json")
 
 # ── Model ──────────────────────────────────────────────────────────────────────
 DEFAULT_MODEL      = "Qwen/Qwen2.5-VL-3B-Instruct"
@@ -160,6 +188,69 @@ SRF_DEFAULTS = {
 # ── SRF per-dataset params ─────────────────────────────────────────────────────
 # Tunable per dataset, arch-agnostic.
 # layer_start / layer_end live in SRF_ARCH_PARAMS (they scale with model depth).
+# ── phase: per-dataset. Unification to "both" was TESTED AND REVERTED 2026-09-17 ──
+# Measured on the same harness (results/phaseboth_* and results/phaseboth_baseline):
+#   VLMBias  baseline 19.04 | phase=generation 19.65 | phase=both 18.75
+#   MME      baseline 2021  | phase=generation no-op | phase=both 2014
+# So "both" costs 0.90pp on VLMBias and puts SRF below baseline there. Reverted.
+#
+# Context that argued FOR unifying, kept here so the tradeoff is not forgotten:
+#  1. With KV caching the FIRST generated token's logits come from the prefill
+#     forward (q_len > 1), so a generation-only gate never fires for it. Any
+#     benchmark scored from the first token therefore received ZERO intervention.
+#     run_mme reads method_get_logits, a single prefill forward, so SRF was an
+#     exact no-op on MME.
+#  2. ClearSight (/volumes2/mllm/ClearSight/visaug/inference/AttnAdapter.py)
+#     applies its intervention in BOTH prefill and generation unconditionally on
+#     every benchmark. Its if/else only adjusts which query rows are sliced. VHR
+#     likewise has no phase gate. No baseline varies this per dataset.
+#  3. A per-dataset phase is undocumented in the paper and hurts the genericity
+#     claim.
+# NOTE: with phase=generation, MME receives ZERO intervention (run_mme reads a
+# single prefill forward via method_get_logits, so a q_len==1 gate never fires).
+# Reporting an MME number under this setting reports the unmodified model. Qwen
+# MME is not in the paper, so this does not affect any reported result, but do
+# not add one without switching MME to "both" first.
+# ==============================================================================
+# REVIEW 2026-09-22 — THIS TABLE IS THE MAIN GENERICITY PROBLEM.
+#
+# SRF is presented as one training-free method. In this code it is seven
+# methods, because the table below plus dataset_layer_end plus the choice of
+# --method give each benchmark its own hyperparameters. A reviewer who diffs
+# the paper against config.py will find per-benchmark tuning.
+#
+# Divergences, and whether each is defensible:
+#
+#   phase             both (mmvp/pope/vlind) vs generation (vlmbias/mme/...)
+#                     NOT DEFENSIBLE. Unification to "both" was tested and
+#                     reverted, see the note above, because it costs 0.90pp on
+#                     VLMBias. That is a tuning decision, not a method one.
+#   alpha             2.0 everywhere, 8.0 on VLMBias.          NOT DEFENSIBLE.
+#   eps               0.2 everywhere, 0.5 on VLMBias.          NOT DEFENSIBLE.
+#   neg_absent_alpha  2.0 on POPE, 0.0 everywhere else.        NOT DEFENSIBLE,
+#                     and additionally undocumented in the paper. It is a
+#                     fourth lambda. On POPE a rejected gate does not mean "do
+#                     nothing", it means "attenuate image logits by 2.0".
+#   dataset_layer_end mmvp 16, pope 12, vlmbias 14, mme 16, vlind 16, in
+#                     SRF_ARCH_PARAMS.                          NOT DEFENSIBLE.
+#   foveation on/off  MMVP runs --method srffovea, every other dataset runs
+#                     --method srf. So the largest single component of the
+#                     method is silently absent from every benchmark except
+#                     MMVP.                                     NOT DEFENSIBLE.
+#   noun mode         _NOUN_MODE_MAP in srf.py.                 DEFENSIBLE.
+#                     Question formats genuinely differ across benchmarks, so
+#                     this is input parsing, not a method hyperparameter.
+#
+# head_top_k_pct is NOT in this table. It is fixed at 0.20 per architecture in
+# SRF_ARCH_PARAMS, chosen on MMVP pair accuracy and applied unchanged to every
+# dataset and every model. Head calibration itself does run per dataset (see
+# eval._install_head_mode, calib_ds), so the heads adapt but their number does
+# not. Choosing k per dataset by accuracy would be more per-benchmark tuning.
+# The principled fix is to derive the count from the VTAR distribution of the
+# calibration samples, which needs no labels.
+#
+# Nothing here has been changed. This block records the state as reviewed.
+# ==============================================================================
 SRF_DATASET_PARAMS = {
     # alpha tuned by coordinate-descent sweep (autoresearch_mmvp_v2, 2026-06-16)
     # MMVP: α=2.0 + γ=3.0 → 49.33% pair_acc (+9.33pp)
@@ -167,9 +258,9 @@ SRF_DATASET_PARAMS = {
     "mmvp":        {"phase": "both",       "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
     "pope":        {"phase": "both",       "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 2.0},
     "vlmbias":     {"phase": "generation", "alpha": 8.0, "eps": 0.5, "neg_absent_alpha": 0.0},
-    "mme":         {"phase": "both",       "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
-    "mmbench":     {"phase": "both",       "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
-    "hallusionbench": {"phase": "both",    "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
+    "mme":         {"phase": "generation", "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
+    "mmbench":     {"phase": "generation", "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
+    "hallusionbench": {"phase": "generation", "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
     # VLind-Bench: counterfactual visual reasoning — same structure as MMVP (True/False pair)
     # phase="both": boost helps in both prefill (question understanding) and generation
     "vlind":       {"phase": "both",       "alpha": 2.0, "eps": 0.2, "neg_absent_alpha": 0.0},
@@ -234,6 +325,7 @@ SRF_ARCH_PARAMS = {
         "clip_weight":          0.4,    # weight in clip_lta combined mode
         # per-dataset layer_end fine-tuning (overrides layer_end above)
         "dataset_layer_end":    {"mmvp": 16, "pope": 12, "vlmbias": 14, "mme": 16, "vlind": 16, "mmhalbench": 16},
+        "dataset_overrides":    {},   # per-dataset overrides of SRF_DATASET_PARAMS
     },
     "Qwen/Qwen2.5-VL-7B-Instruct": {
         "n_layers":             32,
@@ -257,6 +349,7 @@ SRF_ARCH_PARAMS = {
         "lta_weight":           0.6,
         "clip_weight":          0.4,
         "dataset_layer_end":    {"mmvp": 17, "pope": 17, "vlmbias": 16, "mme": 17, "vlind": 17, "mmhalbench": 17},
+        "dataset_overrides":    {},   # per-dataset overrides of SRF_DATASET_PARAMS
     },
     "llava-hf/llava-1.5-7b-hf": {
         "n_layers":             32,
@@ -280,6 +373,10 @@ SRF_ARCH_PARAMS = {
         "lta_weight":           0.6,
         "clip_weight":          0.4,
         "dataset_layer_end":    {"mmvp": 20, "pope": 20, "vlmbias": 19, "mme": 20, "vlind": 20, "mmhalbench": 20},
+        # per-dataset overrides of SRF_DATASET_PARAMS for this arch.
+        # MME: phase="both" — run_mme scores the first token from the prefill
+        # forward, so phase="generation" would be an exact no-op on MME.
+        "dataset_overrides":    {"mme": {"phase": "both"}},
     },
 }
 
@@ -305,6 +402,7 @@ SRF_ARCH_FALLBACK = {
     "lta_weight":           0.6,
     "clip_weight":          0.4,
     "dataset_layer_end":    {},
+    "dataset_overrides":    {},   # per-dataset overrides of SRF_DATASET_PARAMS
 }
 
 

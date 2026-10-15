@@ -55,6 +55,18 @@ For each of 20 random samples from the calibration dataset:
 
 > **Figure 3 alignment (①):** This matches "Grounding-Head Calibration — semantically-responsive heads". ✓
 
+> ⚠️ **This step is LAYER-AGNOSTIC, but the paper specifies per-layer selection.**
+> Step 3 pools scores over *every* decoder layer's softmax call (count =
+> n_layers × n_samples) and produces ONE `(n_heads,)` mask reused in all 36 layers.
+> The paper writes `H*_l = TopK_h(E_c[rho_{l,h}])`, indexed by layer AND head.
+> A head that is strongly visual inside the fusion zone has that signal diluted by
+> its own weak scores in the ~20 layers that do not mediate fusion.
+>
+> `srf/head_calibration.py` implements the per-layer form (mode `per_layer`) and a
+> query-conditioned variant (mode `saliency`). On MMVP these gave 44.00 and 46.00
+> pair accuracy vs 43.33 for this shipped step. See CONTEXT.md "Head calibration".
+> The shipped default is UNCHANGED — nothing here has been replaced.
+
 ### Step 0d: Patch the model
 **`qwen_attn_patch.py::patch_model(model, "vaf", alpha)`**
 
@@ -345,7 +357,14 @@ Yes — saliency is fully per-sample:
 - `cleanup()` resets it to `None` after generation
 - No saliency state persists between samples
 
-**Head mask** is per-dataset (set during calibration). **BIAS/SALIENCY config** is per-dataset-reset.
+**Head mask** is per-dataset (set during calibration) and shared across all layers.
+**BIAS/SALIENCY config** is per-dataset-reset.
+
+When `srf/head_calibration.py` installs per-layer masks, a forward pre-hook on each
+`layer.self_attn` overwrites `_STATE["head_mask"]` before that layer computes
+attention. Those hooks therefore take precedence over anything
+`prepare_sample`/`cleanup` wrote, and they must be removed (`remove_hooks`) before
+running an unmodified eval in the same process.
 
 ---
 
@@ -376,3 +395,96 @@ Run these checks in order when something seems wrong:
 3. **SRF-E broken for VLM Bias**: `generate_contrastive()` suppresses the `{` format token. `content_offset=1` workaround exists but doesn't fully fix it.
 
 4. ~~**config.py header vs RESEARCH_STATUS mismatch**~~ **Fixed 2026-07-26**: config.py header comment updated to match current best values (`ls=8, le=12, α=2.0` for POPE).
+
+
+---
+
+# Code flow, per dataset (reviewed 2026-09-22)
+
+This section is the map. It answers two questions. What happens, in order,
+when a sample is evaluated. And where the path differs per dataset.
+
+## The one shared path
+
+```
+eval.py main
+  |
+  +- load_model(args.model)            Qwen class is hardcoded on this branch.
+  |                                    srf-llava dispatches on model_type.
+  +- srf.setup(model, processor)       loads CLIP, calibrates the global head
+  |                                    mask once
+  +- _install_head_mode(...)           ONLY if --head_mode is not "global".
+  |                                    Calibrates per-layer masks on 20
+  |                                    unlabelled samples of calib_ds, which
+  |                                    defaults to the dataset being evaluated
+  +- run_<dataset>(method_mod, ...)
+       |
+       +- method_mod.reset_for_dataset(dataset=..., **_reset_overrides(args))
+       |      rebuilds BIAS and SALIENCY from
+       |        SRF_ARCH_PARAMS[model]  then
+       |        SRF_DATASET_PARAMS[dataset]  then
+       |        CLI overrides
+       |
+       +- for each sample
+            +- build prompt, processor(...)
+            +- get_img_range(input_ids, img_token_id)     -> s, e
+            +- method_mod.prepare_sample(...)
+            |     +- srf.prepare_sample
+            |     |     +- extract_clip_noun(question, mode=_noun_mode)
+            |     |     +- _make_saliency  -> clip_salience.compute_...v3
+            |     |     |     gate: (full_img_sim >= tau) OR (patch_max >= 0.27)
+            |     |     |     fired    -> _STATE.salience_mask = saliency map
+            |     |     |                 _STATE.value = alpha * min(sim/tau, 1)
+            |     |     |     rejected -> _STATE.salience_mask = None
+            |     |     |                 _STATE.value = -neg_absent_alpha
+            |     |     +- patch.update_sample(s, e)
+            |     +- srf_fovea.prepare_sample additionally blurs the image and
+            |        replaces pixel_values, and returns early when
+            |        salience_mask is None
+            +- model(**inp) or generate
+            |     qwen_attn_patch._patched_softmax applies, per selected
+            |     (layer, head), the logit shifts
+            |       + lambda_sem * s_j - lambda_bg * (1 - s_j)  on image keys
+            |       - lambda_sys                                 on system keys
+            +- method_mod.cleanup()      restores BIAS layer range every sample
+```
+
+## Where the path forks per dataset
+
+| Dataset | `--method` used | phase | alpha | eps | neg_absent_alpha | layer_end | noun mode |
+|---|---|---|---|---|---|---|---|
+| MMVP | **srffovea** | both | 2.0 | 0.2 | 0.0 | 16 | mmvp |
+| POPE | srf | both | 2.0 | 0.2 | **2.0** | 12 | pope |
+| VLMBias | srf | **generation** | **8.0** | **0.5** | 0.0 | 14 | vlmbias |
+| MME | srf | generation | 2.0 | 0.2 | 0.0 | 16 | pope |
+| VLind | srf | both | 2.0 | 0.2 | 0.0 | 16 | vlind |
+
+Read the bold cells as per-benchmark tuning. See the REVIEW block above
+`SRF_DATASET_PARAMS` in `config.py` for which are defensible. Only the last
+column is.
+
+**MMVP is the only dataset that runs foveation.** Every published number for
+POPE, VLMBias, MME and VLind is decoder-only SRF, with the largest single
+component of the method switched off. This is not stated anywhere in the paper.
+
+**MME receives no intervention at all** under `phase=generation`, because
+`run_mme` reads a single prefill forward and the phase gate never fires. Noted
+in `config.py`.
+
+## Scripts, and what each is for
+
+| Script | Needs GPU | Purpose |
+|---|---|---|
+| `srf/eval.py` | yes | the evaluation entry point for every dataset |
+| `srf/head_calibration.py` | yes | all head-selection rules, and the library `eval.py` calls |
+| `srf/ablation_components.py` | yes | cumulative component ablation, reuses `eval.run_mmvp` |
+| `srf/param_sensitivity.py` | yes | one-at-a-time hyperparameter sweeps |
+| `srf/profile_cost.py` | yes | ms/sample and FLOPs, split by stage |
+| `srf/visualize_components.py` | yes | the 4-panel encoder-stage figure |
+| `srf/significance.py` | **no** | paired bootstrap and McNemar over saved records |
+| `srf/tune_pope_gate.py` | **no** | CLIP gate accuracy and precision on POPE |
+| `srf/audit_nouns_vlmbias.py` | **no** | extracted nouns and maps per VLMBias topic |
+| `srf/find_vis_sample.py` | **no** | rank samples by map concentration |
+| `srf/make_sensitivity_table.py` | **no** | regenerate the appendix table from JSON |
+
+The CPU-only tools exist so that diagnosis does not queue behind evaluation.

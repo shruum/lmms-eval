@@ -153,41 +153,58 @@ def _mmvp(question: str) -> str:
 _VLMBIAS_GENERIC = {
     "thing", "things", "item", "items", "object", "objects",
     "image", "picture", "photo",
+    # added 2026-09-21: these leaked through the old fallback rule
+    "count", "many", "there", "this", "that", "these", "those",
+    "size", "length", "same", "equal", "total", "number",
 }
 
+_VLMBIAS_VERBS = {"count", "are", "is", "do", "does", "have", "has"}
+
+
 def _vlmbias(question: str) -> str:
-    """Extract the most CLIP-queryable noun from a VLM Bias counting question.
+    """Extract the best CLIP query phrase from a VLM Bias question.
 
-    Priority: specific counted object > scene container > fallback.
-    "How many logos are on this image?" → "logos" (not "image").
+    Rewritten 2026-09-21. The previous version returned a single word from a
+    late fallback rule and produced broken queries on three of the seven
+    topics. "Count the legs of this animal." returned the verb 'count', the
+    logo questions returned a bare 'logo' that discarded "on the left shoe",
+    and the optical illusion questions returned bare adjectives such as
+    'diagonal'.
+
+    Two candidates are extracted. The counted or compared object keeps its
+    adjectives, and the region is the trailing "in/on/of the X" phrase. The
+    object is preferred, because it is usually the thing to localise. The
+    region wins only when it carries spatial disambiguation, meaning it is a
+    phrase of three or more words such as "logo on the left shoe" rather than
+    a bare container such as "board". Grid cell references are dropped,
+    because "cell C3" is not something an alignment model can localise.
     """
-    q = question.split("Answer")[0].strip().lower()
+    q = question.split("Answer")[0].strip().lower().rstrip(" .?")
+    q = re.sub(r"\s+", " ", q)
 
-    # 1. Explicit count target — "how many X are/is/…"
-    m = re.search(r'how many (\w+(?:\s+\w+)?) (?:are|is|have|does)', q)
-    if m:
-        noun = m.group(1).strip()
-        if noun not in _VLMBIAS_GENERIC:
-            return noun
+    m      = re.search(r"\b(?:in|on|of)\s+(?:the|this|these|those)\s+(.+)$", q)
+    region = m.group(1).strip() if m else None
+    if region and re.match(r"^cell\b", region):
+        region = None
 
-    # 2. "count the X pieces/on/in"
-    m = re.search(r'count the (\w+(?:\s+\w+)?) (?:pieces|on|in)', q)
-    if m:
-        return m.group(1).strip()
+    obj = None
+    for pat in (r"how many\s+(.+?)\s+(?:are|is|does|do|have)\b",
+                r"count\s+(?:the\s+)?(.+?)(?=\s+(?:of|in|on)\s+|$)",
+                r"(?:are|do)\s+the\s+(.+?)\s+(?:equal|aligned|form|have|the same)\b"):
+        m = re.search(pat, q)
+        if m:
+            cand = re.sub(r"^(?:two|three|the|a|an|visible)\s+", "", m.group(1).strip()).strip()
+            if cand and cand not in _VLMBIAS_GENERIC and cand.split()[0] not in _VLMBIAS_VERBS:
+                obj = cand
+                break
 
-    # 3. Scene/container (less specific)
-    m = re.search(r'(?:on|in) this (\w+(?:\s+\w+)?)', q)
-    if m:
-        noun = m.group(1).strip()
-        if noun not in _VLMBIAS_GENERIC:
-            return noun
-
-    m = re.search(r'(?:on|in) the (\w+)', q)
-    if m:
-        return m.group(1).strip()
-
-    words = re.findall(r'\b[a-z]{4,}\b', q)
-    return words[0] if words else "object"
+    if region and len(region.split()) >= 3:
+        return " ".join(region.split()[:5])
+    if obj and obj not in _VLMBIAS_GENERIC:
+        return " ".join(obj.split()[:5])
+    if region and region not in _VLMBIAS_GENERIC:
+        return " ".join(region.split()[:5])
+    return "object"
 
 
 # ---------------------------------------------------------------------------

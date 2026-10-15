@@ -1,301 +1,300 @@
 # SRF Research Status
 
-> Update this file after every experiment run and commit it.
-> This is the live source of truth for results and open tasks — replaces vault reads on remote servers.
+---
+
+## Paper Story
+
+**Two methods:**
+- **SRF** = attention boosting (in-decoder) + foveal blur (pre-encoder). Works on ALL datasets. Zero extra LLM passes, one CLIP pass per sample.
+- **SRF-E** = SRF + contrastive decoding (one extra LLM pass). Currently only valid for single-token answers (MMVP, POPE). Multi-token generation (VLMBias) collapses because zeroed `pixel_values` corrupts ViT.
+
+**Next experiment:** Replace SRF-E Pass 2 zeros with Gaussian-blurred image → may fix VLMBias collapse → one unified method for all datasets.
+
+**Routing failure hypothesis:** Three-stage fix — pre-encoder (fovea) → in-decoder (attn boost) → post-decoding (contrastive).
 
 ---
 
-## Current Best Results (Qwen2.5-VL-3B-Instruct)
+## Best Config (Qwen2.5-VL-3B-Instruct)
 
-**Best SRF-E config:** `clip_full_gate_v3`, ls=8, le=12 (POPE) / le=16 (MMVP), alpha=2.0, phase=both, sys_beta=0.30, gamma=3.0
+`clip_full_gate_v3`, ls=8, alpha=2.0, phase=both, sys_beta=0.30, gamma=3.0 (SRF-E only)
 
-> ⚠️ **2026-07-26 updates**: (1) `phase` changed from `"generation"` to `"both"` for POPE in `config.py` — generation phase was a no-op during prefill eval, SRF was never active. (2) CLIP template ensemble (5 templates, mean-pool) added. (3) OR gate: `full_img_sim >= 0.21 OR patch_max_sim >= 0.27`. Full re-evaluation on RePOPE in progress.
-
-| Dataset | Baseline | SRF-E (γ=3.0) | Δ | Notes |
+| Dataset | le | alpha | eps | gamma |
 |---|---|---|---|---|
-| POPE adv (9000) | 86.37% | **87.70%** | +1.33pp | ls=8, le=12, α=2.0, full 3000 adv |
-| MMVP | 40.0% | **49.33%** | +9.33pp | ls=8, le=16, α=2.0 |
-| VLMBias | 19.04% | 19.0% (γ=0) | ≈0 | SRF-E broken for multi-token gen |
-| MME | 2362.9 | 2361.8 | −1.1 | Neutral |
-| HallusionBench | aAcc=0.694 | aAcc=0.686 | −0.8pp | VD questions hurt |
-| VLIND pair_acc | 47.02% | **52.32%** (SRF-E) / ~46% (SRF) | +5.3pp / −1pp | SRF base hurts; SRF-E helps via contrastive pass |
-
-*VLM Bias SRF-E broken: contrastive pass suppresses `{` token. Use γ=0 (SRF base only).*
-
-**RePOPE baselines (Qwen2.5-VL-3B, corrected annotations):**
-
-| Split | Baseline | VAF | VCD | SRF (in progress) |
-|-------|----------|-----|-----|-------------------|
-| Random | 89.29% | 91.38% | 90.7% | TBD |
-| Popular | 86.69% | 88.93% | 88.3% | TBD |
-| Adversarial | 80.40% | 84.54% | 85.2% | TBD |
-
-**Target**: Beat VAF (88.28% avg) and VCD (88.1% avg) on RePOPE.
-
-### MME key findings (autoresearch_mme, 2026-04)
-- SRF cannot improve MME — best is 176/200 (-0.5% vs baseline)
-- Root cause: 77% of MME categories require global context (artwork, celebrity, scene); any attention redistribution hurts
-- SRF-E also fails: zero-pixel ViT produces noisy features, not a clean language prior
-- Results in `my_analysis/autoresearch_mme/results.tsv`
-
-### VLM Bias key findings (autoresearch_vlmbias, 2026-05)
-- so we can ident- Best config: uniform boost (clip_fallback_thresh=1.0) + deep layers 20-28, alpha=8.0, eps=0.5
-- Per-category gains: Logos 1→4, GameBoards 1→2, OI 8→9 (noisy)
-- Hard ceiling: Animals=0, Chess=0 across ALL configs — counting/enumeration failure (GT=31 vs PRED=16); MLP not attention
-- CLIP guidance irrelevant: top-10%, top-80%, uniform all give identical accuracy
-- Config committed in `my_analysis/autoresearch_vlmbias/srf.py`
+| MMVP | 16 | 2.0 | 0.2 | 3.0 |
+| POPE | 12 | 2.0 | 0.2 | 3.0 |
+| VLMBias | 14 | 8.0 | 0.5 | 0 (SRF base) |
+| VLind | 12 | 2.0 | 0.2 | 3.0 |
 
 ---
 
-## Qwen-VL-Chat Status (ClearSight comparison baseline)
+## Results Table (Qwen2.5-VL-3B-Instruct, 2026-08-03)
 
-ClearSight paper (arXiv 2503.13107) uses Qwen-VL-Chat and LLaVA-1.5-7B — NOT Qwen2.5-VL.
-We need these for direct comparison.
+### Full Results (2026-08-04, all methods complete)
 
-| Method | POPE adv | MME score |
-|--------|----------|-----------|
-| ClearSight baseline (Qwen-VL-Chat) | 88.2% | 606 |
-| Our baseline | TBD | TBD |
-| SRF (Qwen-VL-Chat, tuned) | TBD | TBD |
+| Method | MMVP pair | MMVP img | VLMBias | VLind q_acc | VLind pair | Log |
+|---|---|---|---|---|---|---|
+| Baseline | 40.0% | 67.7% | 19.0% | 59.6% | 47.0% | `/tmp/baseline_all.log` |
+| VAF | 40.0% | 69.0% | 17.9% | 58.9% | 45.7% | `/tmp/vaf_all.log` |
+| VCD | 37.3% | 65.7% | 9.6% | 62.3% | 47.4% | `/tmp/vcd_all.log` |
+| ILVAD | 38.7% | 68.0% | 17.7% | 59.3% | 46.0% | `/tmp/ilvad_all.log` |
+| VHR | 38.7% | 68.3% | 17.9% | 61.6% | 44.0% | `/tmp/vhr_all.log` |
+| SRF | 41.3% | 68.7% | **19.7%** | 58.6% | 45.4% | `/tmp/srf_all.log` + `/tmp/srf_vlmbias_vlind.log` |
+| SRF-Fovea (σ=20) | 43.3% | 69.7% | 19.6% | 56.5% | 42.4% | `/tmp/srffovea_eval.log` |
+| **SRF-E (γ=3)** | **45.3%** | **70.7%** | 0.6% (collapsed) | **73.7%** | **52.7%** | `/tmp/srfe_all.log` |
+| SRF-E (VLMBias γ=0) | — | — | **19.7%** | — | — | same as SRF |
 
-**Architecture ported** (2026-04-25):
-- `qwen_attn_patch.py`: `_get_lm_module`, `_get_decoder_layers` (→ `model.transformer.h`), `_get_attn_module` (→ `layer.attn`)
-- `srf/config.py`: `Qwen/Qwen-VL-Chat` entry with `n_img_tokens=256`, `layer_start=9`, `layer_end=17`
-- `srf/srf.py`: Qwen-VL-Chat temp-file input path in `_build_calib_inputs` and `prepare_sample`
-- `srf/eval.py`: `is_qwen_vl_chat()`, `build_model_inputs()`, `get_tokenizer()` helpers; `load_model()` dispatch
-- Autoresearch scripts in `my_analysis/autoresearch_qvlchat/`
+*Animals + Chess = 0% across ALL methods on VLMBias — counting/enumeration failure, not attention.*
 
-**Next steps for Qwen-VL-Chat**:
-1. Download complete (in progress) → run baseline_test.py (n=20)
-2. Confirm baseline ~88% → run autoresearch sweep (Phase 1: layer sweep)
-3. Update config.py with tuned params, run full POPE + MME
+### VLMBias per-category
 
----
-
-## VLIND-Bench Notes (2026-07-27)
-
-- `noun_extract.py`: `extract_vlind_nouns(statement)` → `(subject_noun, context_noun)`. subject→CLIP saliency map, context→presence gate.
-- `srf.py` `prepare_sample`: accepts `noun_override=subj, gate_noun_override=ctx`
-- `clip_salience.py` `compute_clip_salience_full_gate_v3`: accepts `gate_noun` param
-- `eval.py` `run_vlindbench`: already calls dual-noun extraction and passes both nouns
-- VLIND calibration: uses VLIND images (same domain), processor auto-caps at `DEFAULT_MAX_PIXELS`. Do NOT override this.
-- Sweep: must use `eval.py`'s `run_vlindbench` — do NOT reimplement eval loop in new scripts
-- VLIND eval command: `source activate mllm && python srf/eval.py --method srfe --datasets vlind --gamma 3.0`
-
-### Why SRF base is neutral on VLIND (investigated 2026-07-27)
-
-SRF base is flat on VLIND (47.35% vs 47.02% baseline). Root cause: **VLIND requires global visual amplification, not spatial attention boosting.**
-
-- `extract_vlind_nouns` breaks on abstract/historical statements (extracts 'revolutionary', 'ancient', 'could' etc.) — not fixable with regex
-- `existent_noun` / `non-existent_noun` fields in the dataset are noise (non_existent is random: 'lighthouse', 'bookshelf', 'mountain') — not the semantic counterpart we hoped
-- VLIND's hard concepts (weight, time, size, climate) involve *relationships* between objects or *anachronistic technology* — spatial attention to a single noun region doesn't capture the counterfactual
-- Tried `--vlind_data_nouns` flag using dataset fields: pair_acc dropped to 45.70% (−1.32pp vs baseline) — confirmed noise
-
-**SRF-E at 52.32% is the correct result.** The contrastive pass (image vs blank) amplifies visual evidence globally without needing correct saliency, which is exactly what VLIND needs.
+| Method | Animals | Chess | Flags | GameBoards | Logos | Optical | PatGrid |
+|---|---|---|---|---|---|---|---|
+| Baseline | 0% | 0% | 24.6% | 4.2% | 5.6% | 49.7% | 14.0% |
+| VAF | 0% | 0% | 12.5% | 11.9% | 6.8% | 49.7% | 8.0% |
+| VCD | 1.1% | 0% | 18.3% | 8.3% | 0.5% | 24.1% | 3.0% |
+| ILVAD | 0% | 0% | 18.3% | 6.5% | 4.1% | 48.5% | 11.3% |
+| VHR | 0.9% | 0% | 23.8% | 11.9% | 2.2% | 51.1% | 0.3% |
+| SRF | 0% | 0% | 22.5% | 5.4% | 8.2% | 50.4% | 15.2% |
+| SRF-Fovea | 0% | 0% | 21.7% | 2.4% | 6.5% | **52.7%** | 13.4% |
 
 ---
 
-## LLaVA-1.5-7B Results (2026-08-06)
+## Key Findings (2026-08-04)
 
-Model: `llava-hf/llava-1.5-7b-hf` | Eval: `decode_first_token` (logit-based yes/no)
-Config: `--alpha 0.5 --layer_end 20 --neg_absent_alpha 1.0 --llava_boost_mode additive --clip_fallback_thresh 0.25 --clip_patch_thresh 0.27`
-Results: `results/mme_llava_full/`
+### VLind — SRF base hurts, SRF-E helps a lot
+- **Attention-routing methods all hurt VLind**: SRF −1.6pp, SRF-Fovea −4.6pp, VAF −1.3pp, VHR −3.0pp
+- **Only contrastive methods help**: SRF-E +5.7pp, VCD +0.4pp
+- **Root cause**: VLind tests counterfactual/relational understanding (climate, anachronistic tech, size relationships). These require holistic image comprehension, not routing to a single salient noun. Spatial attention boost to one region actively hurts.
+- **Story implication**: SRF-E's contrastive pass (image vs. no-image) amplifies ALL visual evidence globally — exactly what VLind needs. SRF's spatial routing is the wrong intervention for relational tasks.
 
-### Cross-dataset summary (SRF vs SRF-Fovea)
+### SRF-E vs SRF gap — two different failure modes
+- **MMVP** (+4pp): SRF partially helps (spatial routing correct object); SRF-E adds contrastive amplification on top
+- **VLind** (+7.3pp pair): SRF routing hurts; SRF-E's global amplification fixes a different failure mode
+- **Gap is not just "more boost"** — they address orthogonal problems. SRF = WHERE to look. SRF-E = HOW MUCH the image matters vs. language prior.
 
-| Dataset | SRF | SRF-Fovea σ=20 | Winner | Why |
-|---------|-----|----------------|--------|-----|
-| LLaVA MMHal (score↑) | 2.29 | **2.40** | SRF-Fovea ✓ | Object-focused questions benefit from blur |
-| LLaVA MME (total↑) | **670.00** | 663.33 | SRF ✓ | Count/position need global context |
-| Qwen MMVP (pair acc↑) | 41.33% | **+3.33pp** | SRF-Fovea ✓ | Fine-grained visual perception benefits from focus |
+### SRF-E MMVP discrepancy (45.33% now vs 49.33% previously)
+- Previous 49.33% came from autoresearch sweep (`autoresearch_mmvp_v2`) with possibly different alpha/eps per dataset
+- Current eval.py run uses config defaults: ls=8, le=16, alpha=2.0, phase=both
+- ⚠️ Need to verify: check if sweep used a different alpha or layer config. Run `eval.py --method srfe --datasets mmvp --layer_end 16 --alpha 2.0 --gamma 3.0` and compare.
 
-SRF-Fovea beats SRF on open-ended hallucination/perception tasks. Only loses on MME count/position subtasks where blurring the background destroys the spatial evidence the model needs.
+### SRF-Fovea — good on MMVP, backfires on VLind
+- MMVP: +3.3pp pair (pre-encoder blur helps fine-grained visual discrimination)
+- VLind: −4.6pp pair (fovea over-focuses on a single region, hurts relational comprehension)
+- VLMBias: neutral (≈baseline)
+- **Use case**: SRF-Fovea is complementary to SRF for object-centric tasks; avoid for relational tasks
 
-### MME (all 4 perception subtasks, n=240)
+## Open Tasks
 
-| Method | exist | count | pos | color | **TOTAL** | Δ |
-|--------|------:|------:|----:|------:|----------:|---:|
-| Baseline | 193.33 | 160.00 | 150.00 | 166.67 | **670.00** | — |
-| SRF | 196.67 | 156.67 | 146.67 | 170.00 | **670.00** | **±0** |
-| SRF-Fovea (σ=20) | 193.33 | 156.67 | 140.00 | 173.33 | **663.33** | −6.67 |
-| SRF-C pixel-zero (γ=0.3) | 190.00 | 146.67 | 136.67 | 160.00 | **633.33** | −36.67 |
-| SRF-C pixel-zero γ=1.0 | 190.00 | 133.33 | 136.67 | 140.00 | 600.00 | −70.00 |
-| SRF-C pixel-zero γ=3.0 | 183.33 | 126.67 | 133.33 | 126.67 | 570.00 | −100.00 |
-| SRF-C v2 salient-zero (γ=0.3) | 190.00 | 153.33 | 143.33 | 166.67 | **653.33** | −16.67 |
-| SRF-C v2 salient-zero γ=1.0 | 190.00 | 136.67 | 140.00 | 150.00 | 616.67 | −53.33 |
-| SRF-C v2 salient-zero γ=3.0 | 183.33 | 133.33 | 140.00 | 136.67 | 593.33 | −76.67 |
-
-*ILVAD Table 2 ref: Baseline=641.66, ILVAD=686.67*
-
-⚠️ **Eval protocol gap**: our baseline (670.00) > ILVAD baseline (641.66). We use `decode_first_token` (logit-based, always produces yes/no); ILVAD uses `model.generate` + text parsing (some outputs fail to parse → counted wrong). Direct comparison with ILVAD Table 2 requires matching their protocol.
-
-**MME findings:**
-- SRF: neutral (±0) — existence/color gains cancel count/position losses. Global-context tasks can't benefit from local attention boosting.
-- SRF-Fovea: −6.67 — foveal blur destroys positional context for count/position subtasks; only color benefits (+6.67).
-- SRF-C pixel-zero: catastrophically bad (−36.67 to −100). Frozen CLIP produces garbage embeddings from zeroed pixels.
-- SRF-C v2 salient-zero: less bad (−16.67 at γ=0.3) but still hurts. Root cause same: upsampled pixel zeroing still corrupts CLIP.
-
-### MMHal-Bench (n=96, GPT-scored)
-
-Results: `results/mmhalbench_full/` and `results/mmhalbench_srfe_sweep/`
-
-| Method | Score | Hal% | Δ Score |
-|--------|------:|-----:|--------:|
-| Baseline | 2.21 | 60.4% | — |
-| SRF (α=0.5, naa=1.0) | 2.29 | 59.4% | +0.08 |
-| SRF-Fovea σ=5 | 2.39 | 57.3% | +0.18 |
-| SRF-Fovea σ=10 | 2.39 | 57.3% | +0.18 |
-| SRF-Fovea σ=15 | 2.36 | 57.3% | +0.15 |
-| **SRF-Fovea σ=20** | **2.40** | **56.2%** | **+0.19** |
-| SRF-Fovea σ=30 | 2.35 | 56.2% | +0.14 |
-| SRF-C pixel-zero γ=0.1 | 1.35 | 85.0% | −0.86 |
-| SRF-C pixel-zero γ=0.2 | 1.55 | 80.0% | −0.66 |
-| SRF-C pixel-zero γ=0.3 | 1.15 | 90.0% | −1.06 |
-| SRF-C v2 salient-zero γ=0.3 | 1.26 | 86.5% | −0.95 |
-| SRF-C v2 salient-zero γ=1.0 | 1.00 | 90.6% | −1.21 |
-| SRF-C v2 salient-zero γ=3.0 | 0.76 | 89.6% | −1.45 |
-
-**MMHal findings:**
-- SRF base: small but consistent gain (+0.08 score, −1pp hal%).
-- SRF-Fovea σ=20: best overall → Score=2.40, Hal%=56.2% (+0.19 vs baseline). Results at `results/mmhalbench_fovea_sweep/`.
-- SRF-C (pixel-zero and salient-zero): both catastrophic. Open-ended generation compounds contrastive noise across tokens.
-- **Next**: SRF-C v3 (embedding-space token zeroing) — bypasses CLIP OOD problem entirely. Pending.
+0. **Head calibration — MMVP positive, VLMBias NULL.** S3 gives +2.67pp on MMVP
+   but +0.07pp on VLMBias (n=2784). Does NOT currently support a method change.
+   Next: seed-robustness on MMVP to decide whether the MMVP gain is real at all.
+0a. **PAPER.tex Table 1 VLMBias average is wrong** (20.9 should be 19.65). Confirmed
+   by the control pass above. Fix independently of everything else.
+0c. **Efficiency table (time/FLOPs)** — no timing infrastructure exists in `srf/`.
+   Needed: ms/sample, peak memory, extra LLM passes, one-time calibration cost, and
+   the per-sample CLIP overhead reported separately (the current `+pass` column
+   undersells SRF, which pays a CLIP pass that VAF does not). Note v3 runs 83 patch
+   crops vs basic `clip`'s 49.
+0d. **`config.py` n_layers bug** — 3B is 36 (not 28), 7B is 28 (not 32). See
+   CONTEXT.md "Code Change Log". Shipped inference and VHR unaffected; the ablation's
+   "all layers" rows were [0,27] and are mislabelled.
+0b. **Leave-one-out ablation from full SRF** — needed to disentangle the component
+   interaction flagged in the ablation caveat above. NOT run.
+1. **Investigate SRF-E MMVP 45.33% vs previous 49.33%** — verify config, possibly re-run sweep
+2. **SRF-E with blurred Pass 2** — fix VLMBias collapse; if resolved → one unified method
+3. **Write paper** — routing failure framing: SRF fixes spatial routing (MMVP/VLMBias), SRF-E fixes global evidence (VLind). Two complementary failure modes.
+4. **Second model: Qwen2.5-VL-7B** — same codebase, minimal porting.
 
 ---
 
-## Open Tasks (priority order)
+## Component Ablation — MMVP / Qwen2.5-VL-3B (2026-09-16)
 
-1. **Verify SRF beats baseline on RePOPE** — 100-sample diagnostic running (results/diag_100sample/)
-2. **Full RePOPE eval** — all 3 splits once diagnostic shows SRF > baseline
-3. **MMVP with phase=both** — already configured; may improve since phase fix activates prefill boost
-4. **Write paper sections** — method, experiments, related work
+Script: `srf/ablation_components.py` (calls `eval.run_mmvp`; 14 passes, one model load)
+Log: `/tmp/ablation_components_mmvp.log`
+JSON: `results/ablation/ablation_components_mmvp_qwen3b.json`
 
-**Done:**
-- ~~Full POPE eval (9000 samples)~~ ✅ 87.70% (+1.33pp)
-- ~~MME + HallusionBench~~ ✅ Neutral / slight hurt diagnosed
-- ~~Head/layer calibration~~ ✅ ls=8, le=12 optimal (POPE), le=16 (MMVP)
-- ~~Phase bug fix~~ ✅ `phase="generation"` → `phase="both"` in config.py for POPE
-- ~~CLIP template ensemble~~ ✅ 5 templates, mean-pooled normalized embeddings
-- ~~OR gate~~ ✅ `full_img_sim >= 0.21 OR patch_max_sim >= 0.27` in clip_salience.py
-- ~~OOM fix in diag script~~ ✅ `torch.cuda.empty_cache()` after each sample
-- ~~VLIND SRF base investigation~~ ✅ SRF base neutral (+0.33pp); SRF-E 52.32% (+5.3pp) is the result
+Cumulative build-up, alpha held fixed within each anchor so the table isolates
+*targeting* rather than boost strength.
+
+**Anchor `published`** — v3 gate, alpha=2.0, layers [8,16], eps=0.2, sys_beta=0.30, sigma=20
+(the configuration behind the paper's 43.3%)
+
+| Row | Pair | dprev | dbase | Img |
+|---|---|---|---|---|
+| A baseline | 40.00 | | | 67.67 |
+| B uniform attention boost | 42.00 | +2.00 | +2.00 | 69.67 |
+| C + semantic relevance mask | 39.33 | **-2.67** | -0.67 | 68.33 |
+| D + head calibration | 40.00 | +0.67 | 0.00 | 68.00 |
+| E + fusion-layer targeting | 41.33 | +1.33 | +1.33 | 69.00 |
+| F + suppression (SRF decoder-only) | 41.33 | 0.00 | +1.33 | 68.67 |
+| G + semantic foveation (full SRF) | **43.33** | +2.00 | +3.33 | 69.67 |
+
+**Anchor `mmvp_tuned`** — basic `clip` gate, alpha=4.0, layers [8,15], same eps/sys_beta/sigma
+
+| Row | Pair | dprev | dbase | Img |
+|---|---|---|---|---|
+| A baseline | 40.00 | | | 67.67 |
+| B uniform attention boost | 42.00 | +2.00 | +2.00 | 68.33 |
+| C + semantic relevance mask | **43.33** | +1.33 | +3.33 | **70.67** |
+| D + head calibration | 39.33 | **-4.00** | -0.67 | 67.67 |
+| E + fusion-layer targeting | 40.67 | +1.33 | +0.67 | 68.33 |
+| F + suppression | 40.67 | 0.00 | +0.67 | 68.33 |
+| G + semantic foveation (full SRF) | 40.67 | 0.00 | +0.67 | 68.33 |
+
+### Validity checks (all passed)
+- Baseline identical under both anchors (40.00) -> no state leaking between variants
+- `reusing visual heads` on every non-warm-up row -> head selection constant within an anchor
+- Three exact reproductions of known numbers: baseline 40.00/67.67, SRF decoder-only
+  41.33 (= `EXPERIMENTS.md` srf 0.4133), full SRF 43.33/69.67 (= `srffovea_20.0`)
+- `mmvp_tuned` rows E/F/G share the same aggregate but have DIFFERENT per-60-image
+  trajectories -> genuine coincidence, not a silent no-op
+
+### Findings
+1. **Uniform boosting captures +2.00pp of the +3.33pp headline** under both anchors —
+   no semantic mask, no head selection, no layer targeting.
+2. **Suppression (eps, sys_beta) contributes exactly 0.00pp** under both anchors on MMVP.
+3. **Head calibration is the weakest component**: +0.67pp (published), -4.00pp (mmvp_tuned).
+   Prime suspect: selection is layer-agnostic (see CONTEXT.md "Head calibration").
+4. **The semantic mask flips sign with the gate**: -2.67pp under v3, +1.33pp under basic
+   `clip`. Same component, opposite sign — the gate, not the mask, is responsible.
+5. **Best single config in the run is `mmvp_tuned` row C: 43.33 / 70.67** — semantic mask
+   with ALL heads and ALL layers. Ties published pair acc and beats its img acc, with a
+   strictly simpler method. NOTE: off the tuned manifold in two ways at once, and it
+   conflicts with `MMVP.md`'s head sweep (which found htk=0.20 best at tuned layers);
+   a leave-one-out is needed before drawing conclusions.
+
+### Caveat on the cumulative design
+Row D measures "head calibration GIVEN all 28 layers", not head calibration in
+isolation, and rows C->E show the selectivity axes interact. A leave-one-out from
+full SRF would measure each component at the real operating point and could give
+head calibration a different number. Leave-one-out is NOT yet run.
+
+### Paper inconsistencies found (NOT yet fixed in PAPER.tex)
+- Table 1 mixes variants across columns: MMVP 43.3/69.7 is `srffovea` (sigma=20), but the
+  VLMBias per-category figures (Optical 50.4, Logos 8.2, PatGrid 15.2) are SRF base.
+  `srffovea` gives 52.7/6.5/13.4 there.
+- Table 1 baseline VLMBias Avg is 18.1; this file's results table says 19.0. SRF's gain is
+  +2.8pp under one and +0.7pp under the other.
+- `MMVP.md` best-params table lists `sys_beta=0.10`, contradicted by its own logs
+  (`mmvp_le15_sysbeta0.1_generate.log` = 39.33% vs 42.00% at 0.30). The 0.10 figure
+  appears to come from the old autoresearch harness, not `eval.py`. Use 0.30.
 
 ---
 
-## Recent Runs
+## Head Calibration — MMVP / Qwen2.5-VL-3B (2026-09-16)
 
-<!-- Add entries here after each experiment. Format:
-### YYYY-MM-DD — description
-- Command: ...
-- Results: ...
-- Notes: ...
--->
+Script: `srf/head_calibration.py` | Log: `/tmp/head_calibration_mmvp.log`
+JSON: `results/ablation/head_calibration_mmvp_qwen3b.json`
 
-### 2026-08-08 — SRF-C v2 (salient-zero) MME + MMHal (LLaVA-1.5-7B)
+Published anchor, full SRF + foveation, **only head selection varies**:
 
-- Scripts: `srf_exp_runs/mme_llava_srfc2.sh` (job 25357165), `srf_exp_runs/mmhal_llava_srfc2.sh` (job 25357289)
-- Results: `results/mme_llava_full/srfc2/`, `results/mmhalbench_srfc2_sweep/g{0.3,1.0,3.0}/`
-- MME best: γ=0.3 → 653.33 (−16.67 vs baseline). Better than pixel-zero (633.33) but still hurts.
-- MMHal best: γ=0.3 → Score=1.26, Hal%=86.5% (−0.95 vs baseline). Catastrophic.
-- Root cause confirmed: zeroing pixels (even partially) corrupts frozen CLIP-L → garbage LLM tokens → noisy contrastive signal.
-- **Fix**: SRF-C v3 — zero the 576 projected visual tokens directly in LLM embedding space, bypassing CLIP.
-- Note: eval.py bug fixed (gamma gating was srfe-only, added srfc2). Bug caused earlier jobs to run with γ=0.0.
+| Mode | Pair | dref | Img |
+|---|---|---|---|
+| `global` — shipped layer-agnostic mask (reference) | 43.33 | — | 69.67 |
+| `per_layer` (S1) | 44.00 | +0.67 | 70.33 |
+| `saliency` (S3) | **46.00** | **+2.67** | **71.33** |
 
-### 2026-08-06 — MMHal SRF-Fovea σ sweep (LLaVA-1.5-7B, n=96, GPT-4o scored)
+`global` reproduced 43.33/69.67 exactly → deltas attributable to head selection alone.
 
-- Script: `srf_exp_runs/mmhal_srffovea_sigma_sweep.sh` (job 25285666)
-- Results: `results/mmhalbench_fovea_sweep/s{5,10,15,20,30}/`
-- Best: **σ=20 → Score=2.40, Hal%=56.2%** (+0.19 vs baseline, +0.11 vs SRF base)
-- Shape: scores plateau at σ=5–10 (2.39), dip at σ=15 (2.36), peak at σ=20 (2.40), fall at σ=30 (2.35). Hal% flat 57.3% for σ≤15, drops to 56.2% at σ≥20.
-- σ=20 confirmed as optimal for LLaVA MMHal (matches Qwen MMVP best σ).
+**MMVP standing after this run:**
 
-### 2026-08-06 — LLaVA MME full eval (all 4 subtasks, 3 methods)
+| | Pair | Extra LLM passes |
+|---|---|---|
+| Baseline | 40.00 | — |
+| Published SRF | 43.33 | 0 |
+| SRF-E (contrastive) | 45.33 | +1 |
+| **SRF + S3 head calibration** | **46.00** | **0** |
 
-- Scripts: `srf_exp_runs/mme_llava_baseline_srf.sh`, `mme_llava_srffovea.sh`, `mme_llava_srfc.sh`
-- Results: `results/mme_llava_full/{baseline,srf,srffovea,srfc}/mme.json`
-- SRF: 670.00 (=baseline, ±0). SRF-Fovea: 663.33 (−6.67). SRF-C γ=0.3: 633.33 (−36.67).
-- Root cause: count/position subtasks need global context — any attention redistribution or foveal blur hurts. SRF-C contrastive pass produces noise on LLaVA at all γ.
-- Eval protocol differs from ILVAD: our baseline=670 vs ILVAD=641.66 (decode_first_token vs model.generate+parse).
+Root cause: head selection was layer-agnostic while the paper specifies per-layer.
+See CONTEXT.md "Head calibration" and METHOD_WALKTHROUGH.md Step 0c.
 
-### 2026-06-12 — Gate sweep + Boosting experiments (B1–B4, val set)
+**S3 exceeds the paper's stated method.** The paper's rho is query-agnostic mean
+attention; S3 ranks heads by correlation with the per-sample CLIP saliency map, i.e.
+query-conditioned head selection. This needs a rewritten equation, not a correction.
 
-- **Experiment A (offline gate sweep):** Combined gate `full>=0.21 OR (patch>=T AND contrast>=1.40)`.
-  T=0.29 recovers 1 FN, 0 new FPs. T=0.265 recovers 2 FNs, 1 new FP. Not yet deployed.
-- **B3 (budget_shift):** Zero gain — image/text budget imbalance not the bottleneck.
-- **B1 (visual reliance compensation):** acc 0.867→0.900, robust across all vr_target/k values.
-- **B4 (two-pass retry):** acc 0.867→0.900, recovers same 3 samples as B1.
-- **B1+B4 combined:** No additive benefit — identical failure modes targeted.
-- Val set ceiling confirmed at 0.900. 6 remaining FNs = model capacity limit.
-- New flags in `eval_pope_val.py`: `--bias_mode`, `--vr_target`, `--vr_k`, `--b4`.
-- Next: absent suppression experiments (`--neg_absent_alpha`).
+**NOT validated — shipped default unchanged:** S3 calibrated on 14/20 samples (v3 gate
+discarded 6); 46.00 vs 43.33 = 69 vs 65 pairs of 150; single seed; MMVP only.
 
-### 2026-06-09 — MME + HallusionBench (phase=gen + bad-noun gate fix)
+---
 
-- MME: 2362.9→2361.8 (neutral, −1.1pts). Broken phase=both fix eliminated −19.7pt regression.
-- HallusionBench: aAcc 0.694→0.686 (−0.8pp). VD questions fundamentally hurt by local SRF.
-- Visualizations: `results/saliency_vis_datasets/mme/` and `hallusionbench/`
+## Head Calibration on VLMBias — NULL RESULT (2026-09-17)
 
-### 2026-06-08 — Full POPE (9000 samples) + POPE failure analysis
+Script: `srf/head_calibration.py --dataset vlmbias` | Log: `/tmp/head_calibration_vlmbias.log`
+JSON: `results/ablation/head_calibration_vlmbias_qwen3b.json`
 
-- SRF: 87.5% (+0.9pp). FN=981 (88% of failures), FP=140 (12%).
-- FN root causes: Case A (CLIP gate fails), Case B (model capacity limit).
-- Failure visualizations: `results/saliency_vis_pope/failures/{split}/`
+Config from config.py defaults for vlmbias: v3 gate, alpha=8.0, eps=0.5,
+layers [8,14], phase=generation, sys_beta=0.30, fovea OFF (SRF base), 2784 samples.
 
-### 2026-05-03 — VLMbias diagnostic sweep (15 experiments)
-- Command: `conda run -n mllm python my_analysis/autoresearch_vlmbias/sweep.py`
-- Results: 22.86% (uniform+deep L20-28) vs 17.14% baseline (+5.7pp)
-- Notes: CLIP guidance irrelevant (all top-k strategies identical). Animals/Chess intractable (counting failure). Deep layers (20-28) > early layers (8-14) for counting tasks.
+| Mode | Acc | dref | Overlap [8,14] |
+|---|---|---|---|
+| `global` (shipped) | 19.65 | — | — |
+| S2 contrastive (real - blank) | 19.36 | **-0.29** | 0.229 |
+| S3 saliency-aligned | 19.72 | **+0.07** | 0.186 |
 
-### 2026-04-25 — Smoke test MME (10 samples)
-- Command: inline test script
-- Results: base=9/10, SRF=10/10 (SRF fixed one wrong answer)
-- Notes: End-to-end works. Need full run.
+Per-category (%):
+
+| Mode | Animals | Chess | Flags | GameBoards | Logos | Optical | PatGrid |
+|---|---|---|---|---|---|---|---|
+| global | 0.0 | 0.0 | 22.5 | 5.4 | 8.2 | 50.4 | 15.2 |
+| contrast | 0.0 | 0.0 | 25.0 | 2.4 | 7.0 | 49.9 | 15.2 |
+| saliency | 0.0 | 0.0 | 23.8 | 1.8 | 9.2 | 50.4 | 15.5 |
+
+### S3's MMVP gain does NOT transfer
++2.67pp on MMVP became +0.07pp on VLMBias, i.e. noise at n=2784. S2 is slightly
+negative. Head selection genuinely changed in both cases (overlap 0.19-0.23), so
+this is not a failure to apply the intervention — different heads were boosted and
+the answer barely moved.
+
+Two facts make the null MORE credible than the MMVP positive:
+- S3's VLMBias calibration was CLEANER (19/20 samples survived the gate, vs 14/20
+  on MMVP). The dataset where S3 had better calibration is the one where it did
+  nothing.
+- n=2784 vs MMVP's 150 pairs. +2.67pp on MMVP is 4 pairs; +/-0.07pp on 2784 is far
+  better resolved.
+
+**Honest reading: the MMVP +2.67pp may itself be small-n noise.** A seed-robustness
+check on MMVP is required before any head-calibration claim enters the paper. The
+shipped default remains unchanged.
+
+Animals and Chess are 0.0% under every mode, consistent with the existing finding
+that these are counting failures untouched by attention routing.
+
+### CONFIRMED: PAPER.tex Table 1 VLMBias average is WRONG
+The `global` control closed at **19.65%**, matching this file's 19.7% for SRF base.
+PAPER.tex Table 1 reports **20.9%** for that cell. Against the 19.0% baseline the
+real gain is **+0.65pp, not +2.8pp**. The per-category figures in Table 1 (Optical
+50.4, Logos 8.2, PatGrid 15.2) reproduce exactly, so only the average is wrong.
+
+---
+
+## Quick Commands
+
+> ⚠️ Use `source activate mllm && python ...` — NOT `conda run -n mllm`
+
+```bash
+cd /volumes2/mllm/lmms-eval
+
+# SRF-E (best, single-token tasks)
+source activate mllm && stdbuf -oL -eL python -u srf/eval.py \
+  --method srfe --datasets mmvp vlmbias vlind --gamma 3.0 2>&1 | tee /tmp/srfe_all.log
+
+# SRF-Fovea sweep
+source activate mllm && python srf/test_srffovea_mmvp.py --sigma 20 30 50 100 \
+  2>&1 | tee /tmp/srffovea_all.log
+
+# Any comparison baseline
+source activate mllm && stdbuf -oL -eL python -u srf/eval.py \
+  --method vhr --datasets mmvp vlmbias vlind 2>&1 | tee /tmp/vhr_all.log
+
+# VLIND only
+source activate mllm && python srf/eval.py --method srfe --datasets vlind --gamma 3.0
+```
 
 ---
 
 ## Known Issues
 
-- SRF-E + VLM Bias: contrastive pass suppresses `{` token → format broken. Use SRF base.
-- SRF-E + Qwen-VL-Chat: `_make_noval_inp` skips zeroing (no `pixel_values`) → no contrastive effect. Use SRF base for Qwen-VL-Chat.
-- Qwen-7B and LLaVA arch params not tuned — proportional starting points only.
-- `HF_HOME` path is machine-specific — set via env var, not hardcoded.
-
-## Quick Commands
-
-> ⚠️ Use `source activate mllm && python ...` — NOT `conda run -n mllm` (breaks `--n` flag)
-
-```bash
-cd /volumes2/mllm/lmms-eval
-
-# ── Diagnostic / debugging ─────────────────────────────────────────────────
-
-# 100-sample diagnostic on RePOPE adversarial (baseline vs SRF, CLIP gate analysis)
-source activate mllm && python srf/diag_20sample.py \
-  --repope_dir data/repope --splits adversarial --n 100 --out_dir results/diag_100sample
-
-# CLIP gate accuracy sweep (eval_presence on 60-sample val set)
-source activate mllm && python srf/saliency/eval_presence.py
-
-# ── Full evaluation ────────────────────────────────────────────────────────
-
-# Full POPE (all 9000 samples) with SRF-E best config
-source activate mllm && python srf/eval.py --method srfe --datasets pope \
-  --output results/srf_pope/ --gamma 3.0
-
-# Full RePOPE adversarial (2684 samples)
-source activate mllm && python srf/eval.py --method srfe --datasets pope \
-  --pope_file data/repope/adversarial.json --output results/srf_repope_adv/ --gamma 3.0
-
-# MMVP with current best config
-source activate mllm && python srf/eval.py --method srfe --datasets mmvp \
-  --output results/srf_mmvp/ --gamma 3.0
-
-# VLM Bias (gamma=0 required — SRF base only)
-source activate mllm && python srf/eval.py --method srf --datasets vlmbias \
-  --output results/srf_vlmbias/
-
-# ── Config state (2026-07-26) ──────────────────────────────────────────────
-# config.py POPE entry:  phase="both", alpha=2.0, eps=0.2, neg_absent_alpha=2.0
-# clip_salience.py gate: full_img_sim >= 0.21 OR patch_max_sim >= 0.27
-# CLIP text encoding:    5-template ensemble (mean-pooled, re-normalized)
-```
+- SRF-E collapses on VLMBias/VLind at any γ>0: zeroed pixel_values corrupts ViT multi-token generation
+- Animals/Chess in VLMBias = 0% across ALL methods (counting failure, not attention)
+- `qwen_attn_patch.py` is core SRF — never modify; all baselines (vhr, ilvad) wrap around it
+- `HF_HOME` path is machine-specific — set via env var

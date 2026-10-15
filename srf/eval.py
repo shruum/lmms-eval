@@ -72,19 +72,15 @@ import qwen_attn_patch as patch  # default; overridden per-model in load_model()
 def parse_args():
     p = argparse.ArgumentParser(description="SRF / SRF-E evaluation")
     p.add_argument("--method",   required=True,
-                   choices=["srf", "srfe", "srffovea", "srfc2", "srfc3", "vcd", "vaf", "baseline"],
-                   help="srf = SRF base; srfe = SRF-E; srffovea = SRF + pre-encoder foveal blur; "
-                        "srfc2 = SRF-C v2 (salient-pixel masking contrastive); "
-                        "srfc3 = SRF-C v3 (embedding-space visual token zeroing); "
-                        "vcd = Visual Contrastive Decoding; vaf = Visual Amplification Fusion; "
+                   choices=["srf", "srfe", "srffovea", "vcd", "vaf", "vhr", "ilvad", "baseline"],
+                   help="srf = SRF base; srfe = SRF-E; srffovea = SRF+foveal blur; vcd = VCD; vaf = VAF (ClearSight); "
+                        "vhr = Vision-aware Head Reinforcement; ilvad = Inter-Layer Visual Attn Discrepancy; "
                         "baseline = no intervention")
     p.add_argument("--model",    default=CFG.DEFAULT_MODEL)
     p.add_argument("--datasets", nargs="+", default=["mmvp", "pope"],
                    choices=["mmvp", "pope", "vlmbias", "mme", "vlind", "mmhalbench"])
     p.add_argument("--gamma",       type=float, nargs="+", default=[CFG.SRFE_DEFAULT_GAMMA],
                    help="Contrastive γ (srfe only; ignored for srf)")
-    p.add_argument("--fovea_sigma", type=float, default=20.0,
-                   help="Gaussian blur radius σ in pixels for srffovea (default: 20.0)")
 
     # ── POPE ──────────────────────────────────────────────────────────────────
     p.add_argument("--pope_splits", nargs="+", default=CFG.POPE_SPLITS,
@@ -105,6 +101,30 @@ def parse_args():
                    help="Limit VLIND samples for quick sweeps (None=all 302)")
     p.add_argument("--output",   default=None,
                    help="Directory to save JSON results")
+    p.add_argument("--alpha_prefill", type=float, default=None,
+                   help="Separate lambda_sem for the prefill pass, used only with "
+                        "--phase both. Prefill applies the bias to every query row "
+                        "while generation applies it to one, so the same alpha is a "
+                        "much larger perturbation there. Default None = same as --alpha.")
+    p.add_argument("--fovea_mask_mode", default=None,
+                   choices=["linear", "power", "binary"],
+                   help="How the relevance map becomes a sharpness weight for "
+                        "--method srffovea. binary blurs everything outside the top "
+                        "--fovea_mask_q quantile at full strength.")
+    p.add_argument("--fovea_fill", default=None, choices=["blur", "grey"],
+                   help="What replaces the de-emphasised region. blur keeps the "
+                        "silhouette, grey removes it. grey approximates cropping.")
+    p.add_argument("--fovea_mask_q", type=float, default=None,
+                   help="Quantile for --fovea_mask_mode binary (default 0.70).")
+    p.add_argument("--fovea_sigma", type=float, default=None,
+                   help="Gaussian blur scale in pixels for --method srffovea. "
+                        "Overrides srf_fovea.SIGMA (default 20). sigma=0 disables "
+                        "foveation, which is the no-foveation control.")
+    p.add_argument("--save_records", default=None,
+                   help="Enable per-sample record saving for significance testing. "
+                        "POPE writes predictions to this path. MMVP ignores the path "
+                        "and embeds per-pair correctness in <output>/mmvp.json under "
+                        "'records'. Pass any non-empty value to enable.")
 
     # ── MME ───────────────────────────────────────────────────────────────────
     p.add_argument("--mme_data_dir", default=None,
@@ -118,6 +138,35 @@ def parse_args():
                    help="First layer to apply SRF (overrides arch config)")
     p.add_argument("--layer_end",        type=int,   default=None,
                    help="Last layer to apply SRF (overrides arch/dataset config)")
+    # ── Head selection strategy (srf/head_calibration.py) ────────────────────
+    # global   = shipped: rho pooled over ALL layers -> one head-index mask reused
+    #            in every targeted layer. Architecturally questionable, because
+    #            head h in layer 8 and head h in layer 21 are different parameters.
+    # per_layer  [S1] = the paper's spec: rho per layer, top-k within each layer.
+    # saliency   [S3] = per layer, heads ranked by correlation between their
+    #            image-token attention and the CLIP relevance map (query-conditioned).
+    # contrast   [S2] = per layer, rho(real image) - rho(blank image).
+    # vtar_joint [S5] = top-k over all (layer,head) pairs; layer interval ignored.
+    # vtar_soft  [S6] = mid-band interval + soft per-head weights, budget-matched.
+    p.add_argument("--head_mode", default="global",
+                   # KEEP IN SYNC with head_calibration.MODES. It cannot be imported
+                   # here at parse time because head_calibration imports this module.
+                   choices=["global", "per_layer", "saliency", "contrast",
+                            "vtar_layers", "vtar_joint", "vtar_soft", "vtar_thresh",
+                            "vtar_ratio", "ratio_topk", "ratio_auto"],
+                   help="Head-selection strategy. Default 'global' = shipped behaviour.")
+    p.add_argument("--head_calib_dataset", default=None,
+                   help="Calibration dataset for --head_mode (default: the eval dataset).")
+    p.add_argument("--n_layers_sel", type=int, default=9,
+                   help="head_mode vtar_layers: number of layers to select. "
+                        "head_mode vtar_joint: sets the SLOT BUDGET as n_layers_sel*k, "
+                        "so 9/18/36/72 give 27/54/108/216 of the 576 (layer,head) pairs.")
+    p.add_argument("--kappa", type=float, default=0.0,
+                   help="head_mode vtar_soft: 0 = budget-matched (no free parameter).")
+    p.add_argument("--vtar_thresh", type=float, default=0.20,
+                   help="head_mode vtar_ratio: keep heads whose vision attention ratio "
+                        "exceeds this. 0.20 means at least 20 percent of the head's "
+                        "attention lands on image tokens.")
     p.add_argument("--head_top_k_pct",   type=float, default=None,
                    help="Fraction of heads selected as vision-aware (e.g. 0.20)")
     p.add_argument("--alpha",            type=float, default=None,
@@ -137,7 +186,9 @@ def parse_args():
     p.add_argument("--clip_patch_thresh", type=float, default=None,
                    help="clip_full_gate_v3: patch max-sim backup presence gate threshold (default 0.27)")
     p.add_argument("--saliency_mode", default=None,
-                   help="Override saliency mode: clip_full_gate_v3 (default/best) | clip | hssa | lta | clip_lta | srf2")
+                   help="Override saliency mode: clip_full_gate_v3 (default/best) | "
+                        "clip_full_gate_v3_prod / _min / _mean (same gates, different "
+                        "cross-scale combination) | clip | hssa | lta | clip_lta | srf2")
 
     # ── Boosting method ───────────────────────────────────────────────────────
     p.add_argument("--neg_absent_alpha", type=float, default=None,
@@ -344,6 +395,7 @@ def _reset_overrides(args) -> dict:
     return dict(
         phase=args.phase,
         alpha=args.alpha,
+        alpha_prefill=args.alpha_prefill,
         eps=args.eps,
         neg_absent_alpha=args.neg_absent_alpha,
         layer_start=args.layer_start,
@@ -387,7 +439,7 @@ def _reset_overrides(args) -> dict:
 # ---------------------------------------------------------------------------
 
 def run_pope(method_mod, model, processor, img_token_id, device, args) -> dict:
-    gammas = args.gamma if args.method in ("srfe", "srfc2", "srfc3") else [0.0]
+    gammas = args.gamma if args.method == "srfe" else [0.0]
 
     splits_filter = {s.lower() for s in args.pope_splits}
     splits_label  = "+".join(sorted(splits_filter))
@@ -442,6 +494,8 @@ def run_pope(method_mod, model, processor, img_token_id, device, args) -> dict:
     split_stats: dict[str, dict] = {s: _empty_stats() for s in splits_filter}
     overall_stats = _empty_stats()
     is_llava = "llava" in args.model.lower()
+    # per-sample records for --save_records (first gamma only, single-pass methods)
+    _records: list[dict] = []
 
     for i, r in enumerate(rows):
         image    = r["image"].convert("RGB")
@@ -478,6 +532,15 @@ def run_pope(method_mod, model, processor, img_token_id, device, args) -> dict:
                     st["fp"] += 1
                 elif pred == "no" and gt == "yes":
                     st["fn"] += 1
+            # record for --save_records (first gamma only)
+            if getattr(args, "save_records", None) and gamma == gammas[0]:
+                _records.append({
+                    "question_id": str(r["question_id"]),
+                    "split":       split_key,
+                    "question":    str(r["question"]).strip(),
+                    "gt":          gt,
+                    "pred":        pred,
+                })
         method_mod.cleanup()
 
         if (i + 1) % 500 == 0 or (i + 1) == len(rows):
@@ -500,7 +563,7 @@ def run_pope(method_mod, model, processor, img_token_id, device, args) -> dict:
 
     results_out: dict = {"splits": {}, "overall": {}}
     for b in gammas:
-        label = f"γ={b}" if args.method in ("srfe", "srfc2", "srfc3") else "SRF"
+        label = f"γ={b}" if args.method == "srfe" else "SRF"
         print(f"\n{'─'*56}")
         print(f"POPE  {label}")
         split_metrics = {}
@@ -515,6 +578,18 @@ def run_pope(method_mod, model, processor, img_token_id, device, args) -> dict:
         results_out["splits"][b] = split_metrics
         results_out["overall"][b] = ov
 
+    if getattr(args, "save_records", None) and _records:
+        rec_path = pathlib.Path(args.save_records)
+        rec_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(rec_path, "w") as _f:
+            json.dump({"method": args.method, "n": len(_records), "records": _records}, _f)
+        print(f"  Per-sample records saved → {rec_path}")
+
+    # Keys read by the Qwen-side harnesses (head_calibration, significance):
+    # n, method = {gamma: overall acc}, per_split = {gamma: {split: metrics}}.
+    results_out["n"]         = len(rows)
+    results_out["method"]    = {b: results_out["overall"][b]["acc"] for b in gammas}
+    results_out["per_split"] = results_out["splits"]
     return results_out
 
 
@@ -524,7 +599,7 @@ def run_pope(method_mod, model, processor, img_token_id, device, args) -> dict:
 
 def run_mmvp(method_mod, model, processor, img_token_id, device, args) -> dict:
     import pandas as pd
-    gammas = args.gamma if args.method in ("srfe", "srfc2", "srfc3") else [0.0]
+    gammas = args.gamma if args.method == "srfe" else [0.0]
 
     print("\n" + "="*60)
     print("DATASET: MMVP (150 pairs, 300 images, full)")
@@ -533,9 +608,7 @@ def run_mmvp(method_mod, model, processor, img_token_id, device, args) -> dict:
     method_mod.reset_for_dataset(dataset="mmvp", **_reset_overrides(args))
 
     df         = pd.read_csv(CFG.MMVP_CSV)
-    img_ds     = hf_load("MMVP/MMVP", split="train")
-    lex_sorted = sorted(range(1, 301), key=str)
-    csv_to_hf  = {c: h for h, c in enumerate(lex_sorted)}
+    mmvp_image = CFG.mmvp_image_loader()
 
     a_id = processor.tokenizer.convert_tokens_to_ids("A")
     b_id = processor.tokenizer.convert_tokens_to_ids("B")
@@ -555,7 +628,7 @@ def run_mmvp(method_mod, model, processor, img_token_id, device, args) -> dict:
         prompt   = f"{row['Question']}\n{opt_text}\nAnswer with the option's letter from the given choices directly."
         gt_raw   = str(row["Correct Answer"]).strip().strip("()").upper()
         gt       = CFG.MMVP_GT_CORRECTIONS.get(row_idx, gt_raw)
-        image    = img_ds[csv_to_hf[csv_1idx]]["image"].convert("RGB")
+        image    = mmvp_image(csv_1idx)
         pair_id  = row_idx // 2
         img_key  = "a" if row_idx % 2 == 0 else "b"
 
@@ -597,10 +670,25 @@ def run_mmvp(method_mod, model, processor, img_token_id, device, args) -> dict:
     img_srf  = {b: n_srf_ok[b] / 300 for b in gammas}
 
     for b in gammas:
-        label = f"β={b}" if args.method in ("srfe", "srfc2", "srfc3") else "SRF"
+        label = f"β={b}" if args.method == "srfe" else "SRF"
         print(f"\nMMVP  {label}: pair={acc_srf[b]:.4f}  img={img_srf[b]:.4f}")
 
-    return {"method_pair": acc_srf, "method_img": img_srf}
+    out = {"method_pair": acc_srf, "method_img": img_srf}
+
+    # Per-pair correctness, for paired significance testing (bootstrap CIs,
+    # McNemar). Gated behind --save_records so no existing result changes.
+    # Shape: {gamma: {pair_id: {"a": bool, "b": bool}}}, 150 pairs, both images
+    # of a pair must be correct for the pair to count.
+    if getattr(args, "save_records", False):
+        out["records"] = {
+            str(b): {str(pid): {k: bool(v) for k, v in r.items()}
+                     for pid, r in sorted(pair_srf[b].items())}
+            for b in gammas
+        }
+        n_rec = len(out["records"][str(gammas[0])])
+        print(f"  [records] per-pair correctness saved for {n_rec} pairs")
+
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -608,7 +696,7 @@ def run_mmvp(method_mod, model, processor, img_token_id, device, args) -> dict:
 # ---------------------------------------------------------------------------
 
 def run_vlmbias(method_mod, model, processor, img_token_id, device, args) -> dict:
-    gammas     = args.gamma if args.method in ("srfe", "srfc2", "srfc3") else [0.0]
+    gammas     = args.gamma if args.method == "srfe" else [0.0]
     n_per_cat = args.n_vlmbias_per_cat if args.n_vlmbias_per_cat > 0 else None
 
     print("\n" + "="*60)
@@ -683,7 +771,7 @@ def run_vlmbias(method_mod, model, processor, img_token_id, device, args) -> dic
     acc_srf = {b: correct_srf[b] / total for b in gammas}
 
     for b in gammas:
-        label = f"SRF" if args.method not in ("srfe", "srfc2") else f"γ={b}"
+        label = f"SRF" if args.method != "srfe" else f"γ={b}"
         print(f"\nVLM Bias  {label}: {acc_srf[b]:.4f}  ({correct_srf[b]}/{total})")
         print(f"  {'Category':<20}  {'Correct':>7}  {'Total':>6}  {'Acc':>6}")
         print(f"  {'-'*20}  {'-'*7}  {'-'*6}  {'-'*6}")
@@ -782,14 +870,14 @@ def run_mme(method_mod, model, processor, img_token_id, device, args) -> dict:
     """
     from PIL import Image as _PILImage
 
-    gammas = args.gamma if args.method in ("srfe", "srfc2", "srfc3") else [0.0]
+    gammas = args.gamma if args.method == "srfe" else [0.0]
     is_llava = "llava" in args.model.lower()
 
     # ── Locate data dir ───────────────────────────────────────────────────────
     mme_data_dir = getattr(args, "mme_data_dir", None)
     if not mme_data_dir:
         candidates = [
-            "/home/sgowda/workspace/ILVAD/data/MME/MME_Benchmark_release_version/MME_Benchmark",
+            CFG.MME_DIR,
             os.path.join(os.path.dirname(__file__), "..", "data", "MME", "MME_Benchmark"),
         ]
         for c in candidates:
@@ -916,7 +1004,7 @@ def run_mme(method_mod, model, processor, img_token_id, device, args) -> dict:
 
     # ── Print results ──────────────────────────────────────────────────────────
     for b in gammas:
-        label = f"β={b}" if args.method in ("srfe", "srfc2", "srfc3") else "SRF"
+        label = f"β={b}" if args.method == "srfe" else "SRF"
         print(f"\nMME  {label}:")
         print(f"  Raw   : correct={correct_srf[b]}/{n_total}  acc={acc_srf[b]:.4f}  pair={pair_srf[b]:.4f}")
         print(f"  Official MME score = {mme_score_srf[b]:.2f}  "
@@ -994,7 +1082,7 @@ def run_vlindbench(method_mod, model, processor, img_token_id, device, args) -> 
       - pair_acc: both Q1 and Q2 correct for the same image (=resistance to language priors)
       - per_concept breakdown
     """
-    gammas = args.gamma if args.method in ("srfe", "srfc2", "srfc3") else [0.0]
+    gammas = args.gamma if args.method == "srfe" else [0.0]
 
     print("\n" + "="*60)
     print(f"DATASET: VLind-Bench (421 counterfactual samples, 10 concepts)")
@@ -1112,7 +1200,7 @@ def run_vlindbench(method_mod, model, processor, img_token_id, device, args) -> 
     pair_acc = {b: correct_pair[b] / max(n_pairs, 1) for b in gammas}
 
     for b in gammas:
-        label = "SRF" if args.method not in ("srfe", "srfc2") else f"γ={b}"
+        label = "SRF" if args.method != "srfe" else f"γ={b}"
         print(f"\nVLind  {label}: q_acc={q_acc[b]:.4f}  pair_acc={pair_acc[b]:.4f}  "
               f"({correct_pair[b]}/{n_pairs} pairs correct)")
         print(f"  {'Concept':<12}  {'Pairs':>6}  {'Correct':>7}  {'Acc':>6}")
@@ -1215,8 +1303,7 @@ To evaluate the LMM responses, first, begin your evaluation by providing a short
 {}
 '''
 
-_MMHAL_DEFAULT_JSON   = pathlib.Path("/home/sgowda/workspace/ILVAD/data/MMHal-Bench/response_template.json")
-_MMHAL_DEFAULT_IMAGES = pathlib.Path("/home/sgowda/workspace/ILVAD/data/MMHal-Bench/images")
+_MMHAL_DEFAULT_JSON   = pathlib.Path(CFG.MMHAL_JSON)
 
 
 def _find_mmhalbench_json(cli_path: str | None) -> pathlib.Path:
@@ -1282,7 +1369,7 @@ def run_mmhalbench(method_mod, model, processor, img_token_id, device, args) -> 
     """
     from PIL import Image as _PIL
 
-    gammas   = args.gamma if args.method in ("srfe", "srfc2", "srfc3") else [0.0]
+    gammas   = args.gamma if args.method == "srfe" else [0.0]
     is_llava = "llava" in args.model.lower()
 
     print("\n" + "=" * 60)
@@ -1339,7 +1426,7 @@ def run_mmhalbench(method_mod, model, processor, img_token_id, device, args) -> 
         out = pathlib.Path(args.output)
         out.mkdir(parents=True, exist_ok=True)
         for gamma in gammas:
-            suffix = f"_g{gamma}" if args.method in ("srfe", "srfc2", "srfc3") else ""
+            suffix = f"_g{gamma}" if args.method == "srfe" else ""
             resp_path = out / f"mmhalbench_responses{suffix}.json"
             with open(resp_path, "w") as f:
                 json.dump(filled[gamma], f, indent=2)
@@ -1353,7 +1440,7 @@ def run_mmhalbench(method_mod, model, processor, img_token_id, device, args) -> 
         openai_model = getattr(args, "openai_model", "gpt-4o")
         print(f"\n  Scoring with {openai_model} …")
         for gamma in gammas:
-            label = "SRF" if args.method not in ("srfe", "srfc2") else f"γ={gamma}"
+            label = "SRF" if args.method != "srfe" else f"γ={gamma}"
             print(f"  [{label}]")
             raw_scores = _score_mmhal_with_gpt(filled[gamma], openai_model)
 
@@ -1399,6 +1486,46 @@ def run_mmhalbench(method_mod, model, processor, img_token_id, device, args) -> 
 # Main
 # ---------------------------------------------------------------------------
 
+def _install_head_mode(model, processor, args, dataset: str):
+    """
+    Apply an alternative head-selection strategy on top of the configured method.
+    Returns hook handles to be removed afterwards; empty list for 'global'.
+
+    Reuses srf/head_calibration.py so the selection logic has exactly one
+    implementation shared with the comparison harness.
+    """
+    if getattr(args, "head_mode", "global") == "global":
+        return []
+    import head_calibration as hc
+    calib_ds = args.head_calib_dataset or dataset
+    print(f"\n  [head_mode] {args.head_mode}  (calibrating on {calib_ds})")
+    masks = hc.calibrate_per_layer_heads(model, processor, args.head_mode,
+                                          dataset=calib_ds,
+                                          top_k_pct=args.head_top_k_pct,
+                                          n_layers_sel=args.n_layers_sel,
+                                          kappa=args.kappa,
+                                          vtar_thresh=args.vtar_thresh)
+
+    # Modes that select slots across the whole decoder scope the layers THEMSELVES
+    # via the masks. The patch still gates on [vaf_layer_start, vaf_layer_end], so
+    # without widening that range every selected slot outside the configured
+    # interval would be silently ignored. Unselected layers carry an all-False
+    # mask, which makes the patch a no-op there.
+    if args.head_mode in hc.FULL_DEPTH_MODES:
+        # Must go through args, not patch._STATE directly: run_* calls
+        # reset_for_dataset which re-syncs the layer range from BIAS, and
+        # srf.cleanup() restores it after every sample, so a direct _STATE write
+        # would be clobbered immediately.
+        n_layers = len(patch._get_decoder_layers(model))
+        args.layer_start, args.layer_end = 0, n_layers - 1
+        print(f"  [head_mode] layer range widened to [0,{n_layers - 1}] via args; "
+              f"the per-layer masks do the layer scoping")
+
+    if args.head_mode in hc.SOFT_MODES:
+        return hc.install_per_layer_weights(model, masks)
+    return hc.install_per_layer_masks(model, masks)
+
+
 def main():
     args = parse_args()
 
@@ -1409,15 +1536,27 @@ def main():
         import srf_e as method_mod
     elif args.method == "srffovea":
         import srf_fovea as method_mod
-        method_mod.SIGMA = args.fovea_sigma
-    elif args.method == "srfc2":
-        import srf_c_v2 as method_mod
-    elif args.method == "srfc3":
-        import srf_c_v3 as method_mod
+        if args.fovea_fill is not None:
+            method_mod.FILL_MODE = args.fovea_fill
+        if args.fovea_mask_mode is not None:
+            method_mod.MASK_MODE = args.fovea_mask_mode
+        if args.fovea_mask_q is not None:
+            method_mod.MASK_Q = float(args.fovea_mask_q)
+        if args.fovea_mask_mode is not None:
+            print(f"  [fovea] mask_mode={method_mod.MASK_MODE} q={method_mod.MASK_Q}")
+        if args.fovea_sigma is not None:
+            method_mod.SIGMA = float(args.fovea_sigma)
+            print(f"  [fovea] sigma = {method_mod.SIGMA:g}"
+                  + ("  (0 = foveation disabled, control arm)"
+                     if method_mod.SIGMA == 0 else ""))
     elif args.method == "vcd":
         import vcd as method_mod
     elif args.method == "vaf":
         import vaf as method_mod
+    elif args.method == "vhr":
+        import vhr as method_mod
+    elif args.method == "ilvad":
+        import ilvad as method_mod
     elif args.method == "baseline":
         import baseline as method_mod
     else:
@@ -1434,11 +1573,7 @@ def main():
     if args.method == "srfe":
         gamma_str = f"β={args.gamma}"
     elif args.method == "srffovea":
-        gamma_str = f"σ={args.fovea_sigma}"
-    elif args.method == "srfc2":
-        gamma_str = f"γ={args.gamma} (salient-pixel-mask)"
-    elif args.method == "srfc3":
-        gamma_str = f"γ={args.gamma} (embed-space-zero)"
+        gamma_str = f"σ={method_mod.SIGMA:g}"
     else:
         gamma_str = "base"
     print(f"\n[{args.method.upper()}] Setup  model={args.model}  {gamma_str}")
@@ -1455,33 +1590,41 @@ def main():
     if hasattr(patch, "_STATE") and args.llava_boost_mode is not None:
         patch._STATE["boost_mode"] = args.llava_boost_mode
 
+    # head_calibration.py drives qwen_attn_patch directly; it is not ported to
+    # llava_attn_patch yet, so a non-global head_mode on LLaVA would silently
+    # calibrate against the wrong patch module.
+    if args.head_mode != "global" and patch.__name__ != "qwen_attn_patch":
+        raise NotImplementedError(
+            f"--head_mode {args.head_mode} is only implemented for Qwen "
+            f"(patch module in use: {patch.__name__}). Use --head_mode global.")
+
     method_mod.setup(model, processor, calib_dataset=args.datasets[0])
 
     results = {}
 
-    if "mmvp" in args.datasets:
-        results["mmvp"] = run_mmvp(method_mod, model, processor, img_token_id, device, args)
-        save_results(results["mmvp"], args.output, "mmvp")
+    # One entry per supported dataset. Wrapped in a loop so --head_mode can install
+    # its per-layer selection around each run and remove it afterwards. With the
+    # default head_mode="global" no hooks are installed and behaviour is unchanged.
+    _DATASET_RUNS = [
+        ("mmvp",    run_mmvp),
+        ("vlmbias", run_vlmbias),
+        ("pope",    run_pope),
+        ("mme",     run_mme),
+        ("vlind",   run_vlindbench),
+        ("mmhalbench", run_mmhalbench),
+    ]
+    for _ds, _fn in _DATASET_RUNS:
+        if _ds not in args.datasets:
+            continue
+        _handles = _install_head_mode(model, processor, args, _ds)
+        try:
+            results[_ds] = _fn(method_mod, model, processor, img_token_id, device, args)
+        finally:
+            if _handles:
+                import head_calibration as _hc
+                _hc.remove_hooks(_handles)
+        save_results(results[_ds], args.output, _ds)
 
-    if "vlmbias" in args.datasets:
-        results["vlmbias"] = run_vlmbias(method_mod, model, processor, img_token_id, device, args)
-        save_results(results["vlmbias"], args.output, "vlmbias")
-
-    if "pope" in args.datasets:
-        results["pope"] = run_pope(method_mod, model, processor, img_token_id, device, args)
-        save_results(results["pope"], args.output, "pope")
-
-    if "mme" in args.datasets:
-        results["mme"] = run_mme(method_mod, model, processor, img_token_id, device, args)
-        save_results(results["mme"], args.output, "mme")
-
-    if "vlind" in args.datasets:
-        results["vlind"] = run_vlindbench(method_mod, model, processor, img_token_id, device, args)
-        save_results(results["vlind"], args.output, "vlind")
-
-    if "mmhalbench" in args.datasets:
-        results["mmhalbench"] = run_mmhalbench(method_mod, model, processor, img_token_id, device, args)
-        save_results(results["mmhalbench"], args.output, "mmhalbench")
 
     # ── Summary ───────────────────────────────────────────────────────────────
     print("\n" + "="*70)
@@ -1489,20 +1632,20 @@ def main():
     print("="*70)
     print(f"Model: {args.model}  |  method={args.method}  |  {gamma_str}")
 
-    gammas = args.gamma if args.method in ("srfe", "srfc2", "srfc3") else [0.0]
+    gammas = args.gamma if args.method == "srfe" else [0.0]
 
     def _p(v): return f"{v*100:.2f}%"
 
     if "mmvp" in results:
         r = results["mmvp"]
         for b in gammas:
-            label = f"β={b}" if args.method in ("srfe", "srfc2", "srfc3") else "SRF"
+            label = f"β={b}" if args.method == "srfe" else "SRF"
             print(f"\nMMVP  {label}: pair={_p(r['method_pair'][b])}  img={_p(r['method_img'][b])}")
 
     if "pope" in results:
         r = results["pope"]
         for b in gammas:
-            label = f"β={b}" if args.method in ("srfe", "srfc2", "srfc3") else "SRF"
+            label = f"β={b}" if args.method == "srfe" else "SRF"
             ov = r["overall"][b]
             print(f"\nPOPE (n={ov['n']})  {label}: "
                   f"acc={_p(ov['acc'])}  prec={_p(ov['precision'])}  "
@@ -1511,13 +1654,13 @@ def main():
     if "vlmbias" in results:
         r = results["vlmbias"]
         for b in gammas:
-            label = f"β={b}" if args.method in ("srfe", "srfc2", "srfc3") else "SRF"
+            label = f"β={b}" if args.method == "srfe" else "SRF"
             print(f"\nVLM Bias (n={r['n']})  {label}: {_p(r['method'][b])}")
 
     if "mme" in results:
         r = results["mme"]
         for b in gammas:
-            label = f"β={b}" if args.method in ("srfe", "srfc2", "srfc3") else "SRF"
+            label = f"β={b}" if args.method == "srfe" else "SRF"
             print(f"\nMME  {label}: mme_score={r['method_mme_score'][b]:.2f}  "
                   f"raw={r['method_correct'][b]}/{r['n']}  acc={_p(r['method_acc'][b])}  "
                   f"pair={_p(r['method_pair'][b])}  "
@@ -1526,7 +1669,7 @@ def main():
     if "vlind" in results:
         r = results["vlind"]
         for b in gammas:
-            label = f"β={b}" if args.method in ("srfe", "srfc2", "srfc3") else "SRF"
+            label = f"β={b}" if args.method == "srfe" else "SRF"
             print(f"\nVLind-Bench (n={r['n_samples']})  {label}: "
                   f"pair_acc={_p(r['pair_acc'][b])}  q_acc={_p(r['q_acc'][b])}")
 
@@ -1536,7 +1679,7 @@ def main():
             for b in gammas:
                 if b in r["scores"]:
                     s = r["scores"][b]
-                    label = "SRF" if args.method not in ("srfe", "srfc2") else f"γ={b}"
+                    label = "SRF" if args.method != "srfe" else f"γ={b}"
                     print(f"\nMMHal-Bench (n={r['n']})  {label}: "
                           f"Score={s['score']:.2f}  Hal%={s['hal_pct']:.1f}%")
         else:

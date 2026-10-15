@@ -65,7 +65,7 @@ def reset_for_dataset(
         _CD_BETA = cd_beta
 
 
-def prepare_sample(inp, img_start, img_end, image, question, model, processor) -> None:
+def prepare_sample(inp, img_start, img_end, image, question, model, processor, **kwargs) -> None:
     """Create diffusion-noisy pixel_values for the current sample."""
     global _noisy_inp
     patch._STATE["method"] = "baseline"
@@ -97,7 +97,7 @@ def _combine(logits: torch.Tensor, logits_cd: torch.Tensor) -> torch.Tensor:
     return diffs.masked_fill(logits < cutoff, -float("inf"))
 
 
-def get_contrastive_logits(model, inp: dict, beta: float = None) -> torch.Tensor:
+def get_contrastive_logits(model, inp: dict, beta: float = None, **kwargs) -> torch.Tensor:
     """Single-step VCD: two forward passes → combined logits [1, vocab]."""
     patch._STATE["method"] = "baseline"
     with torch.inference_mode():
@@ -110,6 +110,7 @@ def generate_contrastive(
     model, inp: dict, processor,
     beta: float = None,
     max_new_tokens: int = 20,
+    **kwargs,
 ) -> list[int]:
     """
     Greedy VCD generation — two KV caches (original + noisy) run in parallel.

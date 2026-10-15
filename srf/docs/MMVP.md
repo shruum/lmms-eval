@@ -58,7 +58,7 @@ conda run -n mllm python srf/eval.py \
 | `layer_end` | 15 | optimal from sweep (8-15); 8-14 identical in current pipeline |
 | `alpha` (boost) | 4.0 | swept 2.0–12.0; 4.0–5.0 are equivalent ceiling |
 | `eps` (background suppression) | 0.2 | 0.2 > 0.0 > 0.5; mild suppression optimal |
-| `sys_beta` (system-prompt suppression) | 0.10 | 0.10 > 0.0 (no suppression); config default 0.30 is suboptimal |
+| `sys_beta` (system-prompt suppression) | ~~0.10~~ **0.30** | ⚠️ CORRECTED 2026-09-16 — the 0.10 claim is contradicted by this repo's own logs: `results/srf_base_best/mmvp_le15_sysbeta0.1_generate.log` = 39.33% vs 42.00% at the 0.30 default. The 0.10 figure appears to come from the old autoresearch harness, not `eval.py`. Use 0.30. |
 | `saliency_mode` | `clip` | basic clip better than clip_v3 for MMVP — see below |
 | `head_top_k_pct` | 0.20 | 20% of heads; 0.10 and 0.30 both worse |
 | `clip_top_k_pct` | 0.30 | insensitive — 0.20 and 0.30 identical |
@@ -201,6 +201,42 @@ Re-calibration triggered automatically when `head_top_k_pct` changes.
 
 ---
 
+## Head Calibration — per-layer selection (2026-09-16)
+
+Script: `srf/head_calibration.py` | Log: `/tmp/head_calibration_mmvp.log`
+JSON: `results/ablation/head_calibration_mmvp_qwen3b.json`
+
+All at the **published** anchor (`clip_full_gate_v3`, alpha=2.0, layers [8,16],
+eps=0.2, sys_beta=0.30, sigma=20, htk=0.20) with full SRF + foveation. ONLY head
+selection varies.
+
+| Mode | Pair | dref | Img |
+|---|---|---|---|
+| `global` — shipped layer-agnostic mask (reference) | 43.33 | — | 69.67 |
+| `per_layer` (S1) — mean image attention per layer | 44.00 | +0.67 | 70.33 |
+| `saliency` (S3) — corr(head attention, CLIP saliency) per layer | **46.00** | **+2.67** | **71.33** |
+
+`global` reproduced 43.33/69.67 exactly, so deltas are attributable to head
+selection alone. 46.00 exceeds SRF-E's 45.33 **without SRF-E's extra forward pass**.
+
+Jaccard overlap with the shipped mask inside [8,16]: S1 0.222, S3 0.167 — and 0.0 at
+layers 9, 10, 12. The shipped global mask selects different heads outright in much of
+the fusion zone.
+
+Cost: unchanged at inference (1 CLIP pass + 1 LLM forward, zero extra LLM passes).
+S3 adds 20 CLIP passes to one-time calibration.
+
+⚠️ NOT yet validated: S3 calibrated on 14/20 samples (v3 gate discarded 6); 46.00 vs
+43.33 = 69 vs 65 pairs of 150; single seed; MMVP only. The shipped default is
+unchanged pending a seed-robustness check and POPE/VLMBias/MME re-runs.
+
+### Supersedes the head sweep below
+The `head_top_k_pct` sweep in this file was run with the layer-agnostic mask and a
+single global selection. It found 0.20 optimal *given that selection scheme*; it says
+nothing about the per-layer schemes above, which were never swept.
+
+---
+
 ## Key Findings & Gotchas
 
 1. **`phase="both"` is essential for MMVP.** Generation-only phase gives no improvement (A/B decision happens at prefill). Adding prefill boost = +2pp.
@@ -212,6 +248,7 @@ Re-calibration triggered automatically when `head_top_k_pct` changes.
 4. **Old autoresearch harness gives 44%** — same model.generate() approach but without the bad-noun gate (bad nouns get uniform boost in old code; current code falls back to baseline). The 2pp gap is this behavioral difference.
 
 5. **CLIP calibration is layer-agnostic.** Head selection (`identify_visual_heads`) scores across all layers regardless of `layer_end`. Changing `layer_end` only affects which layers receive the boost, not which heads are selected.
+   ⚠️ **This contradicts the paper**, which specifies per-layer selection `H*_l = TopK_h(E_c[rho_{l,h}])`. Fixing it improves MMVP — see "Head Calibration" below.
 
 6. **config.py has SRF-E-tuned defaults** (`alpha=2.0, le=16`). Always override with `--alpha 4.0 --layer_end 15` for MMVP SRF base.
 

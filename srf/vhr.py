@@ -58,7 +58,7 @@ def _compute_target_layers(n_layers: int) -> set:
 
 def _get_decoder_layers(model: Any):
     """Return list of decoder layers (Qwen or LLaVA)."""
-    lm = model.language_model
+    lm = patch.get_language_model(model)
     if hasattr(lm, "layers"):
         return lm.layers
     if hasattr(lm, "model") and hasattr(lm.model, "layers"):
@@ -122,7 +122,7 @@ def setup(model, processor, calib_dataset: str = "pope") -> None:
     # Activate baseline patch (needed for current_layer tracking by qwen_attn_patch)
     patch.patch_model(model, method="baseline", value=1.0)
 
-    lm_cfg  = model.language_model.config
+    lm_cfg  = patch.get_language_model(model).config
     n_layers = getattr(lm_cfg, "num_hidden_layers", 28)
     n_heads  = getattr(lm_cfg, "num_attention_heads", 16)
     hidden   = getattr(lm_cfg, "hidden_size", 2048)

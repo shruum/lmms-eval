@@ -115,7 +115,7 @@ def _ilvad_softmax(input, dim=-1, dtype=None, **kwargs):
 # ---------------------------------------------------------------------------
 
 def _get_decoder_layers(model):
-    lm = model.language_model
+    lm = patch.get_language_model(model)
     if hasattr(lm, "layers"):
         return lm.layers
     if hasattr(lm, "model") and hasattr(lm.model, "layers"):

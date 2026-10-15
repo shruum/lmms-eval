@@ -142,6 +142,19 @@ IMAGE_TOKEN = "<|image_pad|>"   # Qwen2.5-VL image-pad token string
 # Architecture helpers — support Qwen2.5-VL and LLaVA without hardcoding
 # ---------------------------------------------------------------------------
 
+def get_language_model(model: Any) -> Any:
+    """Return the language-model submodule across Transformers versions.
+
+      - Transformers 4.x : model.language_model
+      - Transformers 5.x : model.model.language_model  (Qwen2.5-VL and LLaVA)
+    """
+    if hasattr(model, "language_model"):
+        return model.language_model
+    if hasattr(model, "model") and hasattr(model.model, "language_model"):
+        return model.model.language_model
+    raise AttributeError(f"Cannot find language_model on {type(model).__name__}")
+
+
 def _get_decoder_layers(model: Any) -> Any:
     """Return the decoder layer list for any supported LMM architecture.
 
@@ -149,7 +162,7 @@ def _get_decoder_layers(model: Any) -> Any:
       - Qwen2.5-VL  : model.language_model          is Qwen2VLModel     → .layers
       - LLaVA-1.5   : model.language_model          is LlamaForCausalLM → .model.layers
     """
-    lm = model.language_model
+    lm = get_language_model(model)
     if hasattr(lm, "layers"):
         return lm.layers
     if hasattr(lm, "model") and hasattr(lm.model, "layers"):
@@ -641,7 +654,7 @@ def patch_model(model: Any, method: str = "baseline", value: float = 1.0) -> Non
     _STATE["value"]   = value
 
     if not _HOOKS:
-        lm = model.language_model
+        lm = get_language_model(model)
 
         def _lm_pre(module, args):
             _STATE["in_decoder"] = True

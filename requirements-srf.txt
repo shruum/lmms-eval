@@ -1,0 +1,20 @@
+# Canonical environment for srf-final (conda env "srf", Python 3.10).
+# Matches the local Qwen setup; all srf-final reproduction checks were run with it.
+#   conda create -n srf python=3.10 && conda activate srf
+#   pip install -r requirements-srf.txt --extra-index-url https://download.pytorch.org/whl/cu128
+# Exact lock of every package: requirements-srf.lock.txt
+# Results depend on GPU type and dtype (bf16 rounding); state both when reporting.
+torch==2.10.0
+torchvision==0.25.0
+transformers==4.57.6
+accelerate==1.12.0
+qwen-vl-utils==0.0.14
+pillow==10.4.0
+numpy==1.26.4
+datasets==4.8.5
+pandas==2.3.3
+openai==2.37.0
+scipy==1.15.3
+huggingface_hub==0.36.2
+safetensors==0.7.0
+tokenizers==0.22.2

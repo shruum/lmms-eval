@@ -77,6 +77,8 @@ def parse_args():
                         "vhr = Vision-aware Head Reinforcement; ilvad = Inter-Layer Visual Attn Discrepancy; "
                         "baseline = no intervention")
     p.add_argument("--model",    default=CFG.DEFAULT_MODEL)
+    p.add_argument("--dtype",    default="bfloat16", choices=["bfloat16", "float16", "float32"],
+                   help="Model weight/compute dtype (default bfloat16, used for all reported results)")
     p.add_argument("--datasets", nargs="+", default=["mmvp", "pope"],
                    choices=["mmvp", "pope", "vlmbias", "mme", "vlind", "mmhalbench"])
     p.add_argument("--gamma",       type=float, nargs="+", default=[CFG.SRFE_DEFAULT_GAMMA],
@@ -269,9 +271,13 @@ def parse_args():
 # Model loading
 # ---------------------------------------------------------------------------
 
-def load_model(model_id: str):
+_DTYPES = {"bfloat16": torch.bfloat16, "float16": torch.float16, "float32": torch.float32}
+
+
+def load_model(model_id: str, dtype: str = "bfloat16"):
     global patch
-    print(f"Loading {model_id}…")
+    torch_dtype = _DTYPES[dtype]
+    print(f"Loading {model_id}…  dtype={dtype}")
 
     cfg        = AutoConfig.from_pretrained(model_id, trust_remote_code=True)
     model_type = getattr(cfg, "model_type", None)
@@ -282,14 +288,14 @@ def load_model(model_id: str):
         patch = _llava_patch
         print(f"  Using LLaVA attention patch")
         model = LlavaForConditionalGeneration.from_pretrained(
-            model_id, torch_dtype=torch.bfloat16, attn_implementation="eager",
+            model_id, torch_dtype=torch_dtype, attn_implementation="eager",
         ).eval().cuda()
         processor = AutoProcessor.from_pretrained(model_id)
     else:
         import qwen_attn_patch as _qwen_patch
         patch = _qwen_patch
         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-            model_id, torch_dtype=torch.bfloat16,
+            model_id, torch_dtype=torch_dtype,
             device_map="auto", attn_implementation="eager",
         ).eval()
         processor = AutoProcessor.from_pretrained(model_id,
@@ -1562,7 +1568,7 @@ def main():
     else:
         raise ValueError(f"Unknown method: {args.method}")
 
-    model, processor = load_model(args.model)
+    model, processor = load_model(args.model, args.dtype)
     arch = CFG.get_arch(args.model)
     if arch["image_token"] is not None:
         img_token_id = processor.tokenizer.convert_tokens_to_ids(arch["image_token"])

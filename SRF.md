@@ -1,3 +1,5 @@
+> **Start with `SRF_START_HERE.md`** (branch `srf-final`, env `srf`, verified numbers). The docs below are Qwen research history.
+
 # SRF Documentation
 
 All research docs for the Semantic Re-Focus (SRF) project live in `srf/docs/`.

@@ -1,3 +1,5 @@
+> **Done (2026-10-19):** both branches are merged into `srf-final` and verified per sample; see `SRF_START_HERE.md`. Kept as pre-merge analysis.
+
 # Branch diff: `autoresearch/mmvp-srf` vs `srf-llava`
 
 Written 2026-09-20. Companion to `SRF_METHOD_CARD.md` (what the method is) and

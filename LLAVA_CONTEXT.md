@@ -1,3 +1,5 @@
+> **Superseded (2026-10-19):** use branch `srf-final` + conda env `srf`; see `SRF_START_HERE.md`. This file is LLaVA sweep history. Its commands still pass `--neg_absent_alpha`; drop that flag.
+
 # LLaVA SRF Experiment Context
 **Last updated: 2026-09-23**
 

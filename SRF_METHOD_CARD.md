@@ -1,3 +1,5 @@
+> **Note (2026-10-19):** current branch is `srf-final`, env `srf`; see `SRF_START_HERE.md`. The Qwen MMVP 45.33 below was measured on an RTX 2080 Ti in bf16 and does not hold on A100/H100 or in fp32 (§6 there).
+
 # SRF method card
 
 One page. What the method is, what each component costs, and how to run it on

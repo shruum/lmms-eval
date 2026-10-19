@@ -1,3 +1,24 @@
+# SRF project — read `SRF_START_HERE.md` first
+
+This fork hosts the SRF (Semantic Re-Focus) research code under `srf/` and `my_analysis/`.
+`SRF_START_HERE.md` is the source of truth. The essentials:
+
+- **Branch:** `srf-final` (Qwen2.5-VL-3B + LLaVA-1.5-7B in one codebase). `srf-llava` and
+  `autoresearch/mmvp-srf` are frozen history; do not develop there.
+- **Env (Snellius):** `conda activate srf` (transformers 4.57.6, torch 2.10 cu128;
+  `requirements-srf.txt`). Entry point: `python -u srf/eval.py ...`.
+- **Data:** MMVP `/home/sgowda/datasets/MMVP`; MME / MMHal under `/home/sgowda/workspace/ILVAD/data/`.
+  New datasets go in `/home/sgowda/datasets/`.
+- **Always report GPU + dtype + env with numbers.** bf16 results shift across GPUs. The Qwen MMVP
+  SRF gain is not robust (fp32 negative, p ≥ 0.57); the LLaVA MME gain is robust.
+- **After core-code changes, run `srf_exp_runs/repro_check.sh`** and compare per sample (§5 of the start file).
+- SRF rules: LLaVA uses `--method srffovea` only, MME/MMHal only, no `neg_absent_alpha`;
+  hyperparameters only in `srf/config.py` + CLI.
+
+The sections below are the upstream lmms-eval development guidelines.
+
+---
+
 # Development Guidelines
 
 This document contains critical information about working with this codebase. Follow these guidelines precisely.
